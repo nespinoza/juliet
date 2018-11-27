@@ -621,12 +621,12 @@ def prior(cube, ndim=None, nparams=None):
     pcounter = 0
     for pname in priors.keys(): 
          if priors[pname]['type'] != 'fixed':
-             if dynesty:
+             if use_dynesty:
                  transformed_priors[pcounter] = transform_prior(cube[pcounter],priors[pname])
              else:
                  cube[pcounter] = transform_prior(cube[pcounter],priors[pname])
              pcounter += 1
-    if dynesty:
+    if use_dynesty:
         return transformed_priors
         
 
