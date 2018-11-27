@@ -100,6 +100,8 @@ parser.add_argument('--use_dynesty', dest='use_dynesty', action='store_true')
 parser.add_argument('-dynesty_bound', default='multi')
 # Method used to sample uniformly within the likelihood constraint, conditioned on the provided bounds:
 parser.add_argument('-dynesty_sample', default='rwalk')
+# Number of threads to use within dynesty (giving a number here assumes one wants to perform multithreading):
+parser.add_argument('-dynesty_nthreads', default='none')
 
 args = parser.parse_args()
 
@@ -110,6 +112,7 @@ dynamic = args.dynamic
 # Check dynesty options:
 dynesty_bound = args.dynesty_bound
 dynesty_sample = args.dynesty_sample
+dynesty_nthreads = args.dynesty_nthreads
 
 from dynesty.utils import resample_equal
 
@@ -907,12 +910,37 @@ if not os.path.exists(out_folder+'posteriors.pkl'):
         out['lnZerr'] = output.get_stats()['global evidence error']
     else:
         if dynamic:
-            sampler = dynesty.DynamicNestedSampler(loglike, prior, n_params, nlive=n_live_points, bound = dynesty_bound, sample = dynesty_sample)
+            if dynesty_nthreads == 'none':
+                sampler = dynesty.DynamicNestedSampler(loglike, prior, n_params, nlive=n_live_points, bound = dynesty_bound, sample = dynesty_sample)
+                # Run and get output:
+                sampler.run_nested()
+                results = sampler.results
+            else:
+                from multiprocessing import Pool
+                import contextlib
+                nthreads = int(dynesty_nthreads)
+                with contextlib.closing(Pool(processes=nthreads-1)) as executor:
+                    sampler = dynesty.DynamicNestedSampler(loglike, prior, n_params, nlive=n_live_points, \
+                                                           bound = dynesty_bound, sample = dynesty_sample, \
+                                                           pool=executor, queue_size=nthreads)
+                    sampler.run_nested()
+                    results = sampler.results
+                    
         else:
-            sampler = dynesty.NestedSampler(loglike, prior, n_params, nlive=n_live_points, bound = dynesty_bound, sample = dynesty_sample)
-        # Run and get output:
-        sampler.run_nested()
-        results = sampler.results
+            if dynesty_nthreads == 'none':
+                sampler = dynesty.NestedSampler(loglike, prior, n_params, nlive=n_live_points, bound = dynesty_bound, sample = dynesty_sample)
+                # Run and get output:
+                sampler.run_nested()
+                results = sampler.results
+            else:
+                from multiprocessing import Pool
+                nthreads = int(dynesty_nthreads)
+                with contextlib.closing(Pool(processes=nthreads-1)) as executor:
+                    sampler = dynesty.NestedSampler(loglike, prior, n_params, nlive=n_live_points,\
+                                                    bound = dynesty_bound, sample = dynesty_sample,\
+                                                    pool=executor, queue_size=nthreads)
+                    sampler.run_nested()
+                    results = sampler.results
         out['dynesty_output'] = results
         # Get weighted posterior:
         weights = np.exp(results['logwt'] - results['logz'][-1])
