@@ -640,7 +640,7 @@ if lcfilename is not None:
 G = 6.67408e-11 # mks
 
 # Maximum eccentricity limit:
-ecclim = 1.0
+ecclim = 0.95
 
 def loglike(cube, ndim=None, nparams=None):
     # Evaluate the log-likelihood. For this, first extract all inputs:
