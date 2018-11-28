@@ -3,8 +3,7 @@ juliet --- a versatile modelling tool for transiting and non-transiting exoplane
 
 ![Juliet logo](juliet.png?raw=true)
 
-Authors: Néstor Espinoza (espinoza@mpia.de)
-         Diana Kossakowski (kossakowski@mpia.de)
+Authors: Néstor Espinoza (espinoza@mpia.de) & Diana Kossakowski (kossakowski@mpia.de)
 
 DEPENDENCIES
 ------------
@@ -23,3 +22,4 @@ This code makes use of the following libraries:
 - **Astropy for time conversions** (http://www.astropy.org).
 - **The GNU Scientific Library** (https://www.gnu.org/software/gsl/)
 
+If you use `juliet`, please cite the above mentioned libraries. 
