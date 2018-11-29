@@ -735,8 +735,9 @@ def loglike(cube, ndim=None, nparams=None):
     # Compute combined log-likelihood for lightcurve data:
     log_likelihood = 0.0
     for instrument in inames_lc:
-        inst_model = lcmodel[instrument_indexes_lc[instrument]]*priors['mdilution_'+instrument]['cvalue'] \
-                     + priors['mflux_'+instrument]['cvalue']  
+        inst_model = (lcmodel[instrument_indexes_lc[instrument]]*priors['mdilution_'+instrument]['cvalue'] \
+                     + (1. - priors['mdilution_'+instrument]['cvalue']))*\
+                     (1./(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue'])) 
         residuals = f_lc[instrument_indexes_lc[instrument]] - inst_model
 
         # If not GP Detrend (which means no external parameters given for the instrument), 
@@ -1551,10 +1552,12 @@ if lcfilename is not None:
                 #print 't0',t0,'P',P,'p',p,'a',a,'inc',inc,'ecc,omega',ecc,omega,'q1',priors['q1_p'+str(iplanet)]['cvalue'],'q2',priors['q2_p'+str(iplanet)]['cvalue'],'coeff1,coeff2',coeff1,coeff2
 
                 if not lc_dictionary[instrument]['GPDetrend']:
-                    all_lc_models[j,:] = m_model.light_curve(params_model)*priors['mdilution_'+instrument]['cvalue'] + \
-                                         priors['mflux_'+instrument]['cvalue']
-                    all_lc_real_models[j,:] = lc_dictionary[instrument]['m'].light_curve(params_model)*priors['mdilution_'+instrument]['cvalue'] + \
-                                              priors['mflux_'+instrument]['cvalue']
+                    all_lc_models[j,:] = (m_model.light_curve(params_model)*priors['mdilution_'+instrument]['cvalue'] + \
+                                         (1. - priors['mdilution_'+instrument]['cvalue']))*\
+                                         (1./(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue']))
+                    all_lc_real_models[j,:] = (lc_dictionary[instrument]['m'].light_curve(params_model)*priors['mdilution_'+instrument]['cvalue'] + \
+                                              (1. - priors['mdilution_'+instrument]['cvalue']))*\
+                                              (1./(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue']))
                 else:
                     # Set current values to GP Vector:
                     #lc_dictionary[instrument]['GPVector'][0] = np.log((priors['sigma_w_'+instrument]['cvalue']*1e-6)**2.)
@@ -1598,8 +1601,9 @@ if lcfilename is not None:
                     lc_dictionary[instrument]['GPObject'].set_parameter_vector(lc_dictionary[instrument]['GPVector'])
 
                     # Generate deterministic model for the real data:
-                    deterministic_model = lc_dictionary[instrument]['m'].light_curve(params_model)*priors['mdilution_'+instrument]['cvalue'] + \
-                                              priors['mflux_'+instrument]['cvalue'] 
+                    deterministic_model = (lc_dictionary[instrument]['m'].light_curve(params_model)*priors['mdilution_'+instrument]['cvalue'] + \
+                                          (1. - priors['mdilution_'+instrument]['cvalue']))*\
+                                          (1./(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue']))
                     # Generate residuals with this model:
                     residuals = f_lc[instrument_indexes_lc[instrument]] - deterministic_model
                     # Predict sampled points:
@@ -1609,8 +1613,8 @@ if lcfilename is not None:
                     pred_mean,pred_var = lc_dictionary[instrument]['GPObject'].predict(residuals, X_model, return_var=True)
                     #pred_mean = lc_dictionary[instrument]['GPObject'].sample_conditional(residuals, X_model)#, return_var=True)
                     # Generate interpolated deterministic model plus GP 
-                    all_lc_models[j,:] = pred_mean + m_model.light_curve(params_model)*priors['mdilution_'+instrument]['cvalue'] + \
-                                         priors['mflux_'+instrument]['cvalue']
+                    all_lc_models[j,:] = pred_mean + (m_model.light_curve(params_model)*priors['mdilution_'+instrument]['cvalue'] + \
+                                         (1.-priors['mdilution_'+instrument]['cvalue']))*(1./(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue']))
                     
 
         # As before, once again compute median model and the respective error bands:
