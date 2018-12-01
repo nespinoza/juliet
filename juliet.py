@@ -1431,14 +1431,14 @@ if lcfilename is not None:
     ###############################################################
     ###############################################################
     ########### FOURTH PLOT: PHOTOMETRY BY PLANET  ################
-    ###############################################################
+    ########### ALSO, SAVE PHOTOMETRY BY PLANET    ################
     ###############################################################
 
     # Phased transits of each planet for each instrument on different plots:
     for nplanet in range(n_transit):
       iplanet = numbering_transit[nplanet]
       for instrument in inames_lc:
-        fig, axs = plt.subplots(2, 1,gridspec_kw = {'height_ratios':[3,1]}, figsize=(8.4,7))
+        fig, axs = plt.subplots(2, 1,gridspec_kw = {'height_ratios':[3,1]}, figsize=(9,7))
         sns.set_context("talk")
         sns.set_style("ticks")
         matplotlib.rcParams['mathtext.fontset'] = 'stix'
@@ -1640,13 +1640,32 @@ if lcfilename is not None:
             lcmodel[i_tsample] = np.median(all_lc_real_models[:,i_tsample])
 
         ax = axs[0]
-        # Plot data:
-        ax.plot(phases,f_lc[instrument_indexes_lc[instrument]],'.k',markersize=5,alpha=0.2)
-        # Plot binned data:
-        phases_bin,f_bin,f_bin_err = utils.bin_data(phases,f_lc[instrument_indexes_lc[instrument]],15)
-        ax.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=0.4)
+        # Calculate time baseline of observations. Useful to define bounds of the plotted data:
+        tbaseline = np.max(t_lc[instrument_indexes_lc[instrument]])-\
+                    np.min(t_lc[instrument_indexes_lc[instrument]])
 
-        fout = open(out_folder+'phased_lc_'+instrument+'.dat','w')
+        # Plot data. Alphas defined whether the time-baseline is 
+        # short (<0.5, most likely ground-based data) or large 
+        # (most likely space-based data):
+        if tbaseline < 0.5 or lc_dictionary[instrument]['resampling']:
+            alpha_notbinned = 0.5
+            alpha_binned = 0.8
+        else:
+            alpha_notbinned = 0.2
+            alpha_binned = 0.5
+        
+
+        if tbaseline > 0.5 and (not lc_dictionary[instrument]['resampling']):
+            ax.plot(phases,f_lc[instrument_indexes_lc[instrument]],'.k',markersize=5,alpha=alpha_notbinned)
+            phases_bin,f_bin,f_bin_err = utils.bin_data(phases,f_lc[instrument_indexes_lc[instrument]],15)
+            ax.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=alpha_binned)
+        else:
+            ax.errorbar(phases,f_lc[instrument_indexes_lc[instrument]],\
+                        yerr=np.sqrt((ferr_lc[instrument_indexes_lc[instrument]])**2 + \
+                             (np.median(out['posterior_samples']['sigma_w_'+instrument])*1e-6)**2),\
+                             fmt='.k',markersize=5,alpha=alpha_notbinned,elinewidth=1)
+
+        fout = open(out_folder+'phased_lc_planet'+str(iplanet)+'_'+instrument+'.dat','w')
         fout.write('# Phases \t Time \t Phased LC \t Model\n')
         for i in range(len(phases)):
             fout.write('{0:.10f} {1:.10f} {2:.10f} {3:.10f}\n'.format(phases[i],t_lc[i],f_lc[instrument_indexes_lc[instrument]][i],lcmodel[i]))
@@ -1676,15 +1695,20 @@ if lcfilename is not None:
             ax.set_ylim([1- depth - depth*0.5,1.001 + depth*0.5+0.001])
         else:
             if depth*1e6 > 1000.:
-                ax.set_ylim([1- depth - depth*0.5 -1000*1e-6,1.001 + depth*0.5])
+                ax.set_ylim([1- depth - depth*0.5 -1000*1e-6,1.001 + depth*0.2])
             else:
                 ax.set_ylim([1 - 1000*1e-6,1.001 + depth*0.5])
 
-        if depth*1e6 > 1000.:
-            ax.set_xlim([-0.1,0.1])
+        # Define the x-axis limits based on time baseline of observations. Basically if it is larger than 
+        # half a day, it is most likely space-based and we thus base our plot around the phased transit event. 
+        # If not, we base our plot around the expected ingress and egress:
+        if tbaseline>0.5:
+            if depth*1e6 > 1000.:
+                ax.set_xlim([-0.03,0.03])
+            else:
+                ax.set_xlim([-0.15,0.15])
         else:
-            ax.set_xlim([-0.15,0.15])
-
+            ax.set_xlim([np.min(phases),np.max(phases)])
         ax.get_xaxis().set_major_formatter(plt.NullFormatter())
 
         # Plot residuals:
@@ -1692,17 +1716,25 @@ if lcfilename is not None:
         # Plot zero line to guide the eye:
         ax.plot([-1e10,1e10],[0.,0.],'--',linewidth=2,color='black')
         # Plot residuals:
-        ax.plot(phases,(f_lc[instrument_indexes_lc[instrument]]-lcmodel)*1e6,'.k',markersize=5,alpha=0.2)
-        phases_bin,f_bin,f_bin_err = utils.bin_data(phases,(f_lc[instrument_indexes_lc[instrument]]-lcmodel)*1e6,15)
-        ax.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=0.4)
+        if tbaseline < 0.5 or lc_dictionary[instrument]['resampling']:
+            ax.errorbar(phases,(f_lc[instrument_indexes_lc[instrument]]-lcmodel)*1e6,\
+                        yerr=np.sqrt((ferr_lc[instrument_indexes_lc[instrument]]*1e6)**2 + \
+                             np.median(out['posterior_samples']['sigma_w_'+instrument])**2),\
+                             fmt='.k',markersize=5,elinewidth=1,alpha=alpha_notbinned)
+        else:
+            ax.plot(phases,(f_lc[instrument_indexes_lc[instrument]]-lcmodel)*1e6,'.k',markersize=5,alpha=alpha_notbinned)
+            phases_bin,f_bin,f_bin_err = utils.bin_data(phases,(f_lc[instrument_indexes_lc[instrument]]-lcmodel)*1e6,15)
+            ax.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=alpha_binned)
         ax.set_ylabel('Residuals (ppm)')
         ax.set_xlabel('Phase')
-        #ax.set_xlim([-0.1,0.1])
-        if depth*1e6 > 1000.:
-            ax.set_xlim([-0.1,0.1])
-            ax.set_ylim([-5000,5000])
+        if tbaseline>0.5:
+            if depth*1e6 > 1000.:
+                ax.set_xlim([-0.03,0.03])
+                ax.set_ylim([-2000,2000])
+            else:
+                ax.set_xlim([-0.15,0.15])
+                ax.set_ylim([-1000,1000])
         else:
-            ax.set_xlim([-0.15,0.15])
-            ax.set_ylim([-1000,1000])
+            ax.set_xlim([np.min(phases),np.max(phases)])
         plt.tight_layout()
         plt.savefig(out_folder+'phot_planet'+str(iplanet)+'_instrument_'+instrument+'.pdf')
