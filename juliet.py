@@ -990,6 +990,11 @@ else:
         Ar = (pu - pl)/(2. + pl + pu)
 
 print('Done!')
+# Write the posterior parameters to a file:
+if not os.path.exists(out_folder+'posteriors.dat'):
+    outpp = open(out_folder+'posteriors.dat','w')
+    utils.writepp(outpp,out)
+
 # Define number of samples we'll get to plot the models + uncertainties (default is all):
 nsims = out['posterior_samples']['unnamed'].shape[0]
 
