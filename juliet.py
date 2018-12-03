@@ -182,7 +182,7 @@ if lcfilename is not None:
     # time definition. If not, assume all times are TDB and thus convert all times to UTC:
     lctimedefs = args.lctimedef.split(',')
     if len(lctimedefs) == 1:
-        t_lc = utils.convert_time(lctimedefs[0].split()[0].lower()+'->utc',t_lc)
+        t_lc = utils.convert_time(lctimedefs[0].split('-')[-1].lower()+'->utc',t_lc)
     else:
         for lctimedef in lctimedefs:
             instrument,timedef = lctimedef.split('-')
@@ -192,7 +192,7 @@ if lcfilename is not None:
     ld_laws = args.ldlaw.split(',')
     if len(ld_laws) == 1:
         for i in range(ninstruments_lc):
-            lc_dictionary[inames_lc[i]]['ldlaw'] = ld_laws[0].split()[0].lower()
+            lc_dictionary[inames_lc[i]]['ldlaw'] = (ld_laws[0].split('-')[-1]).split()[0].lower()
     else:
         for ld_law in ld_laws:
             instrument,ld = ld_law.split('-')
@@ -377,6 +377,7 @@ if lceparamfile is not None:
             lc_dictionary[instrument]['GPObject'] = celerite.GP(kernel, mean=0.0)
             # Note order of GP Vector: logB, logL, logProt, logC, logJitter
             lc_dictionary[instrument]['GPVector'] = np.zeros(5)
+            lc_dictionary[instrument]['X'] = lc_dictionary[instrument]['X'][:,0]
             lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'],yerr=ferr_lc[instrument_indexes_lc[instrument]])          
 
         if lc_dictionary[instrument]['GPType'] == 'ExpSineSquaredSEKernel':
@@ -649,7 +650,6 @@ def loglike(cube, ndim=None, nparams=None):
         if priors[pname]['type'] != 'fixed':
             priors[pname]['cvalue'] = cube[pcounter]
             pcounter += 1
-
     # Photometric terms first:
     if lcfilename is not None:
         # Before everything continues, make sure periods are chronologically ordered (this is to avoid multiple modes due to 
@@ -1426,22 +1426,280 @@ if rvfilename is not None:
 
 # Finally, transit plots:
 if lcfilename is not None:
+
     ###############################################################
     ###############################################################
-    ########### THIRD PLOT: PHOTOMETRY BY INSTRUMENT  #############
+    #######     THIRD PLOT: PHOTOMETRY BY INSTRUMENT       ########  
+    #######     AS A FUNCTION OF TIME. IF GP, PLOT         ########
+    #######     GP + MODEL AND REMOVE GP (I.E. "DETREND")  ########
     ###############################################################
     ###############################################################
 
 
+    # First, photometry (time vs flux) per instrument on different plots. Top plot will be relative flux 
+    # vs time, lower plot residuals:
+    for instrument in inames_lc:
+        print(r'\t Generating plot for instrument '+instrument)
+        tbaseline = np.max(t_lc[instrument_indexes_lc[instrument]]) - np.min(t_lc[instrument_indexes_lc[instrument]])
+        if tbaseline > 0.5:
+            fig, axs = plt.subplots(2, 1,gridspec_kw = {'height_ratios':[3,1]}, figsize=(10,5))
+        else:
+            fig, axs = plt.subplots(2, 1,gridspec_kw = {'height_ratios':[3,1]}, figsize=(9,7))
+        sns.set_context("talk")
+        sns.set_style("ticks")
+        matplotlib.rcParams['mathtext.fontset'] = 'stix'
+        matplotlib.rcParams['font.family'] = 'STIXGeneral'
+        matplotlib.rcParams['font.size'] = '5'
+        matplotlib.rcParams['axes.linewidth'] = 1.2
+        matplotlib.rcParams['xtick.direction'] = 'out'
+        matplotlib.rcParams['ytick.direction'] = 'out'
+        matplotlib.rcParams['lines.markeredgewidth'] = 1
+
+        # Generate lightcurve models for each instrument, for each posterior sample:
+        tinstrument = t_lc[instrument_indexes_lc[instrument]]
+        all_lc_real_models = np.ones([nsims,len(tinstrument)])
+        all_lc_GP_models = np.zeros([nsims,len(tinstrument)])
+        GPmodel = np.ones(len(tinstrument))
+        # Generate model lightcurves for each sample in the current instrument:
+        for j in range(nsims):
+            # Sample the jth sample of parameter values:
+            for pname in priors.keys():
+                if priors[pname]['type'] != 'fixed':
+                    priors[pname]['cvalue'] = out['posterior_samples'][pname][j]
+            # For each transit model iterate through the 
+            # number of planets, multiplying their transit models:
+            for n in range(n_transit):
+                i = numbering_transit[n]
+                if lc_dictionary[instrument]['ldlaw'] != 'linear':
+                    coeff1,coeff2 = reverse_ld_coeffs(lc_dictionary[instrument]['ldlaw'],priors['q1_'+instrument]['cvalue'],\
+                                    priors['q2_'+instrument]['cvalue'])
+                    lc_dictionary[instrument]['params'].u = [coeff1,coeff2]
+                else:
+                    lc_dictionary[instrument]['params'].u = [priors['q1_'+instrument]['cvalue']]
+
+                if efficient_bp:
+                    if not fitrho:
+                        a,r1,r2,t0,P = priors['a_p'+str(i)]['cvalue'],priors['r1_p'+str(i)]['cvalue'],\
+                                       priors['r2_p'+str(i)]['cvalue'], priors['t0_p'+str(i)]['cvalue'], \
+                                       priors['P_p'+str(i)]['cvalue']
+                    else:
+                        rho,r1,r2,t0,P = priors['rho']['cvalue'],priors['r1_p'+str(i)]['cvalue'],\
+                                         priors['r2_p'+str(i)]['cvalue'], priors['t0_p'+str(i)]['cvalue'], \
+                                         priors['P_p'+str(i)]['cvalue']
+                        a = ((rho*G*((P*24.*3600.)**2))/(3.*np.pi))**(1./3.)
+                    if r1 > Ar:
+                        b,p = (1+pl)*(1. + (r1-1.)/(1.-Ar)),\
+                              (1-r2)*pl + r2*pu
+                    else:
+                        b,p = (1. + pl) + np.sqrt(r1/Ar)*r2*(pu-pl),\
+                              pu + (pl-pu)*np.sqrt(r1/Ar)*(1.-r2)
+                else:
+                    if not fitrho:
+                        a,b,p,t0,P = priors['a_p'+str(i)]['cvalue'],priors['b_p'+str(i)]['cvalue'],\
+                                     priors['p_p'+str(i)]['cvalue'], priors['t0_p'+str(i)]['cvalue'], \
+                                     priors['P_p'+str(i)]['cvalue']
+                    else:
+                        rho,b,p,t0,P = priors['rho']['cvalue'],priors['b_p'+str(i)]['cvalue'],\
+                                     priors['p_p'+str(i)]['cvalue'], priors['t0_p'+str(i)]['cvalue'], \
+                                     priors['P_p'+str(i)]['cvalue']
+                        a = ((rho*G*((P*24.*3600.)**2))/(3.*np.pi))**(1./3.)
+                if ecc_parametrization['transit'][i] == 0:
+                    ecc,omega = priors['ecc_p'+str(i)]['cvalue'],priors['omega_p'+str(i)]['cvalue']
+                elif ecc_parametrization['transit'][i] == 1:
+                    ecc = np.sqrt(priors['ecosomega_p'+str(i)]['cvalue']**2+priors['esinomega_p'+str(i)]['cvalue']**2)
+                    omega = np.arctan2(priors['esinomega_p'+str(i)]['cvalue'],priors['ecosomega_p'+str(i)]['cvalue'])*180./np.pi
+                else:
+                    ecc = priors['secosomega_p'+str(i)]['cvalue']**2+priors['sesinomega_p'+str(i)]['cvalue']**2
+                    omega = np.arctan2(priors['sesinomega_p'+str(i)]['cvalue'],priors['secosomega_p'+str(i)]['cvalue'])*180./np.pi
+
+                ecc_factor = (1. + ecc*np.sin(omega * np.pi/180.))/(1. - ecc**2)
+                inc_inv_factor = (b/a)*ecc_factor
+                inc = np.arccos(inc_inv_factor)*180./np.pi
+                lc_dictionary[instrument]['params'].t0 = t0 
+                lc_dictionary[instrument]['params'].per = P
+                lc_dictionary[instrument]['params'].rp = p
+                lc_dictionary[instrument]['params'].a = a
+                lc_dictionary[instrument]['params'].inc = inc
+                lc_dictionary[instrument]['params'].ecc = ecc
+                lc_dictionary[instrument]['params'].w = omega
+                all_lc_real_models[j,:] = all_lc_real_models[j,:]*\
+                                          lc_dictionary[instrument]['m'].light_curve(lc_dictionary[instrument]['params'])
+
+
+            all_lc_real_models[j,:] = (all_lc_real_models[j,:]*priors['mdilution_'+instrument]['cvalue'] + \
+                                      (1. - priors['mdilution_'+instrument]['cvalue']))*\
+                                      (1./(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue']))
+
+            if lc_dictionary[instrument]['GPDetrend']:
+                # Set current values to GP Vector:
+                if lc_dictionary[instrument]['GPType'] == 'SEKernel':
+                    # Save the log(variance) of the jitter term on the current GP vector:
+                    lc_dictionary[instrument]['GPVector'][0] = np.log((priors['sigma_w_'+instrument]['cvalue']*1e-6)**2.)
+                    # Save pooled variance of the GP process:
+                    lc_dictionary[instrument]['GPVector'][1] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']*1e-6)**2.)
+                    # Now save (log of) coefficients of each GP term:
+                    for i in range(lc_dictionary[instrument]['nX']):
+                        lc_dictionary[instrument]['GPVector'][2+i] = np.log(1./priors['GP_alpha'+str(i)+'_'+lc_dictionary[instrument]['GP_alpha'+str(i)]]['cvalue'])
+                if lc_dictionary[instrument]['GPType'] == 'ExpSineSquaredSEKernel':
+                    # Save the log(variance) of the jitter term on the current GP vector:
+                    lc_dictionary[instrument]['GPVector'][0] = np.log((priors['sigma_w_'+instrument]['cvalue']*1e-6)**2.)
+                    # Save pooled log(variance) of the GP process:
+                    lc_dictionary[instrument]['GPVector'][1] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']*1e-6)**2.)
+                    # Save log-alpha:
+                    lc_dictionary[instrument]['GPVector'][2] = np.log(1./priors['GP_alpha_'+lc_dictionary[instrument]['GP_alpha']]['cvalue'])
+                    # Save the Gamma:
+                    lc_dictionary[instrument]['GPVector'][3] = priors['GP_Gamma_'+lc_dictionary[instrument]['GP_Gamma']]['cvalue']
+                    # And save log(Prot):
+                    lc_dictionary[instrument]['GPVector'][4] = np.log(priors['GP_Prot_'+lc_dictionary[instrument]['GP_Prot']]['cvalue'])
+                if lc_dictionary[instrument]['GPType'] == 'CeleriteQPKernel':
+                    # Note order of GP Vector: logB, logL, logProt, logC, logJitter                  
+                    # Save the log(B) term of the current GP vector:
+                    lc_dictionary[instrument]['GPVector'][0] = np.log(priors['GP_B_'+lc_dictionary[instrument]['GP_B']]['cvalue'])
+                    # Save the log(L) term of the current GP vector:
+                    lc_dictionary[instrument]['GPVector'][1] = np.log(priors['GP_L_'+lc_dictionary[instrument]['GP_L']]['cvalue'])
+                    # Save the log(L) term of the current GP vector:
+                    lc_dictionary[instrument]['GPVector'][2] = np.log(priors['GP_Prot_'+lc_dictionary[instrument]['GP_Prot']]['cvalue'])
+                    # Save the log(L) term of the current GP vector:
+                    lc_dictionary[instrument]['GPVector'][3] = np.log(priors['GP_C_'+lc_dictionary[instrument]['GP_C']]['cvalue'])
+                    # Save the log(L) term of the current GP vector:
+                    lc_dictionary[instrument]['GPVector'][4] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)
+
+                lc_dictionary[instrument]['GPObject'].set_parameter_vector(lc_dictionary[instrument]['GPVector'])
+                # Generate residuals with this model:
+                residuals = f_lc[instrument_indexes_lc[instrument]] - all_lc_real_models[j,:]
+                # Predict sampled points:
+                pred_mean = lc_dictionary[instrument]['GPObject'].predict(residuals, lc_dictionary[instrument]['X'], return_var=False,return_cov=False)
+                all_lc_GP_models[j,:] = pred_mean
+                all_lc_real_models[j,:] = all_lc_real_models[j,:] + pred_mean
+
+        # As before, once again compute median model and the respective error bands:
+        omedian_model = np.zeros(len(tinstrument))
+        omodel_up1, omodel_down1 = np.zeros(len(tinstrument)),np.zeros(len(tinstrument))
+        omodel_up2, omodel_down2 = np.zeros(len(tinstrument)),np.zeros(len(tinstrument))
+        omodel_up3, omodel_down3 = np.zeros(len(tinstrument)),np.zeros(len(tinstrument))
+
+        for i_tsample in range(len(tinstrument)):
+            # Compute quantiles for the full model:
+            val,valup1,valdown1 = utils.get_quantiles(all_lc_real_models[:,i_tsample])
+            val,valup2,valdown2 = utils.get_quantiles(all_lc_real_models[:,i_tsample],alpha=0.95)
+            val,valup3,valdown3 = utils.get_quantiles(all_lc_real_models[:,i_tsample],alpha=0.99)
+            omedian_model[i_tsample] = val
+            omodel_up1[i_tsample],omodel_down1[i_tsample] = valup1,valdown1
+            omodel_up2[i_tsample],omodel_down2[i_tsample] = valup2,valdown2
+            omodel_up3[i_tsample],omodel_down3[i_tsample] = valup3,valdown3
+
+        # Do the same for the GP (if no GP, this will be an array of zeros):
+        for i_tsample in range(len(tinstrument)):
+            GPmodel[i_tsample] = np.median(all_lc_GP_models[:,i_tsample])
+
+        ax = axs[0]
+        # Calculate time baseline of observations. Useful to define bounds of the plotted data:
+        tbaseline = np.max(tinstrument)-np.min(tinstrument)
+        
+        # Plot data. Alphas defined whether the time-baseline is 
+        # short (<0.5, most likely ground-based data) or large 
+        # (most likely space-based data):
+        if tbaseline < 0.5:
+            alpha_notbinned = 0.5
+            alpha_binned = 0.8
+        else:
+            alpha_notbinned = 0.2
+            alpha_binned = 0.5
+
+
+        tzero = 2457000
+        #if tbaseline > 0.5 and (not lc_dictionary[instrument]['resampling']):
+        #    ax.plot(tinstrument-tzero,f_lc[instrument_indexes_lc[instrument]],'.k',markersize=5,alpha=alpha_notbinned)
+        #    phases_bin,f_bin,f_bin_err = utils.bin_data(tinstrument-tzero,f_lc[instrument_indexes_lc[instrument]],15)
+        #    ax.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=alpha_binned)
+        #else:
+        ax.errorbar(tinstrument-tzero,f_lc[instrument_indexes_lc[instrument]],\
+                    yerr=np.sqrt((ferr_lc[instrument_indexes_lc[instrument]])**2 + \
+                         (np.median(out['posterior_samples']['sigma_w_'+instrument])*1e-6)**2),\
+                         fmt='.k',markersize=1,alpha=alpha_notbinned,elinewidth=1)
+
+        fout = open(out_folder+'time_lc_'+instrument+'.dat','w')
+        fout.write('# Time \t Data \t Error \t Model\n')
+        ferr_instrument = np.sqrt((ferr_lc[instrument_indexes_lc[instrument]])**2 + \
+                          (np.median(out['posterior_samples']['sigma_w_'+instrument])*1e-6)**2)
+        for i in range(len(tinstrument)):
+            fout.write('{0:.10f} {1:.10f} {2:.10f} {3:.10f}\n'.format(tinstrument[i],f_lc[instrument_indexes_lc[instrument]][i],\
+                                                                      ferr_instrument[i],omedian_model[i]))
+        fout.close()
+        # Now plot the phased model. Compute sorting indexes as well and plot sorted phases:
+        ax.fill_between(tinstrument-tzero,omodel_down1,omodel_up1,color='cornflowerblue',alpha=0.25)
+        ax.fill_between(tinstrument-tzero,omodel_down2,omodel_up2,color='cornflowerblue',alpha=0.25)
+        ax.fill_between(tinstrument-tzero,omodel_down3,omodel_up3,color='cornflowerblue',alpha=0.25)
+        ax.plot(tinstrument-tzero,omedian_model,'-',linewidth=1,color='black')
+        ax.set_ylabel('Relative flux')
+
+        ax.set_ylim([np.min(omedian_model) - np.max(ferr_instrument)*7.5,np.max(omedian_model)+np.max(ferr_instrument)*7.5])
+        # Define the x-axis limits based on time baseline of observations. Basically if it is larger than 
+        # half a day, it is most likely space-based and we thus base our plot around the phased transit event. 
+        # If not, we base our plot around the expected ingress and egress:
+        ax.set_xlim([np.min(tinstrument-tzero),np.max(tinstrument-tzero)])
+        ax.get_xaxis().set_major_formatter(plt.NullFormatter())
+
+        # Plot residuals:
+        ax = axs[1]
+        # Plot zero line to guide the eye:
+        ax.plot([-1e10,1e10],[0.,0.],'--',linewidth=2,color='black')
+        # Plot residuals:
+        #if tbaseline < 0.5:
+        ax.errorbar(tinstrument-tzero,(f_lc[instrument_indexes_lc[instrument]]-omedian_model)*1e6,\
+                    yerr=np.sqrt((ferr_lc[instrument_indexes_lc[instrument]]*1e6)**2 + \
+                         np.median(out['posterior_samples']['sigma_w_'+instrument])**2),\
+                         fmt='.k',markersize=2,elinewidth=1,alpha=alpha_notbinned)
+        #else:
+        #    #ax.plot(tinstrument-tzero,(f_lc[instrument_indexes_lc[instrument]]-omedian_model)*1e6,'.k',markersize=5,alpha=alpha_notbinned)
+        #    #phases_bin,f_bin,f_bin_err = utils.bin_data(tinstrument,(f_lc[instrument_indexes_lc[instrument]]-omedian_model)*1e6,15)
+        #    #ax.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=alpha_binned)
+        ax.set_ylabel('Residuals (ppm)')
+        ax.set_xlabel('Time (BJD - '+str(tzero)+')')
+        ax.set_ylim([-np.max(ferr_instrument)*7.5*1e6,np.max(ferr_instrument)*7.5*1e6])
+        ax.set_xlim([np.min(tinstrument-tzero),np.max(tinstrument-tzero)])
+        plt.tight_layout()
+        plt.savefig(out_folder+'phot_vs_time_instrument_'+instrument+'.pdf')
+        # If GPDetrend, remove GP component, set the detrend to false so next plot shows the GP-corrected/detrended photometry:
+        if lc_dictionary[instrument]['GPDetrend']:
+            f_lc[instrument_indexes_lc[instrument]] = f_lc[instrument_indexes_lc[instrument]] - GPmodel
+            lc_dictionary[instrument]['GPDetrend'] = False
+
     ###############################################################
     ###############################################################
-    ########### FOURTH PLOT: PHOTOMETRY BY PLANET  ################
-    ########### ALSO, SAVE PHOTOMETRY BY PLANET    ################
+    ########## FOURTH PLOT: PHOTOMETRY BY PLANET, #################
+    ####### BY INSTRUMENT; SAVE PHOTOMETRY BY PLANET    ###########
+    ###############################################################
     ###############################################################
 
-    # Phased transits of each planet for each instrument on different plots:
+    # Before we begin, let us correct the observed transit lightcurve 
+    # from the dilutions and the mean fluxes of each instrument so we 
+    # ensure we have a mean of 1 out of transit in the plots. For this, 
+    # re-scale the fluxes --- and also re-scale the errors. Save all this 
+    # in a dictionary:
+    finstrument = {}
+    for instrument in inames_lc:
+        finstrument[instrument] = {}
+        if 'mdilution_'+instrument in out['posterior_samples'].keys():
+            D = np.median(out['posterior_samples']['mdilution_'+instrument])
+        else:
+            D = priors['mdilution_'+instrument]['cvalue']
+        if 'mflux_'+instrument in out['posterior_samples'].keys():
+            M = np.median(out['posterior_samples']['mflux_'+instrument])
+        else:
+            M = priors['mflux_'+instrument]['cvalue']
+        if 'sigma_w_'+instrument in out['posterior_samples'].keys():
+            sigma_w = np.median(out['posterior_samples']['sigma_w_'+instrument])
+        else:
+            sigma_w = priors['sigma_w_'+instrument]['cvalue']
+        
+        finstrument[instrument]['flux'] = (f_lc[instrument_indexes_lc[instrument]]*(1. + D*M) - (1.-D))/D
+        finstrument[instrument]['flux_error'] = np.sqrt(ferr_lc[instrument_indexes_lc[instrument]]**2 + (sigma_w*1e-6)**2)*((1. + D*M)/D)
+
+    # Now, lets begint with the hased transit plots of each planet for each instrument on different plots:
     for nplanet in range(n_transit):
       iplanet = numbering_transit[nplanet]
+
       for instrument in inames_lc:
         fig, axs = plt.subplots(2, 1,gridspec_kw = {'height_ratios':[3,1]}, figsize=(9,7))
         sns.set_context("talk")
@@ -1470,28 +1728,19 @@ if lcfilename is not None:
             model_phases = phases#np.linspace(-0.12,0.12,1000)     
             t_model_phases = t_lc[instrument_indexes_lc[instrument]]
 
-        # If GP detrend for the current instrument, interpolate the X values; zero them for values outside 
-        # the interpolation area:
-        if lc_dictionary[instrument]['GPDetrend']:
-            X_model = lc_dictionary[instrument]['X']
-            #X_model = np.zeros([len(t_model_phases),lc_dictionary[instrument]['X'].shape[1]])
-            #min_t,max_t = np.min(t_lc[instrument_indexes_lc[instrument]]),np.max(t_lc[instrument_indexes_lc[instrument]])
-            #for i in range(lc_dictionary[instrument]['X'].shape[1]):
-            #    xi = lc_dictionary[instrument]['X'][:,i]
-            #    interp_function = interp1d(t_lc[instrument_indexes_lc[instrument]], xi)
-            #    idx_interp = np.where((t_model_phases>min_t)&(t_model_phases<max_t))[0]
-            #    X_model[idx_interp,i] = interp_function(t_model_phases[idx_interp])
-            
-
         # Initialize model:
         if lc_dictionary[instrument]['resampling']:
-            params_model, m_model = init_batman(t_model_phases, law=lc_dictionary[instrument]['ldlaw'], n_ss=lc_dictionary[instrument]['nresampling'], exptime_ss=lc_dictionary[instrument]['exptimeresampling'])
+            params_model, m_model = init_batman(t_model_phases, law=lc_dictionary[instrument]['ldlaw'], \
+                                    n_ss=lc_dictionary[instrument]['nresampling'], \
+                                    exptime_ss=lc_dictionary[instrument]['exptimeresampling'])
         else:
             params_model, m_model = init_batman(t_model_phases, law=lc_dictionary[instrument]['ldlaw'])
 
         # Now generate the (oversampled and "real", with the real data sampling) models:
         all_lc_models = np.zeros([nsims,len(t_model_phases)])
         all_lc_real_models = np.zeros([nsims,len(phases)])
+        # Define vector that will save the planetary model *without* the current planet (to remove it from the data):
+        all_lc_real_models_no_planet = np.ones([nsims,len(phases)])
         lcmodel = np.ones(len(t_model_phases))
         lcmodel_real = np.ones(len(phases))
         for j in range(nsims):
@@ -1500,6 +1749,7 @@ if lcfilename is not None:
                 if priors[pname]['type'] != 'fixed':
                     priors[pname]['cvalue'] = out['posterior_samples'][pname][j]
 
+            # First, generate the model for the planet under consideration:
             if lc_dictionary[instrument]['ldlaw'] != 'linear':
                 coeff1,coeff2 = reverse_ld_coeffs(lc_dictionary[instrument]['ldlaw'],priors['q1_'+instrument]['cvalue'],\
                                 priors['q2_'+instrument]['cvalue'])
@@ -1554,74 +1804,68 @@ if lcfilename is not None:
                 params_model.inc = inc
                 params_model.ecc = ecc
                 params_model.w = omega
-                #print 't0',t0,'P',P,'p',p,'a',a,'inc',inc,'ecc,omega',ecc,omega,'q1',priors['q1_p'+str(iplanet)]['cvalue'],'q2',priors['q2_p'+str(iplanet)]['cvalue'],'coeff1,coeff2',coeff1,coeff2
 
-                if not lc_dictionary[instrument]['GPDetrend']:
-                    all_lc_models[j,:] = (m_model.light_curve(params_model)*priors['mdilution_'+instrument]['cvalue'] + \
-                                         (1. - priors['mdilution_'+instrument]['cvalue']))*\
-                                         (1./(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue']))
-                    all_lc_real_models[j,:] = (lc_dictionary[instrument]['m'].light_curve(params_model)*priors['mdilution_'+instrument]['cvalue'] + \
-                                              (1. - priors['mdilution_'+instrument]['cvalue']))*\
-                                              (1./(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue']))
+                all_lc_models[j,:] = m_model.light_curve(params_model)
+                all_lc_real_models[j,:] = lc_dictionary[instrument]['m'].light_curve(params_model)
+                    
+            # Now, generate the model for all the planets *minus* the planet in consideration: 
+            for n in range(n_transit):
+              i = numbering_transit[n]
+              if i != iplanet:
+                if lc_dictionary[instrument]['ldlaw'] != 'linear':
+                    coeff1,coeff2 = reverse_ld_coeffs(lc_dictionary[instrument]['ldlaw'],priors['q1_'+instrument]['cvalue'],\
+                                    priors['q2_'+instrument]['cvalue'])
+                    lc_dictionary[instrument]['params'].u = [coeff1,coeff2]
                 else:
-                    # Set current values to GP Vector:
-                    #lc_dictionary[instrument]['GPVector'][0] = np.log((priors['sigma_w_'+instrument]['cvalue']*1e-6)**2.)
-                    #lc_dictionary[instrument]['GPVector'][1] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']*1e-6)**2.)
-                    #for i in range(lc_dictionary[instrument]['nX']):
-                    #    lc_dictionary[instrument]['GPVector'][2+i] = np.log(1./priors['GP_alpha'+str(i)+'_'+lc_dictionary[instrument]['GP_alpha'+str(i)]]['cvalue'])
-                    #lc_dictionary[instrument]['GPObject'].set_parameter_vector(lc_dictionary[instrument]['GPVector'])
-                    
+                    lc_dictionary[instrument]['params'].u = [priors['q1_'+instrument]['cvalue']]
 
-                    if lc_dictionary[instrument]['GPType'] == 'SEKernel':
-                        # Save the log(variance) of the jitter term on the current GP vector:
-                        lc_dictionary[instrument]['GPVector'][0] = np.log((priors['sigma_w_'+instrument]['cvalue']*1e-6)**2.)
-                        # Save pooled variance of the GP process:
-                        lc_dictionary[instrument]['GPVector'][1] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']*1e-6)**2.)
-                        # Now save (log of) coefficients of each GP term:
-                        for i in range(lc_dictionary[instrument]['nX']):
-                            lc_dictionary[instrument]['GPVector'][2+i] = np.log(1./priors['GP_alpha'+str(i)+'_'+lc_dictionary[instrument]['GP_alpha'+str(i)]]['cvalue'])
-                    if lc_dictionary[instrument]['GPType'] == 'ExpSineSquaredSEKernel':
-                        # Save the log(variance) of the jitter term on the current GP vector:
-                        lc_dictionary[instrument]['GPVector'][0] = np.log((priors['sigma_w_'+instrument]['cvalue']*1e-6)**2.)
-                        # Save pooled log(variance) of the GP process:
-                        lc_dictionary[instrument]['GPVector'][1] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']*1e-6)**2.)
-                        # Save log-alpha:
-                        lc_dictionary[instrument]['GPVector'][2] = np.log(1./priors['GP_alpha_'+lc_dictionary[instrument]['GP_alpha']]['cvalue'])
-                        # Save the Gamma:
-                        lc_dictionary[instrument]['GPVector'][3] = priors['GP_Gamma_'+lc_dictionary[instrument]['GP_Gamma']]['cvalue']
-                        # And save log(Prot):
-                        lc_dictionary[instrument]['GPVector'][4] = np.log(priors['GP_Prot_'+lc_dictionary[instrument]['GP_Prot']]['cvalue'])
-                    if lc_dictionary[instrument]['GPType'] == 'CeleriteQPKernel':
-                        # Note order of GP Vector: logB, logL, logProt, logC, logJitter                  
-                        # Save the log(B) term of the current GP vector:
-                        lc_dictionary[instrument]['GPVector'][0] = np.log(priors['GP_B_'+lc_dictionary[instrument]['GP_B']]['cvalue'])
-                        # Save the log(L) term of the current GP vector:
-                        lc_dictionary[instrument]['GPVector'][1] = np.log(priors['GP_L_'+lc_dictionary[instrument]['GP_L']]['cvalue'])
-                        # Save the log(L) term of the current GP vector:
-                        lc_dictionary[instrument]['GPVector'][2] = np.log(priors['GP_Prot_'+lc_dictionary[instrument]['GP_Prot']]['cvalue'])
-                        # Save the log(L) term of the current GP vector:
-                        lc_dictionary[instrument]['GPVector'][3] = np.log(priors['GP_C_'+lc_dictionary[instrument]['GP_C']]['cvalue'])
-                        # Save the log(L) term of the current GP vector:
-                        lc_dictionary[instrument]['GPVector'][4] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)
-                    lc_dictionary[instrument]['GPObject'].set_parameter_vector(lc_dictionary[instrument]['GPVector'])
+                if efficient_bp:
+                    if not fitrho:
+                        a,r1,r2,t0,P = priors['a_p'+str(i)]['cvalue'],priors['r1_p'+str(i)]['cvalue'],\
+                                       priors['r2_p'+str(i)]['cvalue'], priors['t0_p'+str(i)]['cvalue'], \
+                                       priors['P_p'+str(i)]['cvalue']
+                    else:
+                        rho,r1,r2,t0,P = priors['rho']['cvalue'],priors['r1_p'+str(i)]['cvalue'],\
+                                         priors['r2_p'+str(i)]['cvalue'], priors['t0_p'+str(i)]['cvalue'], \
+                                         priors['P_p'+str(i)]['cvalue']
+                        a = ((rho*G*((P*24.*3600.)**2))/(3.*np.pi))**(1./3.)
+                    if r1 > Ar:
+                        b,p = (1+pl)*(1. + (r1-1.)/(1.-Ar)),\
+                              (1-r2)*pl + r2*pu
+                    else:
+                        b,p = (1. + pl) + np.sqrt(r1/Ar)*r2*(pu-pl),\
+                              pu + (pl-pu)*np.sqrt(r1/Ar)*(1.-r2)
+                else:
+                    if not fitrho:
+                        a,b,p,t0,P = priors['a_p'+str(i)]['cvalue'],priors['b_p'+str(i)]['cvalue'],\
+                                     priors['p_p'+str(i)]['cvalue'], priors['t0_p'+str(i)]['cvalue'], \
+                                     priors['P_p'+str(i)]['cvalue']
+                    else:
+                        rho,b,p,t0,P = priors['rho']['cvalue'],priors['b_p'+str(i)]['cvalue'],\
+                                     priors['p_p'+str(i)]['cvalue'], priors['t0_p'+str(i)]['cvalue'], \
+                                     priors['P_p'+str(i)]['cvalue']
+                        a = ((rho*G*((P*24.*3600.)**2))/(3.*np.pi))**(1./3.)
+                if ecc_parametrization['transit'][i] == 0:
+                    ecc,omega = priors['ecc_p'+str(i)]['cvalue'],priors['omega_p'+str(i)]['cvalue']
+                elif ecc_parametrization['transit'][i] == 1:
+                    ecc = np.sqrt(priors['ecosomega_p'+str(i)]['cvalue']**2+priors['esinomega_p'+str(i)]['cvalue']**2)
+                    omega = np.arctan2(priors['esinomega_p'+str(i)]['cvalue'],priors['ecosomega_p'+str(i)]['cvalue'])*180./np.pi
+                else:
+                    ecc = priors['secosomega_p'+str(i)]['cvalue']**2+priors['sesinomega_p'+str(i)]['cvalue']**2
+                    omega = np.arctan2(priors['sesinomega_p'+str(i)]['cvalue'],priors['secosomega_p'+str(i)]['cvalue'])*180./np.pi
 
-                    # Generate deterministic model for the real data:
-                    deterministic_model = (lc_dictionary[instrument]['m'].light_curve(params_model)*priors['mdilution_'+instrument]['cvalue'] + \
-                                          (1. - priors['mdilution_'+instrument]['cvalue']))*\
-                                          (1./(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue']))
-                    # Generate residuals with this model:
-                    residuals = f_lc[instrument_indexes_lc[instrument]] - deterministic_model
-                    # Predict sampled points:
-                    pred_mean,pred_var = lc_dictionary[instrument]['GPObject'].predict(residuals, lc_dictionary[instrument]['X'], return_var=True)
-                    all_lc_real_models[j,:] = deterministic_model + pred_mean
-                    # Predict interpolated model
-                    pred_mean,pred_var = lc_dictionary[instrument]['GPObject'].predict(residuals, X_model, return_var=True)
-                    #pred_mean = lc_dictionary[instrument]['GPObject'].sample_conditional(residuals, X_model)#, return_var=True)
-                    # Generate interpolated deterministic model plus GP 
-                    all_lc_models[j,:] = pred_mean + (m_model.light_curve(params_model)*priors['mdilution_'+instrument]['cvalue'] + \
-                                         (1.-priors['mdilution_'+instrument]['cvalue']))*(1./(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue']))
-                    
-
+                ecc_factor = (1. + ecc*np.sin(omega * np.pi/180.))/(1. - ecc**2)
+                inc_inv_factor = (b/a)*ecc_factor
+                inc = np.arccos(inc_inv_factor)*180./np.pi
+                lc_dictionary[instrument]['params'].t0 = t0
+                lc_dictionary[instrument]['params'].per = P
+                lc_dictionary[instrument]['params'].rp = p
+                lc_dictionary[instrument]['params'].a = a
+                lc_dictionary[instrument]['params'].inc = inc
+                lc_dictionary[instrument]['params'].ecc = ecc
+                lc_dictionary[instrument]['params'].w = omega
+                all_lc_real_models_no_planet[j,:] = all_lc_real_models_no_planet[j,:]*\
+                                                    lc_dictionary[instrument]['m'].light_curve(lc_dictionary[instrument]['params'])
         # As before, once again compute median model and the respective error bands:
         omedian_model = np.zeros(len(t_model_phases))
         omodel_up1, omodel_down1 = np.zeros(len(t_model_phases)),np.zeros(len(t_model_phases))
@@ -1639,10 +1883,12 @@ if lcfilename is not None:
             omodel_up3[i_tsample],omodel_down3[i_tsample] = valup3,valdown3
 
         lcmodel = np.zeros(len(phases))
-        # Do the same for the "real" sampling of the data:
+        lcmodel_noplanet = np.zeros(len(phases))
+        # Do the same for the "real" sampling of the data, and the model without the planet in consideration:
         for i_tsample in range(len(phases)):
             #val,valup1,valdown1 = utils.get_quantiles(all_lc_real_models[:,i_tsample])
             lcmodel[i_tsample] = np.median(all_lc_real_models[:,i_tsample])
+            lcmodel_noplanet[i_tsample] = np.median(all_lc_real_models_no_planet[:,i_tsample])
 
         ax = axs[0]
         # Calculate time baseline of observations. Useful to define bounds of the plotted data:
@@ -1661,20 +1907,31 @@ if lcfilename is not None:
         
 
         if tbaseline > 0.5 and (not lc_dictionary[instrument]['resampling']):
-            ax.plot(phases,f_lc[instrument_indexes_lc[instrument]],'.k',markersize=5,alpha=alpha_notbinned)
-            phases_bin,f_bin,f_bin_err = utils.bin_data(phases,f_lc[instrument_indexes_lc[instrument]],15)
+            ax.plot(phases,finstrument[instrument]['flux']/lcmodel_noplanet,'.k',markersize=5,alpha=alpha_notbinned)
+            phases_bin,f_bin,f_bin_err = utils.bin_data(phases,finstrument[instrument]['flux']/lcmodel_noplanet,15)
             ax.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=alpha_binned)
         else:
-            ax.errorbar(phases,f_lc[instrument_indexes_lc[instrument]],\
-                        yerr=np.sqrt((ferr_lc[instrument_indexes_lc[instrument]])**2 + \
-                             (np.median(out['posterior_samples']['sigma_w_'+instrument])*1e-6)**2),\
-                             fmt='.k',markersize=5,alpha=alpha_notbinned,elinewidth=1)
+            ax.errorbar(phases,finstrument[instrument]['flux']/lcmodel_noplanet,\
+                        yerr = finstrument[instrument]['flux_error']/lcmodel_noplanet,\
+                        fmt='.k',markersize=5,alpha=alpha_notbinned,elinewidth=1)
 
         fout = open(out_folder+'phased_lc_planet'+str(iplanet)+'_'+instrument+'.dat','w')
-        fout.write('# Phases \t Time \t Phased LC \t Model\n')
+        fout.write('# Phases \t Time \t Phased LC \t Phased LC Error \t Model\n')
         for i in range(len(phases)):
-            fout.write('{0:.10f} {1:.10f} {2:.10f} {3:.10f}\n'.format(phases[i],t_lc[i],f_lc[instrument_indexes_lc[instrument]][i],lcmodel[i]))
+            fout.write('{0:.10f} {1:.10f} {2:.10f} {3:.10f} {4:.10f}\n'.format(phases[i],t_lc[i],(finstrument[instrument]['flux']/lcmodel_noplanet)[i],\
+                                                                      (finstrument[instrument]['flux_error']/lcmodel_noplanet)[i],lcmodel[i]))
         fout.close() 
+        # Now, define the phase at which the lightcurve model goes to 1, so we find the ingress and egress 
+        # time in phase space:
+        idx = np.where(lcmodel == 1)[0]
+        idx_min_phase = np.where(np.abs(phases[idx]) == np.min(np.abs(phases[idx])))[0]
+        if len(idx_min_phase) > 1:
+            idx_min_phase = idx_min_phase[0]
+        min_phase = np.abs(phases[idx][idx_min_phase])
+
+        # Define also mean errorbars to define yaxes:
+        sigma_median = np.median(finstrument[instrument]['flux_error']/lcmodel_noplanet)
+
         # Now plot the phased model. Compute sorting indexes as well and plot sorted phases:
         ax.fill_between(model_phases,omodel_down1,omodel_up1,color='cornflowerblue',alpha=0.25)
         ax.fill_between(model_phases,omodel_down2,omodel_up2,color='cornflowerblue',alpha=0.25)
@@ -1696,25 +1953,28 @@ if lcfilename is not None:
                           pu + (pl-pu)*np.sqrt(r1/Ar)*(1.-r2)       
                 depth = np.append(depth,p**2)
             depth = np.median(depth)    
-        if lc_dictionary[instrument]['GPDetrend']:
-            ax.set_ylim([1- depth - depth*0.5,1.001 + depth*0.5+0.001])
-        else:
-            if depth*1e6 > 1000.:
-                ax.set_ylim([1- depth - depth*0.5 -1000*1e-6,1.001 + depth*0.2])
-            else:
-                ax.set_ylim([1 - 1000*1e-6,1.001 + depth*0.5])
+
+        ax.set_xlim([-3*min_phase,3*min_phase])
+        ax.set_ylim([depth - sigma_median*10,1. + sigma_median*5])
+        #if lc_dictionary[instrument]['GPDetrend']:
+        #    ax.set_ylim([1- depth - depth*0.5,1.001 + depth*0.5+0.001])
+        #else:
+        #    if depth*1e6 > 1000.:
+        #        ax.set_ylim([1- depth - depth*0.5 -1000*1e-6,1.001 + depth*0.2])
+        #    else:
+        #        ax.set_ylim([1 - 1000*1e-6,1.001 + depth*0.5])
 
         # Define the x-axis limits based on time baseline of observations. Basically if it is larger than 
         # half a day, it is most likely space-based and we thus base our plot around the phased transit event. 
         # If not, we base our plot around the expected ingress and egress:
-        if tbaseline>0.5:
-            if depth*1e6 > 1000.:
-                ax.set_xlim([-0.03,0.03])
-            else:
-                ax.set_xlim([-0.15,0.15])
-        else:
-            ax.set_xlim([np.min(phases),np.max(phases)])
-        ax.get_xaxis().set_major_formatter(plt.NullFormatter())
+        #if tbaseline>0.5:
+        #    if depth*1e6 > 1000.:
+        #        ax.set_xlim([-0.03,0.03])
+        #    else:
+        #        ax.set_xlim([-0.15,0.15])
+        #else:
+        #    ax.set_xlim([np.min(phases),np.max(phases)])
+        #ax.get_xaxis().set_major_formatter(plt.NullFormatter())
 
         # Plot residuals:
         ax = axs[1]
@@ -1722,24 +1982,25 @@ if lcfilename is not None:
         ax.plot([-1e10,1e10],[0.,0.],'--',linewidth=2,color='black')
         # Plot residuals:
         if tbaseline < 0.5 or lc_dictionary[instrument]['resampling']:
-            ax.errorbar(phases,(f_lc[instrument_indexes_lc[instrument]]-lcmodel)*1e6,\
-                        yerr=np.sqrt((ferr_lc[instrument_indexes_lc[instrument]]*1e6)**2 + \
-                             np.median(out['posterior_samples']['sigma_w_'+instrument])**2),\
-                             fmt='.k',markersize=5,elinewidth=1,alpha=alpha_notbinned)
+            ax.errorbar(phases,(finstrument[instrument]['flux']/lcmodel_noplanet-lcmodel)*1e6,\
+                        yerr=finstrument[instrument]['flux_error']/lcmodel_noplanet,\
+                        fmt='.k',markersize=5,elinewidth=1,alpha=alpha_notbinned)
         else:
-            ax.plot(phases,(f_lc[instrument_indexes_lc[instrument]]-lcmodel)*1e6,'.k',markersize=5,alpha=alpha_notbinned)
-            phases_bin,f_bin,f_bin_err = utils.bin_data(phases,(f_lc[instrument_indexes_lc[instrument]]-lcmodel)*1e6,15)
+            ax.plot(phases,(finstrument[instrument]['flux']/lcmodel_noplanet-lcmodel)*1e6,'.k',markersize=5,alpha=alpha_notbinned)
+            phases_bin,f_bin,f_bin_err = utils.bin_data(phases,(finstrument[instrument]['flux']/lcmodel_noplanet-lcmodel)*1e6,15)
             ax.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=alpha_binned)
         ax.set_ylabel('Residuals (ppm)')
         ax.set_xlabel('Phase')
-        if tbaseline>0.5:
-            if depth*1e6 > 1000.:
-                ax.set_xlim([-0.03,0.03])
-                ax.set_ylim([-2000,2000])
-            else:
-                ax.set_xlim([-0.15,0.15])
-                ax.set_ylim([-1000,1000])
-        else:
-            ax.set_xlim([np.min(phases),np.max(phases)])
+        ax.set_xlim([-3*min_phase,3*min_phase])
+        ax.set_ylim([-sigma_median*5*1e6,sigma_median*5*1e6])
+        #if tbaseline>0.5:
+        #    if depth*1e6 > 1000.:
+        #        ax.set_xlim([-0.03,0.03])
+        #        ax.set_ylim([-2000,2000])
+        #    else:
+        #        ax.set_xlim([-0.15,0.15])
+        #        ax.set_ylim([-1000,1000])
+        #else:
+        #    ax.set_xlim([np.min(phases),np.max(phases)])
         plt.tight_layout()
         plt.savefig(out_folder+'phot_planet'+str(iplanet)+'_instrument_'+instrument+'.pdf')
