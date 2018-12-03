@@ -178,6 +178,115 @@ def bin_data(x,y,n_bin):
         y_err_bins.append(np.sqrt(np.var(y[i:i+n_bin-1]))/np.sqrt(len(y[i:i+n_bin-1])))
     return np.array(x_bins),np.array(y_bins),np.array(y_err_bins)
 
+def writepp(fout,posteriors):
+    if 'pu' in posteriors: 
+        pu = posteriors['pu']
+        pl = posteriors['pl']
+        Ar = (pu - pl)/(2. + pl + pu)
+
+    fout.write('# {0:18} \t \t {1:12} \t \t {2:12} \t \t {3:12}\n'.format('Parameter Name','Median','Upper 68 CI','Lower 68 CI'))
+    for pname in posteriors['posterior_samples'].keys():
+      if pname != 'unnamed':
+        val,valup,valdown = get_quantiles(posteriors['posterior_samples'][pname]) 
+        usigma = valup-val
+        dsigma = val - valdown
+        fout.write('{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.format(pname,val,usigma,dsigma))
+        if pname.split('_')[0] == 'r2':
+            par,planet = pname.split('_')
+            r1 = posteriors['posterior_samples']['r1_'+planet]
+            r2 = posteriors['posterior_samples']['r2_'+planet]
+            b,p = np.zeros(len(r1)),np.zeros(len(r1))
+            for i in range(len(r1)):
+                if r1[i] > Ar:
+                    b[i],p[i] = (1+pl)*(1. + (r1[i]-1.)/(1.-Ar)),\
+                                (1-r2[i])*pl + r2[i]*pu
+                else:
+                    b[i],p[i] = (1. + pl) + np.sqrt(r1[i]/Ar)*r2[i]*(pu-pl),\
+                                pu + (pl-pu)*np.sqrt(r1[i]/Ar)*(1.-r2[i])
+            val,valup,valdown = get_quantiles(p)
+            usigma = valup-val
+            dsigma = val - valdown
+            fout.write('{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.format('p_'+planet,val,usigma,dsigma))
+            val,valup,valdown = get_quantiles(b)
+            usigma = valup-val
+            dsigma = val - valdown
+            fout.write('{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.format('b_'+planet,val,usigma,dsigma))
+            # Calculate inclination:
+            if 'ecosomega_'+planet in posteriors['posterior_samples']:
+                iplanet = planet[1:]
+                ecc = np.sqrt(posteriors['posterior_samples']['ecosomega_p'+str(iplanet)]**2+posteriors['posterior_samples']['esinomega_p'+str(iplanet)]**2)
+                omega = np.arctan2(posteriors['posterior_samples']['esinomega_p'+str(iplanet)],\
+                               posteriors['posterior_samples']['ecosomega_p'+str(iplanet)]) 
+            elif 'secosomega_'+planet in posteriors['posterior_samples']:
+                iplanet = planet[1:]
+                ecc = posteriors['posterior_samples']['secosomega_p'+str(iplanet)]**2+posteriors['posterior_samples']['sesinomega_p'+str(iplanet)]**2
+                omega = np.arctan2(posteriors['posterior_samples']['sesinomega_p'+str(iplanet)],\
+                                   posteriors['posterior_samples']['secosomega_p'+str(iplanet)])
+            elif 'ecc_'+planet in posteriors['posterior_samples']:
+                ecc = posteriors['posterior_samples']['ecc_'+planet]
+                omega = posteriors['posterior_samples']['omega_'+planet]*np.pi/180.
+            else:
+                 ecc = 0.
+                 omega = 90.
+            ecc_factor = (1. + ecc*np.sin(omega))/(1. - ecc**2) 
+            if 'rho' in posteriors['posterior_samples']:
+                G = 6.67408e-11 
+                a = ((posteriors['posterior_samples']['rho']*G*((posteriors['posterior_samples']['P_'+planet]*24.*3600.)**2))/(3.*np.pi))**(1./3.)
+            else:
+                a = posteriors['posterior_samples']['a_'+planet]
+            inc_inv_factor = (b/a)*ecc_factor
+            inc = np.arccos(inc_inv_factor)*180./np.pi
+            val,valup,valdown = get_quantiles(inc)
+            usigma = valup-val
+            dsigma = val - valdown
+            fout.write('{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.format('inc_'+planet,val,usigma,dsigma))
+
+        if pname.split('_')[0] == 'P': 
+            if 'rho' in posteriors['posterior_samples']:
+                par,planet = pname.split('_')
+                G = 6.67408e-11 
+                a = ((posteriors['posterior_samples']['rho']*G*((posteriors['posterior_samples']['P_'+planet]*24.*3600.)**2))/(3.*np.pi))**(1./3.) 
+                val,valup,valdown = get_quantiles(a)
+                usigma = valup-val
+                dsigma = val - valdown
+                fout.write('{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.format('a_'+planet,val,usigma,dsigma))
+        if pname.split('_')[0] == 'ecosomega':
+            par,planet = pname.split('_')
+            iplanet = planet[1:]
+            ecc = np.sqrt(posteriors['posterior_samples']['ecosomega_p'+str(iplanet)]**2+posteriors['posterior_samples']['esinomega_p'+str(iplanet)]**2)
+            omega = np.arctan2(posteriors['posterior_samples']['esinomega_p'+str(iplanet)],\
+                               posteriors['posterior_samples']['ecosomega_p'+str(iplanet)])*(180/np.pi)
+
+            val,valup,valdown = get_quantiles(ecc)
+            usigma = valup-val
+            dsigma = val - valdown
+            fout.write('{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.format('ecc_'+planet,val,usigma,dsigma))
+
+            idx = np.where(omega>0.)[0]
+            val,valup,valdown = get_quantiles(omega[idx])
+            usigma = valup-val
+            dsigma = val - valdown
+            fout.write('{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.format('omega_'+planet,val,usigma,dsigma))
+
+        if pname.split('_')[0] == 'secosomega': 
+            par,planet = pname.split('_')
+            iplanet = planet[1:]
+            ecc = posteriors['posterior_samples']['secosomega_p'+str(iplanet)]**2+posteriors['posterior_samples']['sesinomega_p'+str(iplanet)]**2 
+            omega = np.arctan2(posteriors['posterior_samples']['sesinomega_p'+str(iplanet)],\
+                               posteriors['posterior_samples']['secosomega_p'+str(iplanet)])*(180/np.pi)
+
+            val,valup,valdown = get_quantiles(ecc)
+            usigma = valup-val
+            dsigma = val - valdown
+            fout.write('{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.format('ecc_'+planet,val,usigma,dsigma))
+
+            idx = np.where(omega>0.)[0]
+            val,valup,valdown = get_quantiles(omega[idx])
+            usigma = valup-val
+            dsigma = val - valdown
+            fout.write('{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.format('omega_'+planet,val,usigma,dsigma))
+    fout.close()
+
 from astropy.time import Time as APYTime
 def convert_time(conv_string,t):
     input_t,output_t = conv_string.split('->')
