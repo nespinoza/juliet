@@ -84,6 +84,8 @@ parser.add_argument('-pl', default=None)
 parser.add_argument('-pu', default=None)
 # Number of live points:
 parser.add_argument('-nlive', default=1000)
+# Number of samples to draw from posterior to compute models:
+parser.add_argument('-nsims', default=5000)
 # Dealing with supersampling for long exposure times for LC. n_supersamp is the number of 
 # supersampled points, exptime_supersamp the exposure time and instrument_supersamp the instrument
 # for which you want to apply supersampling. If you need several instruments to have supersampling,
@@ -528,6 +530,8 @@ if rveparamfile is not None:
 
 # Other inputs like, e.g., nlive points:
 n_live_points = int(args.nlive)
+# Number of simulations:
+n_sims = int(args.nsims)
 
 # Define transit-related functions:
 def reverse_ld_coeffs(ld_law, q1, q2):
@@ -894,7 +898,8 @@ out_file = out_folder+'out_multinest_'
 
 import pickle
 # If not ran already, run dynesty or MultiNest, and save posterior samples and evidences to pickle file:
-if not os.path.exists(out_folder+'posteriors.pkl'):
+if (not os.path.exists(out_folder+'posteriors.pkl')) and (not os.path.exists(out_folder+'_dynesty_NS_posteriors.pkl')) and \
+   (not os.path.exists(out_folder+'_dynesty_DNS_posteriors.pkl')):
     out = {}
     # Run dynesty or MultiNest:
     if not use_dynesty:
@@ -995,9 +1000,14 @@ if not os.path.exists(out_folder+'posteriors.dat'):
     outpp = open(out_folder+'posteriors.dat','w')
     utils.writepp(outpp,out)
 
-# Define number of samples we'll get to plot the models + uncertainties (default is all):
-nsims = out['posterior_samples']['unnamed'].shape[0]
-
+# Define number of samples we'll get to plot the models + uncertainties (default is maximum between all and 
+# 5000).
+nsims = np.min([n_sims,out['posterior_samples']['unnamed'].shape[0]])
+print('\t Drawing',nsims,'samples from the posterior...')
+if nsims == out['posterior_samples']['unnamed'].shape[0]:
+    idx_sims = np.arange(out['posterior_samples']['unnamed'].shape[0])
+else:
+    idx_sims = np.random.choice(np.arange(out['posterior_samples']['unnamed'].shape[0]),nsims,replace=False)
 # Ok, here comes the plotting functions (*takes deep breath*).
 # Colors for RV instruments:780116
 rv_colors = ['#ca0020','#0571b0','#E28413','#090446','#780116','#574AE2']
@@ -1107,7 +1117,9 @@ if rvfilename is not None:
 
           # Here comes one of the slow parts: for the first nsims posterior samples, compute a model:
           print('Sampling models...')
-          for j in range(nsims):
+          counter = -1
+          for j in idx_sims:
+              counter = counter + 1
               # Sample the jth sample of parameter values:
               for pname in priors.keys():
                   if priors[pname]['type'] != 'fixed':
@@ -1137,8 +1149,8 @@ if rvfilename is not None:
 
               # Compute full RV model:
               if rveparamfile is None:
-                  all_rv_models[j,:] = radvel.model.RVModel(radvel_params).__call__(t_rv_model)
-                  all_rv_models_real[j,:] = radvel.model.RVModel(radvel_params).__call__(t_rv)
+                  all_rv_models[counter,:] = radvel.model.RVModel(radvel_params).__call__(t_rv_model)
+                  all_rv_models_real[counter,:] = radvel.model.RVModel(radvel_params).__call__(t_rv)
               else:
                   #if rv_dictionary['GPType'] == 'ExpSineSquaredSEKernel':
                   #    # Save the log(variance) of the jitter term on the current GP vector:
@@ -1196,10 +1208,10 @@ if rvfilename is not None:
                   model_real = radvel.model.RVModel(radvel_params).__call__(t_rv)
                   # Predict real values: 
                   gpmodel_real,gpvar = rv_dictionary['GPObject'].predict(rvresiduals, rv_dictionary['X'], return_var=True)
-                  all_gp_models_real[j,:] = gpmodel_real
-                  all_rv_models_real[j,:] = model_real + gpmodel_real
+                  all_gp_models_real[counter,:] = gpmodel_real
+                  all_rv_models_real[counter,:] = model_real + gpmodel_real
                   gpmodel,gpvar = rv_dictionary['GPObject'].predict(rvresiduals, t_rv_model, return_var=True)
-                  all_rv_models[j,:] = gpmodel + model
+                  all_rv_models[counter,:] = gpmodel + model
           # Now, finally, compute the median and the quantiles (1,2 and 3-sigma) for each time sample of the 
           # oversampled model (this is the "o" before the names). 
           omedian_model = np.zeros(len(t_rv_model))
@@ -1353,7 +1365,9 @@ if rvfilename is not None:
         # Now generate the models:
         all_rv_models = np.zeros([nsims,len(t_model_phases)])
 
-        for j in range(nsims):
+        counter = -1
+        for j in idx_sims:
+            counter = counter + 1
             # Sample the jth sample of parameter values:
             for pname in priors.keys():
                 if priors[pname]['type'] != 'fixed':
@@ -1380,7 +1394,7 @@ if rvfilename is not None:
             radvel_params['k'+str(n+1)] = radvel.Parameter(value=K)
 
             # Compute full RV model:
-            all_rv_models[j,:] = radvel.model.RVModel(radvel_params).__call__(t_model_phases,planet_num=n+1)
+            all_rv_models[counter,:] = radvel.model.RVModel(radvel_params).__call__(t_model_phases,planet_num=n+1)
 
         # As before, once again compute median model and the respective error bands:
         omedian_model = np.zeros(len(t_model_phases))
@@ -1461,7 +1475,9 @@ if lcfilename is not None:
         all_lc_GP_models = np.zeros([nsims,len(tinstrument)])
         GPmodel = np.ones(len(tinstrument))
         # Generate model lightcurves for each sample in the current instrument:
-        for j in range(nsims):
+        counter = -1
+        for j in idx_sims:
+            counter = counter + 1
             # Sample the jth sample of parameter values:
             for pname in priors.keys():
                 if priors[pname]['type'] != 'fixed':
@@ -1522,11 +1538,11 @@ if lcfilename is not None:
                 lc_dictionary[instrument]['params'].inc = inc
                 lc_dictionary[instrument]['params'].ecc = ecc
                 lc_dictionary[instrument]['params'].w = omega
-                all_lc_real_models[j,:] = all_lc_real_models[j,:]*\
+                all_lc_real_models[counter,:] = all_lc_real_models[counter,:]*\
                                           lc_dictionary[instrument]['m'].light_curve(lc_dictionary[instrument]['params'])
 
 
-            all_lc_real_models[j,:] = (all_lc_real_models[j,:]*priors['mdilution_'+instrument]['cvalue'] + \
+            all_lc_real_models[counter,:] = (all_lc_real_models[counter,:]*priors['mdilution_'+instrument]['cvalue'] + \
                                       (1. - priors['mdilution_'+instrument]['cvalue']))*\
                                       (1./(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue']))
 
@@ -1566,11 +1582,12 @@ if lcfilename is not None:
 
                 lc_dictionary[instrument]['GPObject'].set_parameter_vector(lc_dictionary[instrument]['GPVector'])
                 # Generate residuals with this model:
-                residuals = f_lc[instrument_indexes_lc[instrument]] - all_lc_real_models[j,:]
+                residuals = f_lc[instrument_indexes_lc[instrument]] - all_lc_real_models[counter,:]
                 # Predict sampled points:
-                pred_mean = lc_dictionary[instrument]['GPObject'].predict(residuals, lc_dictionary[instrument]['X'], return_var=False,return_cov=False)
-                all_lc_GP_models[j,:] = pred_mean
-                all_lc_real_models[j,:] = all_lc_real_models[j,:] + pred_mean
+                pred_mean = lc_dictionary[instrument]['GPObject'].predict(residuals, \
+                            lc_dictionary[instrument]['X'], return_var=False,return_cov=False)
+                all_lc_GP_models[counter,:] = pred_mean
+                all_lc_real_models[counter,:] = all_lc_real_models[counter,:] + pred_mean
 
         # As before, once again compute median model and the respective error bands:
         omedian_model = np.zeros(len(tinstrument))
@@ -1720,13 +1737,9 @@ if lcfilename is not None:
 
         # Now, as in the previous plot, sample models from the posterior parameters along the phases of interest. 
         # For this, first define a range of phases of interest:
-        if not lc_dictionary[instrument]['GPDetrend']:
-            model_phases = np.linspace(-0.25,0.25,10000)
-            # With this get the respective times for the model phases:
-            t_model_phases = model_phases*P + t0
-        else:
-            model_phases = phases#np.linspace(-0.12,0.12,1000)     
-            t_model_phases = t_lc[instrument_indexes_lc[instrument]]
+        model_phases = np.linspace(-0.25,0.25,10000)
+        # With this get the respective times for the model phases:
+        t_model_phases = model_phases*P + t0
 
         # Initialize model:
         if lc_dictionary[instrument]['resampling']:
@@ -1743,7 +1756,9 @@ if lcfilename is not None:
         all_lc_real_models_no_planet = np.ones([nsims,len(phases)])
         lcmodel = np.ones(len(t_model_phases))
         lcmodel_real = np.ones(len(phases))
-        for j in range(nsims):
+        counter = -1
+        for j in idx_sims:
+            counter = counter + 1
             # Sample the jth sample of parameter values:
             for pname in priors.keys():
                 if priors[pname]['type'] != 'fixed':
@@ -1805,8 +1820,8 @@ if lcfilename is not None:
                 params_model.ecc = ecc
                 params_model.w = omega
 
-                all_lc_models[j,:] = m_model.light_curve(params_model)
-                all_lc_real_models[j,:] = lc_dictionary[instrument]['m'].light_curve(params_model)
+                all_lc_models[counter,:] = m_model.light_curve(params_model)
+                all_lc_real_models[counter,:] = lc_dictionary[instrument]['m'].light_curve(params_model)
                     
             # Now, generate the model for all the planets *minus* the planet in consideration: 
             for n in range(n_transit):
@@ -1864,7 +1879,7 @@ if lcfilename is not None:
                 lc_dictionary[instrument]['params'].inc = inc
                 lc_dictionary[instrument]['params'].ecc = ecc
                 lc_dictionary[instrument]['params'].w = omega
-                all_lc_real_models_no_planet[j,:] = all_lc_real_models_no_planet[j,:]*\
+                all_lc_real_models_no_planet[counter,:] = all_lc_real_models_no_planet[counter,:]*\
                                                     lc_dictionary[instrument]['m'].light_curve(lc_dictionary[instrument]['params'])
         # As before, once again compute median model and the respective error bands:
         omedian_model = np.zeros(len(t_model_phases))
@@ -1872,6 +1887,8 @@ if lcfilename is not None:
         omodel_up2, omodel_down2 = np.zeros(len(t_model_phases)),np.zeros(len(t_model_phases))
         omodel_up3, omodel_down3 = np.zeros(len(t_model_phases)),np.zeros(len(t_model_phases))
 
+        for ii in range(all_lc_models.shape[0]):
+            ax.plot(model_phases,all_lc_models[ii,:],color='grey',alpha=0.1)
         for i_tsample in range(len(t_model_phases)):
             # Compute quantiles for the full model:
             val,valup1,valdown1 = utils.get_quantiles(all_lc_models[:,i_tsample])
@@ -1954,8 +1971,8 @@ if lcfilename is not None:
                 depth = np.append(depth,p**2)
             depth = np.median(depth)    
 
-        ax.set_xlim([-3*min_phase,3*min_phase])
-        ax.set_ylim([depth - sigma_median*10,1. + sigma_median*5])
+        ax.set_xlim([-2*min_phase,2*min_phase])
+        ax.set_ylim([1. - depth - sigma_median*10,1. + sigma_median*5])
         #if lc_dictionary[instrument]['GPDetrend']:
         #    ax.set_ylim([1- depth - depth*0.5,1.001 + depth*0.5+0.001])
         #else:
