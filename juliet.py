@@ -1583,14 +1583,15 @@ if lcfilename is not None:
                     lc_dictionary[instrument]['GPVector'][1] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']*1e-6)**2.)
                     # Now save (log of) coefficients of each GP term:
                     for i in range(lc_dictionary[instrument]['nX']):
-                        lc_dictionary[instrument]['GPVector'][2+i] = np.log(1./priors['GP_alpha'+str(i)+'_'+lc_dictionary[instrument]['GP_alpha'+str(i)]]['cvalue'])
+                        lc_dictionary[instrument]['GPVector'][2+i] = np.log(0.5/priors['GP_alpha'+str(i)+'_'+lc_dictionary[instrument]['GP_alpha'+str(i)]]['cvalue'])
                 if lc_dictionary[instrument]['GPType'] == 'ExpSineSquaredSEKernel':
                     # Save the log(variance) of the jitter term on the current GP vector:
                     lc_dictionary[instrument]['GPVector'][0] = np.log((priors['sigma_w_'+instrument]['cvalue']*1e-6)**2.)
                     # Save pooled log(variance) of the GP process:
                     lc_dictionary[instrument]['GPVector'][1] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']*1e-6)**2.)
-                    # Save log-alpha:
-                    lc_dictionary[instrument]['GPVector'][2] = np.log(1./priors['GP_alpha_'+lc_dictionary[instrument]['GP_alpha']]['cvalue'])
+                    # Save log-alpha (note one passes log(lengthscale**2) to george, which assumes a SqExp part of the form 
+                    # sigmaGP**2 * exp(r**2/(2.*M)), with M = lengthscale**2. In our notation, alpha = 1/(2*lengthscale**2):
+                    lc_dictionary[instrument]['GPVector'][2] = np.log(0.5/priors['GP_alpha_'+lc_dictionary[instrument]['GP_alpha']]['cvalue'])
                     # Save the Gamma:
                     lc_dictionary[instrument]['GPVector'][3] = priors['GP_Gamma_'+lc_dictionary[instrument]['GP_Gamma']]['cvalue']
                     # And save log(Prot):
