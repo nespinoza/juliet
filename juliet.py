@@ -1695,7 +1695,7 @@ if lcfilename is not None:
         # Plot residuals:
         #if tbaseline < 0.5:
         ax2.errorbar(tinstrument-tzero,(f_lc[instrument_indexes_lc[instrument]]-omedian_model)*1e6,\
-                    yerr=ferr_instrument,\
+                    yerr=ferr_instrument*1e6,\
                     fmt='.k',markersize=2,elinewidth=1,alpha=alpha_notbinned)
         #else:
         #    #ax.plot(tinstrument-tzero,(f_lc[instrument_indexes_lc[instrument]]-omedian_model)*1e6,'.k',markersize=5,alpha=alpha_notbinned)
