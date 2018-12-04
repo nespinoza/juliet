@@ -94,6 +94,8 @@ parser.add_argument('-nsims', default=5000)
 parser.add_argument('-n_supersamp', default=None)
 parser.add_argument('-exptime_supersamp', default=None) 
 parser.add_argument('-instrument_supersamp', default=None)
+# Define if HODLRSolver wants to be used for george. Only applied to photometric GPs:
+parser.add_argument('--george_hodlr', dest='george_hodlr', action='store_true')
 # Define if Dynamic Nested Sampling is to be used:
 parser.add_argument('--dynamic', dest='dynamic', action='store_true')
 # Define if dynesty will be used:
@@ -106,6 +108,8 @@ parser.add_argument('-dynesty_sample', default='rwalk')
 parser.add_argument('-dynesty_nthreads', default='none')
 
 args = parser.parse_args()
+# Check george hodlr flag:
+george_hodlr = args.george_hodlr
 
 # Check the dynesty and dynamic flag:
 use_dynesty = args.use_dynesty
@@ -380,7 +384,11 @@ if lceparamfile is not None:
             # Note order of GP Vector: logB, logL, logProt, logC, logJitter
             lc_dictionary[instrument]['GPVector'] = np.zeros(5)
             lc_dictionary[instrument]['X'] = lc_dictionary[instrument]['X'][:,0]
-            lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'],yerr=ferr_lc[instrument_indexes_lc[instrument]])          
+            number_of_zeros = len(np.where(ferr_lc[instrument_indexes_lc[instrument]]==0.)[0])
+            if number_of_zeros == len(instrument_indexes_lc[instrument]):
+                lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'])
+            else:
+                lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'],yerr=ferr_lc[instrument_indexes_lc[instrument]])          
 
         if lc_dictionary[instrument]['GPType'] == 'ExpSineSquaredSEKernel':
             for GPvariable in ['sigma','alpha','Gamma','Prot']:
@@ -397,15 +405,24 @@ if lceparamfile is not None:
             lc_dictionary[instrument]['GPKernelJitter'] = george.modeling.ConstantModel(np.log((200.*1e-6)**2.))
 
             # Generate full kernel (i.e., GP plus jitter), generating full GP object:
-            lc_dictionary[instrument]['GPObject'] = george.GP(lc_dictionary[instrument]['GPKernelBase'], mean=0.0,fit_mean=False,\
-                                                    white_noise=lc_dictionary[instrument]['GPKernelJitter'],\
-                                                    fit_white_noise=True,solver=george.HODLRSolver, seed=42)
+            if george_hodlr:
+                lc_dictionary[instrument]['GPObject'] = george.GP(lc_dictionary[instrument]['GPKernelBase'], mean=0.0,fit_mean=False,\
+                                                        white_noise=lc_dictionary[instrument]['GPKernelJitter'],\
+                                                        fit_white_noise=True,solver=george.HODLRSolver)
+            else:
+                lc_dictionary[instrument]['GPObject'] = george.GP(lc_dictionary[instrument]['GPKernelBase'], mean=0.0,fit_mean=False,\
+                                                        white_noise=lc_dictionary[instrument]['GPKernelJitter'],\
+                                                        fit_white_noise=True)
             # Create the parameter vector --- note its dim: GP_sigma (+1) + GP_alpha (+1) + GP_Gamma (+1) + GP_Prot (+1) + Jitter term (+1): 5.
             # Given how we defined the vector, first parameter of vector is jitter, second log_(GP_sigma**2), third 1./(2*alpha), fourth Gamma and fifth logProt.
             lc_dictionary[instrument]['GPVector'] = np.zeros(5)
             # Finally, compute GP object. Note we add the lightcurve uncertainties here, which are added in quadrature to the 
             # diagonal terms in the covariance matrix by george internally:
-            lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'],yerr=ferr_lc[instrument_indexes_lc[instrument]])
+            number_of_zeros = len(np.where(ferr_lc[instrument_indexes_lc[instrument]]==0.)[0])
+            if number_of_zeros == len(instrument_indexes_lc[instrument]):
+                lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'])
+            else:
+                lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'],yerr=ferr_lc[instrument_indexes_lc[instrument]])
 
         if lc_dictionary[instrument]['GPType'] == 'SEKernel':
             GPvariables = ['sigma']
@@ -425,15 +442,24 @@ if lceparamfile is not None:
             lc_dictionary[instrument]['GPKernelJitter'] = george.modeling.ConstantModel(np.log((200.*1e-6)**2.))
 
             # Generate full kernel (i.e., GPExpSquared plus jitter), generating full GP object:
-            lc_dictionary[instrument]['GPObject'] = george.GP(lc_dictionary[instrument]['GPKernelBase'], mean=0.0,fit_mean=False,\
-                                                    white_noise=lc_dictionary[instrument]['GPKernelJitter'],\
-                                                    fit_white_noise=True)
+            if george_hodlr:
+                lc_dictionary[instrument]['GPObject'] = george.GP(lc_dictionary[instrument]['GPKernelBase'], mean=0.0,fit_mean=False,\
+                                                        white_noise=lc_dictionary[instrument]['GPKernelJitter'],\
+                                                        fit_white_noise=True,solver=george.HODLRSolver)
+            else:
+                lc_dictionary[instrument]['GPObject'] = george.GP(lc_dictionary[instrument]['GPKernelBase'], mean=0.0,fit_mean=False,\
+                                                        white_noise=lc_dictionary[instrument]['GPKernelJitter'],\
+                                                        fit_white_noise=True)
             # Create the parameter vector --- note it equals number of external parameters plus 2: amplitude of the GP 
             # component and jitter:
             lc_dictionary[instrument]['GPVector'] = np.zeros(lc_dictionary[instrument]['X'].shape[1] + 2)
             # Finally, compute GP object. Note we add the lightcurve uncertainties here, which are added in quadrature to the 
             # diagonal terms in the covariance matrix by george internally:
-            lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'],yerr=ferr_lc[instrument_indexes_lc[instrument]])
+            number_of_zeros = len(np.where(ferr_lc[instrument_indexes_lc[instrument]]==0.)[0])
+            if number_of_zeros == len(instrument_indexes_lc[instrument]):
+                lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'])
+            else:
+                lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'],yerr=ferr_lc[instrument_indexes_lc[instrument]])
 
 # Extract external parameter file for RV GP:
 rveparamfile = args.rveparamfile
