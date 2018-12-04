@@ -1920,8 +1920,11 @@ if lcfilename is not None:
         omodel_up2, omodel_down2 = np.zeros(len(t_model_phases)),np.zeros(len(t_model_phases))
         omodel_up3, omodel_down3 = np.zeros(len(t_model_phases)),np.zeros(len(t_model_phases))
 
-        for ii in range(all_lc_models.shape[0]):
-            ax.plot(model_phases,all_lc_models[ii,:],color='grey',alpha=0.1)
+        # Uncomment this line (and comment the ax = axs[0] below) to see the model samples in the transit
+        # plots:
+        #ax = axs[0]
+        #for ii in range(all_lc_models.shape[0]):
+        #    ax.plot(model_phases,all_lc_models[ii,:],color='grey',alpha=0.1)
         for i_tsample in range(len(t_model_phases)):
             # Compute quantiles for the full model:
             val,valup1,valdown1 = utils.get_quantiles(all_lc_models[:,i_tsample])
