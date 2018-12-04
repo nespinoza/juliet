@@ -1012,6 +1012,7 @@ else:
 # Colors for RV instruments:780116
 rv_colors = ['#ca0020','#0571b0','#E28413','#090446','#780116','#574AE2']
 
+
 # First, RV plots:
 if rvfilename is not None:
     ###############################################################
@@ -1438,6 +1439,7 @@ if rvfilename is not None:
     plt.tight_layout()
     plt.savefig(out_folder+'rvs_planets.pdf')
 
+
 # Finally, transit plots:
 if lcfilename is not None:
 
@@ -1623,22 +1625,25 @@ if lcfilename is not None:
             alpha_notbinned = 0.2
             alpha_binned = 0.5
 
-
         tzero = 2457000
         #if tbaseline > 0.5 and (not lc_dictionary[instrument]['resampling']):
         #    ax.plot(tinstrument-tzero,f_lc[instrument_indexes_lc[instrument]],'.k',markersize=5,alpha=alpha_notbinned)
         #    phases_bin,f_bin,f_bin_err = utils.bin_data(tinstrument-tzero,f_lc[instrument_indexes_lc[instrument]],15)
         #    ax.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=alpha_binned)
         #else:
+        try:
+            ferr_instrument = np.sqrt((ferr_lc[instrument_indexes_lc[instrument]])**2 + \
+                          (np.median(out['posterior_samples']['sigma_w_'+instrument])*1e-6)**2)
+        except KeyError: # If the prior of the sigma_w_instrument was fixed, then there is no posterior dist for it
+            ferr_instrument = ferr_lc[instrument_indexes_lc[instrument]]
+
         ax.errorbar(tinstrument-tzero,f_lc[instrument_indexes_lc[instrument]],\
-                    yerr=np.sqrt((ferr_lc[instrument_indexes_lc[instrument]])**2 + \
-                         (np.median(out['posterior_samples']['sigma_w_'+instrument])*1e-6)**2),\
-                         fmt='.k',markersize=1,alpha=alpha_notbinned,elinewidth=1)
+                    yerr=ferr_instrument,\
+                    fmt='.k',markersize=1,alpha=alpha_notbinned,elinewidth=1)
 
         fout = open(out_folder+'time_lc_'+instrument+'.dat','w')
         fout.write('# Time \t Data \t Error \t Model\n')
-        ferr_instrument = np.sqrt((ferr_lc[instrument_indexes_lc[instrument]])**2 + \
-                          (np.median(out['posterior_samples']['sigma_w_'+instrument])*1e-6)**2)
+
         for i in range(len(tinstrument)):
             fout.write('{0:.10f} {1:.10f} {2:.10f} {3:.10f}\n'.format(tinstrument[i],f_lc[instrument_indexes_lc[instrument]][i],\
                                                                       ferr_instrument[i],omedian_model[i]))
@@ -1664,9 +1669,8 @@ if lcfilename is not None:
         # Plot residuals:
         #if tbaseline < 0.5:
         ax.errorbar(tinstrument-tzero,(f_lc[instrument_indexes_lc[instrument]]-omedian_model)*1e6,\
-                    yerr=np.sqrt((ferr_lc[instrument_indexes_lc[instrument]]*1e6)**2 + \
-                         np.median(out['posterior_samples']['sigma_w_'+instrument])**2),\
-                         fmt='.k',markersize=2,elinewidth=1,alpha=alpha_notbinned)
+                    yerr=ferr_instrument,\
+                    fmt='.k',markersize=2,elinewidth=1,alpha=alpha_notbinned)
         #else:
         #    #ax.plot(tinstrument-tzero,(f_lc[instrument_indexes_lc[instrument]]-omedian_model)*1e6,'.k',markersize=5,alpha=alpha_notbinned)
         #    #phases_bin,f_bin,f_bin_err = utils.bin_data(tinstrument,(f_lc[instrument_indexes_lc[instrument]]-omedian_model)*1e6,15)
@@ -1713,11 +1717,14 @@ if lcfilename is not None:
         finstrument[instrument]['flux'] = (f_lc[instrument_indexes_lc[instrument]]*(1. + D*M) - (1.-D))/D
         finstrument[instrument]['flux_error'] = np.sqrt(ferr_lc[instrument_indexes_lc[instrument]]**2 + (sigma_w*1e-6)**2)*((1. + D*M)/D)
 
-    # Now, lets begint with the hased transit plots of each planet for each instrument on different plots:
+    # Now, let's begin with the phased transit plots of each planet for each instrument on different plots:
     for nplanet in range(n_transit):
       iplanet = numbering_transit[nplanet]
+      print(r'\t Generating phased plot for planet '+ str(iplanet))
 
       for instrument in inames_lc:
+        print(r'\t Generating phased plot for planet '+ str(iplanet) + ' and instrument ' + instrument)
+
         fig, axs = plt.subplots(2, 1,gridspec_kw = {'height_ratios':[3,1]}, figsize=(9,7))
         sns.set_context("talk")
         sns.set_style("ticks")
@@ -2008,7 +2015,7 @@ if lcfilename is not None:
             ax.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=alpha_binned)
         ax.set_ylabel('Residuals (ppm)')
         ax.set_xlabel('Phase')
-        ax.set_xlim([-3*min_phase,3*min_phase])
+        ax.set_xlim([-2*min_phase,2*min_phase])
         ax.set_ylim([-sigma_median*5*1e6,sigma_median*5*1e6])
         #if tbaseline>0.5:
         #    if depth*1e6 > 1000.:
