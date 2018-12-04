@@ -1689,22 +1689,23 @@ if lcfilename is not None:
         ax.get_xaxis().set_major_formatter(plt.NullFormatter())
 
         # Plot residuals:
-        ax = axs[1]
+        ax2 = axs[1]
         # Plot zero line to guide the eye:
-        ax.plot([-1e10,1e10],[0.,0.],'--',linewidth=2,color='black')
+        ax2.plot([-1e10,1e10],[0.,0.],'--',linewidth=2,color='black')
         # Plot residuals:
         #if tbaseline < 0.5:
-        ax.errorbar(tinstrument-tzero,(f_lc[instrument_indexes_lc[instrument]]-omedian_model)*1e6,\
+        ax2.errorbar(tinstrument-tzero,(f_lc[instrument_indexes_lc[instrument]]-omedian_model)*1e6,\
                     yerr=ferr_instrument,\
                     fmt='.k',markersize=2,elinewidth=1,alpha=alpha_notbinned)
         #else:
         #    #ax.plot(tinstrument-tzero,(f_lc[instrument_indexes_lc[instrument]]-omedian_model)*1e6,'.k',markersize=5,alpha=alpha_notbinned)
         #    #phases_bin,f_bin,f_bin_err = utils.bin_data(tinstrument,(f_lc[instrument_indexes_lc[instrument]]-omedian_model)*1e6,15)
         #    #ax.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=alpha_binned)
-        ax.set_ylabel('Residuals (ppm)')
-        ax.set_xlabel('Time (BJD - '+str(tzero)+')')
-        ax.set_ylim([-np.max(ferr_instrument)*7.5*1e6,np.max(ferr_instrument)*7.5*1e6])
-        ax.set_xlim([np.min(tinstrument-tzero),np.max(tinstrument-tzero)])
+        ax2.ticklabel_format(useOffset=False, style='plain')
+        ax2.set_ylabel('Residuals (ppm)')
+        ax2.set_xlabel('Time (BJD - '+str(tzero)+')')
+        ax2.set_ylim([-np.max(ferr_instrument)*7.5*1e6,np.max(ferr_instrument)*7.5*1e6])
+        ax2.set_xlim([np.min(tinstrument-tzero),np.max(tinstrument-tzero)])
         plt.tight_layout()
         plt.savefig(out_folder+'phot_vs_time_instrument_'+instrument+'.pdf')
         # If GPDetrend, remove GP component, set the detrend to false so next plot shows the GP-corrected/detrended photometry:
@@ -2007,6 +2008,7 @@ if lcfilename is not None:
                 depth = np.append(depth,p**2)
             depth = np.median(depth)    
 
+        ax.get_xaxis().set_major_formatter(plt.NullFormatter())
         ax.set_xlim([-2*min_phase,2*min_phase])
         ax.set_ylim([1. - depth - sigma_median*10,1. + sigma_median*5])
         #if lc_dictionary[instrument]['GPDetrend']:
@@ -2030,22 +2032,22 @@ if lcfilename is not None:
         #ax.get_xaxis().set_major_formatter(plt.NullFormatter())
 
         # Plot residuals:
-        ax = axs[1]
+        ax2 = axs[1]
         # Plot zero line to guide the eye:
-        ax.plot([-1e10,1e10],[0.,0.],'--',linewidth=2,color='black')
+        ax2.plot([-1e10,1e10],[0.,0.],'--',linewidth=2,color='black')
         # Plot residuals:
         if tbaseline < 0.5 or lc_dictionary[instrument]['resampling']:
-            ax.errorbar(phases,(finstrument[instrument]['flux']/lcmodel_noplanet-lcmodel)*1e6,\
+            ax2.errorbar(phases,(finstrument[instrument]['flux']/lcmodel_noplanet-lcmodel)*1e6,\
                         yerr=finstrument[instrument]['flux_error']/lcmodel_noplanet,\
                         fmt='.k',markersize=5,elinewidth=1,alpha=alpha_notbinned)
         else:
-            ax.plot(phases,(finstrument[instrument]['flux']/lcmodel_noplanet-lcmodel)*1e6,'.k',markersize=5,alpha=alpha_notbinned)
+            ax2.plot(phases,(finstrument[instrument]['flux']/lcmodel_noplanet-lcmodel)*1e6,'.k',markersize=5,alpha=alpha_notbinned)
             phases_bin,f_bin,f_bin_err = utils.bin_data(phases,(finstrument[instrument]['flux']/lcmodel_noplanet-lcmodel)*1e6,15)
-            ax.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=alpha_binned)
-        ax.set_ylabel('Residuals (ppm)')
-        ax.set_xlabel('Phase')
-        ax.set_xlim([-2*min_phase,2*min_phase])
-        ax.set_ylim([-sigma_median*5*1e6,sigma_median*5*1e6])
+            ax2.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=alpha_binned)
+        ax2.set_ylabel('Residuals (ppm)')
+        ax2.set_xlabel('Phase')
+        ax2.set_xlim([-2*min_phase,2*min_phase])
+        ax2.set_ylim([-sigma_median*5*1e6,sigma_median*5*1e6])
         #if tbaseline>0.5:
         #    if depth*1e6 > 1000.:
         #        ax.set_xlim([-0.03,0.03])
