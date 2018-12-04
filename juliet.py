@@ -29,9 +29,10 @@ import time
 import celerite
 from celerite import terms
 
+# This class was written by Daniel Foreman-Mackey for his paper: 
+# https://github.com/dfm/celerite/blob/master/paper/figures/rotation/rotation.ipynb
 class RotationTerm(terms.Term):
     parameter_names = ("log_amp", "log_timescale", "log_period", "log_factor")
-
     def get_real_coefficients(self, params):
         log_amp, log_timescale, log_period, log_factor = params
         f = np.exp(log_factor)
@@ -344,6 +345,12 @@ if lceparamfile is not None:
                 # Detected celerite quasi-periodic kernel:
                 lc_dictionary[instrument]['GPType'] = 'CeleriteQPKernel'
                 break
+
+            if (vec[0] == 'GP') and ('timescale' in vec[1]) and (instrument in vec):
+                # Detected celerite quasi-periodic kernel:
+                lc_dictionary[instrument]['GPType'] = 'CeleriteExpKernel'
+                break
+
         print('\t Detected ',lc_dictionary[instrument]['GPType'],'for the GP')
         # For each instrument for which there are external parameters, activate GP:
         lc_dictionary[instrument]['GPDetrend'] = True 
@@ -389,6 +396,29 @@ if lceparamfile is not None:
                 lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'])
             else:
                 lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'],yerr=ferr_lc[instrument_indexes_lc[instrument]])          
+
+        if lc_dictionary[instrument]['GPType'] == 'CeleriteExpKernel':
+            exp_kernel = terms.RealTerm(log_a=np.log(10.), log_c=np.log(10.))
+
+            for GPvariable in ['sigma','timescale']:
+                for pnames in priors.keys():
+                    vec = pnames.split('_')
+                    if (vec[0] == 'GP') and (GPvariable in vec[1]) and (instrument in vec):
+                        lc_dictionary[instrument]['GP_'+GPvariable] = '_'.join(vec[2:])
+            # Jitter term:
+            kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
+
+            # Wrap GP object to compute likelihood:
+            kernel = exp_kernel + kernel_jitter
+            lc_dictionary[instrument]['GPObject'] = celerite.GP(kernel, mean=0.0)
+            # Note order of GP Vector: logsigma, log(1/timescale), logJitter
+            lc_dictionary[instrument]['GPVector'] = np.zeros(3)
+            lc_dictionary[instrument]['X'] = lc_dictionary[instrument]['X'][:,0]
+            number_of_zeros = len(np.where(ferr_lc[instrument_indexes_lc[instrument]]==0.)[0])
+            if number_of_zeros == len(instrument_indexes_lc[instrument]):
+                lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'])
+            else:
+                lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'],yerr=ferr_lc[instrument_indexes_lc[instrument]])
 
         if lc_dictionary[instrument]['GPType'] == 'ExpSineSquaredSEKernel':
             for GPvariable in ['sigma','alpha','Gamma','Prot']:
@@ -808,6 +838,14 @@ def loglike(cube, ndim=None, nparams=None):
                 lc_dictionary[instrument]['GPVector'][3] = np.log(priors['GP_C_'+lc_dictionary[instrument]['GP_C']]['cvalue'])
                 # Save the log(jitter) term of the current GP vector:
                 lc_dictionary[instrument]['GPVector'][4] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)
+            if lc_dictionary[instrument]['GPType'] == 'CeleriteExpKernel':
+                # Save the log(sigma_GP) term of the current GP vector:
+                lc_dictionary[instrument]['GPVector'][0] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']**2)**1e-6)
+                # Save the log(1/timescale) term of the current GP vector:
+                lc_dictionary[instrument]['GPVector'][1] = np.log(1./priors['GP_timescale_'+lc_dictionary[instrument]['GP_timescale']]['cvalue'])
+                # Save the log(jitte) term of the current GP vector:
+                lc_dictionary[instrument]['GPVector'][2] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)
+
             lc_dictionary[instrument]['GPObject'].set_parameter_vector(lc_dictionary[instrument]['GPVector'])
             log_likelihood += lc_dictionary[instrument]['GPObject'].log_likelihood(residuals)
 
@@ -1608,6 +1646,13 @@ if lcfilename is not None:
                     lc_dictionary[instrument]['GPVector'][3] = np.log(priors['GP_C_'+lc_dictionary[instrument]['GP_C']]['cvalue'])
                     # Save the log(L) term of the current GP vector:
                     lc_dictionary[instrument]['GPVector'][4] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)
+                if lc_dictionary[instrument]['GPType'] == 'CeleriteExpKernel':
+                    # Save the log(sigma_GP) term of the current GP vector:
+                    lc_dictionary[instrument]['GPVector'][0] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']**2)*1e-6)
+                    # Save the log(1/timescale) term of the current GP vector:
+                    lc_dictionary[instrument]['GPVector'][1] = np.log(1./priors['GP_timescale_'+lc_dictionary[instrument]['GP_timescale']]['cvalue'])
+                    # Save the log(jitte) term of the current GP vector:
+                    lc_dictionary[instrument]['GPVector'][2] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)
 
                 lc_dictionary[instrument]['GPObject'].set_parameter_vector(lc_dictionary[instrument]['GPVector'])
                 # Generate residuals with this model:
