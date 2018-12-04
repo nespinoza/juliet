@@ -2038,7 +2038,7 @@ if lcfilename is not None:
         # Plot residuals:
         if tbaseline < 0.5 or lc_dictionary[instrument]['resampling']:
             ax2.errorbar(phases,(finstrument[instrument]['flux']/lcmodel_noplanet-lcmodel)*1e6,\
-                        yerr=finstrument[instrument]['flux_error']/lcmodel_noplanet,\
+                        yerr=(finstrument[instrument]['flux_error']/lcmodel_noplanet)*1e6,\
                         fmt='.k',markersize=5,elinewidth=1,alpha=alpha_notbinned)
         else:
             ax2.plot(phases,(finstrument[instrument]['flux']/lcmodel_noplanet-lcmodel)*1e6,'.k',markersize=5,alpha=alpha_notbinned)
