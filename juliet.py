@@ -362,6 +362,11 @@ if lceparamfile is not None:
                 # Detected celerite matern:
                 lc_dictionary[instrument]['GPType'] = 'CeleriteMatern'
 
+            if (vec[0] == 'GP') and ('Plife' in vec[1]) and (instrument in vec):
+                # Detected celerite SHO:
+                lc_dictionary[instrument]['GPType'] = 'CeleriteSHOKernel'
+                break
+
         print('\t Detected ',lc_dictionary[instrument]['GPType'],'for the GP')
         # For each instrument for which there are external parameters, activate GP:
         lc_dictionary[instrument]['GPDetrend'] = True 
@@ -479,7 +484,29 @@ if lceparamfile is not None:
                 lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'])
             else:
                 lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'],yerr=ferr_lc[instrument_indexes_lc[instrument]])
-            
+
+        if lc_dictionary[instrument]['GPType'] == 'CeleriteSHOKernel':
+            sho_kernel = terms.SHOTerm(log_S0=np.log(10.), log_Q=np.log(10.),log_omega0=np.log(10.))
+            for GPvariable in ['C0','Prot','Plife']:
+                for pnames in priors.keys():
+                    vec = pnames.split('_')
+                    if (vec[0] == 'GP') and (GPvariable in vec[1]) and (instrument in vec):
+                        lc_dictionary[instrument]['GP_'+GPvariable] = '_'.join(vec[2:])
+            # Jitter term:
+            kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
+
+            # Wrap GP object to compute likelihood:
+            kernel = sho_kernel + kernel_jitter
+            lc_dictionary[instrument]['GPObject'] = celerite.GP(kernel, mean=0.0)
+            # Note order of GP Vector: log_S0, log_Q, log_omega0 and log_sigma. Note, however, that we dont fit for those 
+            # parameters directly.
+            lc_dictionary[instrument]['GPVector'] = np.zeros(4)
+            lc_dictionary[instrument]['X'] = lc_dictionary[instrument]['X'][:,0]
+            number_of_zeros = len(np.where(ferr_lc[instrument_indexes_lc[instrument]]==0.)[0])
+            if number_of_zeros == len(instrument_indexes_lc[instrument]):
+                lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'])
+            else:
+                lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'],yerr=ferr_lc[instrument_indexes_lc[instrument]])            
 
         if lc_dictionary[instrument]['GPType'] == 'ExpSineSquaredSEKernel':
             for GPvariable in ['sigma','alpha','Gamma','Prot']:
@@ -575,6 +602,11 @@ if rveparamfile is not None:
             # Detected celerite quasi-periodic kernel:
             rv_dictionary['GPType'] = 'CeleriteQPKernel'
             break
+        if (vec[0] == 'GP') and ('Plife' in vec[1]) and ('rv' in vec[-1].lower()):
+            # Detected celerite SHO:
+            rv_dictionary['GPType'] = 'CeleriteSHOKernel'
+            break
+
     print('\t Detected ',rv_dictionary['GPType'],'for the GP')
     # Save variables, standarize them if GP is SEKernel:
     rv_dictionary['X'] = GPDict['variables']
@@ -618,7 +650,31 @@ if rveparamfile is not None:
         # Note order of GP Vector: logB, logL, logProt, logC, logJitter
         rv_dictionary['GPVector'] = np.zeros(5)
         rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rverr_rv)
+    if rv_dictionary['GPType'] == 'CeleriteSHOKernel':
+        # Now that we know the type of GP, we extract the "instrument" corresponding to each GP 
+        # parameter. For example, for the ExpSineSquaredKernel, it might happen the user wants 
+        # to have a common GP_Prot parameter shared along many instruments, e.g., GP_Prot_TESS_K2_RV,
+        # which means the user wants a common Prot for TESS and K2 photometry, and also for the RVs. However, 
+        # the same GP might have a different Gamma, i.e., there might be a GP_Gamma_TESS, GP_Gamma_K2 and GP_Gamma_RV.
+        # The idea here is to, e.g., in the case of TESS photometry, gather lc_dictionary[instrument]['GP_Prot'] = 
+        # 'TESS_K2_RV', and lc_dictionary[instrument]['GP_Gamma'] = 'TESS':
+        for GPvariable in ['C0','Prot','Plife']:
+            for pnames in priors.keys():
+                vec = pnames.split('_')
+                if (vec[0] == 'GP') and (GPvariable in vec[1]) and ('rv' in vec[-1].lower()):
+                    rv_dictionary['GP_'+GPvariable] = '_'.join(vec[2:])
 
+        #for instrument in inames_rv:
+        sho_kernel = terms.SHOTerm(log_S0=np.log(10.), log_Q=np.log(10.),log_omega0=np.log(10.))
+        # Jitter term; dont add it, jitters will be added directly on the log-like (see Espinoza+2018).
+        #kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
+
+        # Wrap GP object to compute likelihood:
+        kernel = sho_kernel #+ kernel_jitter
+        rv_dictionary['GPObject'] = celerite.GP(kernel, mean=0.0)
+        # Note order of GP Vector: logS0, logQ, logomega0, logJitter
+        rv_dictionary['GPVector'] = np.zeros(4)
+        rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rverr_rv)
     if rv_dictionary['GPType'] == 'ExpSineSquaredSEKernel':
         for GPvariable in ['sigma','alpha','Gamma','Prot']:
             for pnames in priors.keys():
@@ -914,6 +970,8 @@ def loglike(cube, ndim=None, nparams=None):
                 # Save the log(jitte) term of the current GP vector:
                 lc_dictionary[instrument]['GPVector'][2] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)
             if lc_dictionary[instrument]['GPType'] == 'CeleriteMaternExpKernel':
+                # NOTE: We leave index 2 without value ON PURPOSE: the idea is that here, that is always 0 (because this defines the log(sigma) of the 
+                # matern kernel in the multiplication, which we set to 1).
                 # Save the log(sigma_GP) term of the current GP vector:
                 lc_dictionary[instrument]['GPVector'][0] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']**2)*1e-6)
                 # Save the log(1/timescale) term of the current GP vector:
@@ -922,6 +980,22 @@ def loglike(cube, ndim=None, nparams=None):
                 lc_dictionary[instrument]['GPVector'][3] = np.log(priors['GP_rho_'+lc_dictionary[instrument]['GP_rho']]['cvalue'])
                 # Save the log(jitte) term of the current GP vector:
                 lc_dictionary[instrument]['GPVector'][4] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)                
+            if lc_dictionary[instrument]['GPType'] == 'CeleriteSHOKernel':
+                # Transform C0, Prot and Plife to S0, Q and omega0. Note we assume C0 comes in ppm:
+                C0,Prot,Plife = priors['GP_C0_'+lc_dictionary[instrument]['GP_C0']]['cvalue']*1e-6,priors['GP_Prot_'+lc_dictionary[instrument]['GP_Prot']]['cvalue'],\
+                                priors['GP_Plife_'+lc_dictionary[instrument]['GP_Plife']]['cvalue']
+                S0 = (C0*(Prot**2))/(2. * (np.pi**2) * Plife)
+                omega0 = 2. * np.pi/Prot
+                Q = np.pi*Plife/Prot
+                if Q > 0.5:
+                    return -1e101
+                lc_dictionary[instrument]['GPVector'][0] = np.log(S0)
+                # Save the log(1/timescale) term of the current GP vector:
+                lc_dictionary[instrument]['GPVector'][1] = np.log(Q)
+                # Save the log(1/timescale) term of the current GP vector:
+                lc_dictionary[instrument]['GPVector'][2] = np.log(omega0)
+                # Save the log(jitte) term of the current GP vector:
+                lc_dictionary[instrument]['GPVector'][3] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)
 
             lc_dictionary[instrument]['GPObject'].set_parameter_vector(lc_dictionary[instrument]['GPVector'])
             log_likelihood += lc_dictionary[instrument]['GPObject'].log_likelihood(residuals)
@@ -1025,7 +1099,20 @@ def loglike(cube, ndim=None, nparams=None):
             rv_dictionary['GPVector'][2] = np.log(priors['GP_Prot_'+rv_dictionary['GP_Prot']]['cvalue'])
             # Save the log(L) term of the current GP vector:
             rv_dictionary['GPVector'][3] = np.log(priors['GP_C_'+rv_dictionary['GP_C']]['cvalue'])
-
+        if rv_dictionary['GPType'] == 'CeleriteSHOKernel':
+            # Transform C0, Prot and Plife to S0, Q and omega0. Note we assume C0 comes in same units as RVs:
+            C0,Prot,Plife = priors['GP_C0_'+rv_dictionary['GP_C0']]['cvalue'],priors['GP_Prot_'+rv_dictionary['GP_Prot']]['cvalue'],\
+                            priors['GP_Plife_'+rv_dictionary['GP_Plife']]['cvalue']
+            S0 = (C0*(Prot**2))/(2. * (np.pi**2) * Plife)
+            omega0 = 2. * np.pi/Prot
+            Q = np.pi*Plife/Prot
+            if Q > 0.5:
+                return -1e101
+            rv_dictionary['GPVector'][0] = np.log(S0)
+            # Save the log(1/timescale) term of the current GP vector:
+            rv_dictionary['GPVector'][1] = np.log(Q)
+            # Save the log(1/timescale) term of the current GP vector:
+            rv_dictionary['GPVector'][2] = np.log(omega0)
         rv_dictionary['GPObject'].set_parameter_vector(rv_dictionary['GPVector'])
         rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rvresiduals_err)
         log_likelihood += rv_dictionary['GPObject'].log_likelihood(rvresiduals)
@@ -1337,10 +1424,24 @@ if rvfilename is not None:
                       rv_dictionary['GPVector'][0] = np.log(priors['GP_B_'+rv_dictionary['GP_B']]['cvalue'])
                       # Save the log(L) term of the current GP vector:
                       rv_dictionary['GPVector'][1] = np.log(priors['GP_L_'+rv_dictionary['GP_L']]['cvalue'])
-                      # Save the log(L) term of the current GP vector:
+                      # Save the log(Prot) term of the current GP vector:
                       rv_dictionary['GPVector'][2] = np.log(priors['GP_Prot_'+rv_dictionary['GP_Prot']]['cvalue'])
-                      # Save the log(L) term of the current GP vector:
+                      # Save the log(C) term of the current GP vector:
                       rv_dictionary['GPVector'][3] = np.log(priors['GP_C_'+rv_dictionary['GP_C']]['cvalue'])
+                  if rv_dictionary['GPType'] == 'CeleriteSHOKernel':
+                      # Transform C0, Prot and Plife to S0, Q and omega0. Note we assume C0 comes in same units as RVs:
+                      C0,Prot,Plife = priors['GP_C0_'+rv_dictionary['GP_C0']]['cvalue'],priors['GP_Prot_'+rv_dictionary['GP_Prot']]['cvalue'],\
+                                      priors['GP_Plife_'+rv_dictionary['GP_Plife']]['cvalue']
+                      S0 = (C0*(Prot**2))/(2. * (np.pi**2) * Plife)
+                      omega0 = 2. * np.pi/Prot
+                      Q = np.pi*Plife/Prot
+                      if Q > 0.5:
+                          return -1e101
+                      rv_dictionary['GPVector'][0] = np.log(S0)
+                      # Save the log(1/timescale) term of the current GP vector:
+                      rv_dictionary['GPVector'][1] = np.log(Q)
+                      # Save the log(1/timescale) term of the current GP vector:
+                      rv_dictionary['GPVector'][2] = np.log(omega0)
 
                   rv_dictionary['GPObject'].set_parameter_vector(rv_dictionary['GPVector'])
                   rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rvresiduals_err)
@@ -1746,6 +1847,21 @@ if lcfilename is not None:
                     lc_dictionary[instrument]['GPVector'][3] = np.log(priors['GP_rho_'+lc_dictionary[instrument]['GP_rho']]['cvalue'])
                     # Save the log(jitte) term of the current GP vector:
                     lc_dictionary[instrument]['GPVector'][4] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)
+                if lc_dictionary[instrument]['GPType'] == 'CeleriteSHOKernel':
+                    # Transform C0, Prot and Plife to S0, Q and omega0. Note we assume C0 comes in ppm:
+                    C0,Prot,Plife = priors['GP_C0_'+lc_dictionary[instrument]['GP_C0']]['cvalue']*1e-6,priors['GP_Prot_'+lc_dictionary[instrument]['GP_Prot']]['cvalue'],\
+                                    priors['GP_Plife_'+lc_dictionary[instrument]['GP_Plife']]['cvalue']
+                    S0 = (C0*(Prot**2))/(2. * (np.pi**2) * Plife)
+                    omega0 = 2. * np.pi/Prot
+                    Q = np.pi*Plife/Prot
+                    lc_dictionary[instrument]['GPVector'][0] = np.log(S0)
+                    # Save the log(1/timescale) term of the current GP vector:
+                    lc_dictionary[instrument]['GPVector'][1] = np.log(Q)
+                    # Save the log(1/timescale) term of the current GP vector:
+                    lc_dictionary[instrument]['GPVector'][2] = np.log(omega0)
+                    # Save the log(jitte) term of the current GP vector:
+                    lc_dictionary[instrument]['GPVector'][3] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)
+
 
                 lc_dictionary[instrument]['GPObject'].set_parameter_vector(lc_dictionary[instrument]['GPVector'])
                 # Generate residuals with this model:
