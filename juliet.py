@@ -672,8 +672,8 @@ if rveparamfile is not None:
         # Wrap GP object to compute likelihood:
         kernel = sho_kernel #+ kernel_jitter
         rv_dictionary['GPObject'] = celerite.GP(kernel, mean=0.0)
-        # Note order of GP Vector: logS0, logQ, logomega0, logJitter
-        rv_dictionary['GPVector'] = np.zeros(4)
+        # Note order of GP Vector: logS0, logQ, logomega0
+        rv_dictionary['GPVector'] = np.zeros(3)
         rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rverr_rv)
     if rv_dictionary['GPType'] == 'ExpSineSquaredSEKernel':
         for GPvariable in ['sigma','alpha','Gamma','Prot']:
@@ -1435,8 +1435,6 @@ if rvfilename is not None:
                       S0 = (C0*(Prot**2))/(2. * (np.pi**2) * Plife)
                       omega0 = 2. * np.pi/Prot
                       Q = np.pi*Plife/Prot
-                      if Q > 0.5:
-                          return -1e101
                       rv_dictionary['GPVector'][0] = np.log(S0)
                       # Save the log(1/timescale) term of the current GP vector:
                       rv_dictionary['GPVector'][1] = np.log(Q)
