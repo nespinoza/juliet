@@ -1243,34 +1243,17 @@ rv_colors = ['#ca0020','#0571b0','#E28413','#090446','#780116','#574AE2']
 
 # First, RV plots:
 if rvfilename is not None:
-    ###############################################################
-    ###############################################################
-    ######## FIRST PLOT (IF GP): RV V/S TIME PER INSTRUMENT #######
-    ###############################################################
-    ###############################################################
-    # Here, we plot the RV V/S TIME per instrument; while doing 
-    # this, we substract the GP component from each instrument to the 
-    # RVs.
-
     # First, define zero-point for RV plotting time:
     zero_t_rv = int(np.min(t_rv))
-    #for instrument in inames_rv:
-    #    # First, we define some preambles for this plot:
-    #    fig, axs = plt.subplots(2, 1, gridspec_kw = {'height_ratios':[3,1]}, figsize=(10,4))
-    #    sns.set_context("talk")
-    #    sns.set_style("ticks")
-    #    matplotlib.rcParams['mathtext.fontset'] = 'stix'
-    #    matplotlib.rcParams['font.family'] = 'STIXGeneral'
-    #    matplotlib.rcParams['font.size'] = '5'
-    #    matplotlib.rcParams['axes.linewidth'] = 1.2
-    #    matplotlib.rcParams['xtick.direction'] = 'out'
-    #    matplotlib.rcParams['ytick.direction'] = 'out'
-    #    matplotlib.rcParams['lines.markeredgewidth'] = 1
     ###############################################################
     ###############################################################
     ################## FIRST PLOT: RV V/S TIME ####################
     ###############################################################
     ###############################################################
+    # Here we not only generate the RV vs time plot, but also generate 
+    # the GP model in case a GP was used; we later use this to substract it 
+    # from the data to show the phased RVs
+
     # The first plot is RV v/s time. First, we define some preambles for this plot:
     fig, axs = plt.subplots(2, 1, gridspec_kw = {'height_ratios':[3,1]}, figsize=(10,4))
     sns.set_context("talk")
@@ -1335,14 +1318,6 @@ if rvfilename is not None:
           # phased RVs:
           if rveparamfile is not None:
               all_gp_models_real = np.zeros([nsims,len(t_rv)])
-          #    if rv_dictionary['GPType'] == 'ExpSineSquaredSEKernel':
-          #        K1 = 1.*george.kernels.ExpSquaredKernel(metric = 1.0)
-          #        K2 = george.kernels.ExpSine2Kernel(gamma=1.0,log_period=1.0)
-          #        GPKernelBase = K1*K2
-          #        gp = george.GP(GPKernelBase, mean=0.0,fit_mean=False,\
-          #                       fit_white_noise=False,solver=george.HODLRSolver, seed=42)
-          #        GPVector = np.zeros(4)
-          #        gp.compute(rv_dictionary['X'],yerr=all_rv_err)
 
           # Here comes one of the slow parts: for the first nsims posterior samples, compute a model:
           print('Sampling models...')
@@ -1577,6 +1552,7 @@ if rvfilename is not None:
         # Now plot phased RVs minus the component model without the current planet:
         planet_rvs = np.array([])
         color_counter = 0
+        # If GP, remove it as well:
         if rveparamfile is not None:
             rvmodel_minus_iplanet += np.median(all_gp_models_real,axis=0)
         #all_rv_data_phases = np.array([])
@@ -1694,6 +1670,7 @@ if lcfilename is not None:
 
     # First, photometry (time vs flux) per instrument on different plots. Top plot will be relative flux 
     # vs time, lower plot residuals:
+    norm_factors = {}
     for instrument in inames_lc:
         print(r'\t Generating plot for instrument '+instrument)
         tbaseline = np.max(t_lc[instrument_indexes_lc[instrument]]) - np.min(t_lc[instrument_indexes_lc[instrument]])
@@ -1718,6 +1695,13 @@ if lcfilename is not None:
         GPmodel = np.ones(len(tinstrument))
         # Generate model lightcurves for each sample in the current instrument:
         counter = -1
+        # Here we will save the normalization factors. People from the future: this basically corrects a plotting bug that appears 
+        # because the expectation value of y ~ (T*D + (1-D))*(1/(1+DM)) is y = T*E[D/(1+DM)] + E[(1-D)/(1+D*M)] = T*F1 + F2, so later when we want 
+        # to normalize the data for plotting (so out-of-transit is one) we need to do normed(y) = (y - F2)/F1. Before, I was just 
+        # calculating E[D] and E[M] and calculating y = T*E[D]/(1+E[D]*E[M]) + (1-E[D])/(1+E[D]*E[M]), which is wrong.
+        norm_factors[instrument] = {}
+        norm_factors[instrument]['F1'] = np.array([])
+        norm_factors[instrument]['F2'] = np.array([])
         for j in idx_sims:
             counter = counter + 1
             # Sample the jth sample of parameter values:
@@ -1788,6 +1772,10 @@ if lcfilename is not None:
                                       (1. - priors['mdilution_'+instrument]['cvalue']))*\
                                       (1./(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue']))
 
+            F1,F2 = priors['mdilution_'+instrument]['cvalue']/(1. + (priors['mdilution_'+instrument]['cvalue'])*(priors['mflux_'+instrument]['cvalue'])),\
+                    (1. - priors['mdilution_'+instrument]['cvalue'])/(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue'])
+            norm_factors[instrument]['F1'] = np.append(norm_factors[instrument]['F1'],F1)
+            norm_factors[instrument]['F2'] = np.append(norm_factors[instrument]['F2'],F2)
             if lc_dictionary[instrument]['GPDetrend']:
                 # Set current values to GP Vector:
                 if lc_dictionary[instrument]['GPType'] == 'SEKernel':
@@ -1921,11 +1909,12 @@ if lcfilename is not None:
                     fmt='.k',markersize=1,alpha=alpha_notbinned,elinewidth=1)
 
         fout = open(out_folder+'time_lc_'+instrument+'.dat','w')
-        fout.write('# Time \t Data \t Error \t Model\n')
+        fout.write('# Time \t Data \t Error \t Model \t GP Component\n')
 
+        F1med,F2med = np.median(norm_factors[instrument]['F1']),np.median(norm_factors[instrument]['F2'])
         for i in range(len(tinstrument)):
-            fout.write('{0:.10f} {1:.10f} {2:.10f} {3:.10f}\n'.format(tinstrument[i],f_lc[instrument_indexes_lc[instrument]][i],\
-                                                                      ferr_instrument[i],omedian_model[i]))
+            fout.write('{0:.10f} {1:.10f} {2:.10f} {3:.10f} {4:.10f}\n'.format(tinstrument[i],f_lc[instrument_indexes_lc[instrument]][i],\
+                                                                      ferr_instrument[i],omedian_model[i],F1med + F2med + GPmodel[i]))
         fout.close()
         # Now plot the phased model. Compute sorting indexes as well and plot sorted phases:
         ax.fill_between(tinstrument-tzero,omodel_down1,omodel_up1,color='cornflowerblue',alpha=0.25)
@@ -1981,21 +1970,13 @@ if lcfilename is not None:
     finstrument = {}
     for instrument in inames_lc:
         finstrument[instrument] = {}
-        if 'mdilution_'+instrument in out['posterior_samples'].keys():
-            D = np.median(out['posterior_samples']['mdilution_'+instrument])
-        else:
-            D = priors['mdilution_'+instrument]['cvalue']
-        if 'mflux_'+instrument in out['posterior_samples'].keys():
-            M = np.median(out['posterior_samples']['mflux_'+instrument])
-        else:
-            M = priors['mflux_'+instrument]['cvalue']
         if 'sigma_w_'+instrument in out['posterior_samples'].keys():
             sigma_w = np.median(out['posterior_samples']['sigma_w_'+instrument])
         else:
             sigma_w = priors['sigma_w_'+instrument]['cvalue']
-        
-        finstrument[instrument]['flux'] = (f_lc[instrument_indexes_lc[instrument]]*(1. + D*M) - (1.-D))/D
-        finstrument[instrument]['flux_error'] = np.sqrt(ferr_lc[instrument_indexes_lc[instrument]]**2 + (sigma_w*1e-6)**2)*((1. + D*M)/D)
+        F1med,F2med = np.median(norm_factors[instrument]['F1']),np.median(norm_factors[instrument]['F2'])
+        finstrument[instrument]['flux'] = (f_lc[instrument_indexes_lc[instrument]] - F2med)/F1med
+        finstrument[instrument]['flux_error'] = np.sqrt(ferr_lc[instrument_indexes_lc[instrument]]**2 + (sigma_w*1e-6)**2)/F1med
 
     # Now, let's begin with the phased transit plots of each planet for each instrument on different plots:
     for nplanet in range(n_transit):
