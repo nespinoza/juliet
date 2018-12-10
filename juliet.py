@@ -75,6 +75,8 @@ parser.add_argument('-rvtimedef', default='UTC')
 parser.add_argument('-priorfile', default=None)
 # This defines if rv units are m/s (ms) or km/s (kms); useful for plotting. Default is m/s:
 parser.add_argument('-rvunits', default='ms')
+# Allow user to change the maximum eccentricity for the fits; helps avoid issue that Batman can run into with high eccentricities
+parser.add_argument('-ecclim', default=0.95)
 # Define stellar density mean and stdev if you have it --- this will help with a constrained transit fit:
 parser.add_argument('-sdensity_mean', default=None)
 parser.add_argument('-sdensity_sigma', default=None)
@@ -818,7 +820,7 @@ if lcfilename is not None:
 G = 6.67408e-11 # mks
 
 # Maximum eccentricity limit:
-ecclim = 0.95
+ecclim = args.ecclim
 
 def loglike(cube, ndim=None, nparams=None):
     # Evaluate the log-likelihood. For this, first extract all inputs:
