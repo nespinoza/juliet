@@ -168,6 +168,14 @@ if (not os.path.exists(out_folder+'lc.dat')) and (lcfilename is not None):
 if (not os.path.exists(out_folder+'rvs.dat')) and (rvfilename is not None):
     os.system('cp '+rvfilename+' '+out_folder+'rvs.dat')
 
+# Read the eparam files for lightcurves and rvs --- save them to out_folder if not already there:
+lceparamfile = args.lceparamfile
+rveparamfile = args.rveparamfile
+if (not os.path.exists(out_folder+'lc_eparams.dat')) and (lceparamfile is not None):
+    os.system('cp '+lceparamfile+' '+out_folder+'lc_eparams.dat')
+if (not os.path.exists(out_folder+'rvs.dat')) and (rveparamfile is not None):
+    os.system('cp '+rveparamfile+' '+out_folder+'rv_eparams.dat')
+
 sd_mean,sd_sigma = args.sdensity_mean,args.sdensity_sigma
 stellar_density = False
 if sd_mean is not None:
@@ -325,7 +333,6 @@ if lcfilename is not None:
     t_lc = t_lc.astype('float64')
 
 # Extract external parameter file for LC GP:
-lceparamfile = args.lceparamfile
 if lceparamfile is not None:
     GPDict = utils.readeparams(lceparamfile)
     for instrument in GPDict.keys():
@@ -582,7 +589,6 @@ if lceparamfile is not None:
                 lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'],yerr=ferr_lc[instrument_indexes_lc[instrument]])
 
 # Extract external parameter file for RV GP:
-rveparamfile = args.rveparamfile
 if rveparamfile is not None:
     GPDict = utils.readeparams(rveparamfile,RV=True)
     print('\t Fitting RV GP.')
@@ -1422,6 +1428,7 @@ if rvfilename is not None:
                   rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rvresiduals_err)
 
                   # Generate Keplerians:
+                  if counter%100==0: print(counter)
                   model = radvel.model.RVModel(radvel_params).__call__(t_rv_model)
                   model_real = radvel.model.RVModel(radvel_params).__call__(t_rv)
                   # Predict real values: 
