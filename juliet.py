@@ -2232,7 +2232,7 @@ if lcfilename is not None:
         # Now plot the phased model. Compute sorting indexes as well and plot sorted phases:
         ax.fill_between(model_phases,omodel_down1,omodel_up1,color='cornflowerblue',alpha=0.25)
         ax.fill_between(model_phases,omodel_down2,omodel_up2,color='cornflowerblue',alpha=0.25)
-        ax.fill_between(model_phases,omodel_down3,omodel_up3,color='cornflowerblue',alpha=0.25)
+        #ax.fill_between(model_phases,omodel_down3,omodel_up3,color='cornflowerblue',alpha=0.25)
         ax.plot(model_phases,omedian_model,'-',linewidth=2,color='black')
         ax.set_ylabel('Relative flux')
 
