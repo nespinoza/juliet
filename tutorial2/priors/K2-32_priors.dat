@@ -1,0 +1,41 @@
+rho                   Normal            2094,82
+# Physical parameters for K2-32b:
+P_p1                  Normal            8.992,0.001
+t0_p1                 Normal            2456909.92,0.01
+r1_p1                 Uniform           0.0,1.0
+r2_p1                 Uniform           0.0,1.0
+ecc_p1                FIXED             0.0
+omega_p1              FIXED             90.0
+K_p1                  Uniform           0.,100.
+# Physical parameters for K2-32c:
+P_p2                  Normal            20.66,0.01
+t0_p2                 Normal            2456961.41,0.01
+r1_p2                 Uniform           0.0,1.0
+r2_p2                 Uniform           0.0,1.0
+ecc_p2                FIXED             0.0
+omega_p2              FIXED             90.0
+K_p2                  Uniform           0.,100.
+# Physical parameters for K2-32d:
+P_p3                  Normal            31.71,0.01
+t0_p3                 Normal            2456903.79,0.01
+r1_p3                 Uniform           0.0,1.0
+r2_p3                 Uniform           0.0,1.0
+ecc_p3                FIXED             0.0
+omega_p3              FIXED             90.0
+K_p3                  Uniform           0.,100.
+# Photometric priors for K2 photometry (including GP):
+q1_K2                 Uniform           0.0,1.0
+q2_K2                 Uniform           0.0,1.0
+mdilution_K2          FIXED             1.0
+sigma_w_K2            Jeffreys          1.,1000
+mflux_K2              Normal            0.0,0.1
+GP_sigma_K2           Jeffreys          0.1,1e4
+GP_timescale_K2       Jeffreys          0.02,1e5
+GP_rho_K2             Jeffreys          0.02,1e5
+# RV priors:
+mu_HIRES              Normal            0.,10.
+sigma_w_rv_HIRES      Jeffreys          0.01,10.
+mu_HARPS              Normal            0.,10.
+sigma_w_rv_HARPS      Jeffreys          0.01,10.
+mu_PFS                Normal            0.,10.
+sigma_w_rv_PFS        Jeffreys          0.01,10.
