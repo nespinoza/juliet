@@ -1,0 +1,19 @@
+# Physical parameters of the transiting system:
+P_p1                  Normal            6.5693,0.0100
+t0_p1                 Normal            2457588.28380,0.0100
+a_p1                  Uniform           1.0,30.0
+r1_p1                 Uniform           0.0,1.0
+r2_p1                 Uniform           0.0,1.0
+ecc_p1                FIXED             0.0 
+omega_p1              FIXED             90.0
+# Photometric priors for K2 photometry:
+q1_K2                 Uniform           0.0,1.0
+q2_K2                 Uniform           0.0,1.0
+mdilution_K2          FIXED             1.0 
+sigma_w_K2            Jeffreys          1.,500
+mflux_K2              Normal            0.0,0.1
+# Photometric priors for LCOGT photometry:
+q1_LCOGT              Uniform           0.0,1.0
+mdilution_LCOGT       FIXED             1.0 
+sigma_w_LCOGT         Jeffreys          1.,5000
+mflux_LCOGT           Normal            0.0,0.1
