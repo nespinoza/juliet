@@ -116,8 +116,12 @@ def readpriors(priorname):
                 else:
                     n_params += 1
                     priors[parameter]['type'] = prior_name.lower()
-                    v1,v2 = vals.split(',')
-                    priors[parameter]['value'] = [np.double(v1),np.double(v2)]
+                    if priors[parameter]['type'] != 'truncatednormal':
+                        v1,v2 = vals.split(',')
+                        priors[parameter]['value'] = [np.double(v1),np.double(v2)]
+                    else:
+                        v1,v2,v3,v4 = vals.split(',')
+                        priors[parameter]['value'] = [np.double(v1),np.double(v2),np.double(v3),np.double(v4)]
                     priors[parameter]['cvalue'] = 0.
         else:
             break

@@ -774,6 +774,8 @@ def transform_prior(val,pinfo):
         return utils.transform_uniform(val,pinfo['value'][0],pinfo['value'][1])
     if pinfo['type'] == 'normal':
         return utils.transform_normal(val,pinfo['value'][0],pinfo['value'][1])
+    if pinfo['type'] == 'truncatednormal':
+        return utils.transform_truncated_normal(val,pinfo['value'][0],pinfo['value'][1],a=pinfo['value'][2],b=pinfo['value'][3])
     if pinfo['type'] == 'jeffreys':
         return utils.transform_loguniform(val,pinfo['value'][0],pinfo['value'][1])
     if pinfo['type'] == 'beta':
