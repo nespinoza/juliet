@@ -75,6 +75,8 @@ parser.add_argument('-rvtimedef', default='UTC')
 parser.add_argument('-priorfile', default=None)
 # This defines if rv units are m/s (ms) or km/s (kms); useful for plotting. Default is m/s:
 parser.add_argument('-rvunits', default='ms')
+# This defines the minimum chunk of RV data that activates multi-panel plots:
+parser.add_argument('-nrvchunk', default = 100)
 # Allow user to change the maximum eccentricity for the fits; helps avoid issue that Batman can run into with high eccentricities
 parser.add_argument('-ecclim', default=0.95)
 # Define stellar density mean and stdev if you have it --- this will help with a constrained transit fit:
@@ -320,6 +322,8 @@ if not os.path.exists(out_folder+'priors.dat'):
 
 # RV units:
 rvunits = args.rvunits
+# nrvchunk:
+nrvchunk = np.double(args.nrvchunk)
 
 print('\t Fitting ',n_transit,' transiting planets and ',n_rv,' radial-velocity systems.')
 print('\t ',n_params,' free parameters.')
@@ -1246,9 +1250,10 @@ if nsims == out['posterior_samples']['unnamed'].shape[0]:
     idx_sims = np.arange(out['posterior_samples']['unnamed'].shape[0])
 else:
     idx_sims = np.random.choice(np.arange(out['posterior_samples']['unnamed'].shape[0]),nsims,replace=False)
+
 # Ok, here comes the plotting functions (*takes deep breath*).
-# Colors for RV instruments:780116
-rv_colors = ['#ca0020','#0571b0','#E28413','#090446','#780116','#574AE2']
+# Colors for RV instruments:
+rv_colors = ['#B39C4D','#0571b0','#ca0020','#090446','#780116','#574AE2']
 
 
 # First, RV plots:
@@ -1264,8 +1269,37 @@ if rvfilename is not None:
     # the GP model in case a GP was used; we later use this to substract it 
     # from the data to show the phased RVs
 
+    # First, we check if the entire RV dataset can be divided into one big chunk of nrvchunk days 
+    # (set by default at 100 days). If this is not the case, we activate the RV multi-panel plot:
+    if np.max(t_rv)-np.min(t_rv) > nrvchunk:
+        rvmultipanel = True
+    else:
+        rvmultipanel = False
+
     # The first plot is RV v/s time. First, we define some preambles for this plot:
-    fig, axs = plt.subplots(2, 1, gridspec_kw = {'height_ratios':[3,1]}, figsize=(10,4))
+    if rvmultipanel is False:
+        fig, axs = plt.subplots(2, 1, gridspec_kw = {'height_ratios':[3,1]}, figsize=(10,4))
+    else:
+        # If in multi-panel plot, first agglomerate data in nrvchunks, and save all the corresponding
+        # data for each panel to the chunks dictionary:
+        idxrv = np.argsort(t_rv)
+        npanels = 0
+        chunks  = {} 
+        chunks[npanels] = {}
+        chunks[npanels]['tmin'] = t_rv[idxrv[0]] - 5
+        for i in idxrv:
+            if t_rv[i]-chunks[npanels]['tmin'] > nrvchunk:
+                chunks[npanels]['tmax'] = chunks[npanels]['tmin'] + nrvchunk + 5
+                npanels += 1
+                chunks[npanels] = {}
+                chunks[npanels]['tmin'] = t_rv[i] - 5
+        if 'tmax' not in chunks[npanels].keys():
+            chunks[npanels]['tmax'] = chunks[npanels]['tmin'] + nrvchunk + 5
+        # Now that all data is saved, create multi-panel plot:
+        fig, axs = plt.subplots(2*(npanels+1), 1, gridspec_kw = {'height_ratios':[3,1]*(npanels+1)}, figsize=(12,10))
+            
+        
+                
     sns.set_context("talk")
     sns.set_style("ticks")
     matplotlib.rcParams['mathtext.fontset'] = 'stix'
@@ -1294,7 +1328,8 @@ if rvfilename is not None:
     # Now, iterate between the two plots; one for the RV v/s time, and one for the residuals v/s time:
     print('Plotting RV vs time...')
     for i in range(2):
-        ax = axs[i]
+        if rvmultipanel is False:
+            ax = axs[i]
         if i == 0:
           # Create dictionary that will save the systemic-corrected RVs (useful for the other plots!):
           sys_corrected = {}
@@ -1307,15 +1342,27 @@ if rvfilename is not None:
               all_rv_err[[instrument_indexes_rv[instrument]]] = np.sqrt(rverr_rv[instrument_indexes_rv[instrument]]**2 + priors['sigma_w_rv_'+instrument]['cvalue']**2)
               corrected_rv = rv_rv[instrument_indexes_rv[instrument]] - priors['mu_'+instrument]['cvalue']
               corrected_rv_err = np.sqrt(rverr_rv[instrument_indexes_rv[instrument]]**2 + priors['sigma_w_rv_'+instrument]['cvalue']**2)
-              ax.errorbar(t_rv[instrument_indexes_rv[instrument]] - zero_t_rv,corrected_rv,\
-                          yerr=corrected_rv_err,fmt='.',label=instrument.upper(),elinewidth=1,color=rv_colors[color_counter],alpha=0.5)
+              if rvmultipanel is False:
+                  ax.errorbar(t_rv[instrument_indexes_rv[instrument]] - zero_t_rv,corrected_rv,\
+                              yerr=corrected_rv_err,fmt='.',label=instrument.upper(),elinewidth=1,color=rv_colors[color_counter],alpha=0.75)
+              else:
+                  for npanel in chunks.keys():
+                      ax = axs[2*npanel] 
+                      ax.errorbar(t_rv[instrument_indexes_rv[instrument]] - zero_t_rv,corrected_rv,\
+                              yerr=corrected_rv_err,fmt='.',label=instrument.upper(),elinewidth=1,color=rv_colors[color_counter],alpha=0.75) 
               color_counter += 1
               # Save systemic corrected RVs:
               sys_corrected[instrument] = {}
               sys_corrected[instrument]['values'] = corrected_rv
               sys_corrected[instrument]['errors'] = corrected_rv_err
           # Now RV model on top. For this, oversample the times:
-          t_rv_model = np.linspace(np.min(t_rv)-10,np.max(t_rv)+10,5000)
+          if rvmultipanel is False:
+              t_rv_model = np.linspace(np.min(t_rv)-10,np.max(t_rv)+10,5000)
+          else:
+              t_rv_model = np.array([])
+              for npanels in chunks.keys():
+                  t_rv_model = np.append(t_rv_model,np.linspace(chunks[npanels]['tmin'],chunks[npanels]['tmax'],1000))
+                  
 
           # Now compute many models, for which we'll get the quantiles later for the 
           # joint RV model. Do the same for the samples according to the times in t_rv_model 
@@ -1456,43 +1503,76 @@ if rvfilename is not None:
               omodel_up2[i_tsample],omodel_down2[i_tsample] = valup2,valdown2
               omodel_up3[i_tsample],omodel_down3[i_tsample] = valup3,valdown3
           
-          # Plot model and uncertainty in model given by posterior sampling:
-          ax.fill_between(t_rv_model - zero_t_rv,omodel_down1,omodel_up1,color='cornflowerblue',alpha=0.25)
-          ax.fill_between(t_rv_model - zero_t_rv,omodel_down2,omodel_up2,color='cornflowerblue',alpha=0.25)
-          ax.fill_between(t_rv_model - zero_t_rv,omodel_down3,omodel_up3,color='cornflowerblue',alpha=0.25)
-          ax.plot(t_rv_model - zero_t_rv,omedian_model,'-',linewidth=2,color='black') 
-          ax.set_xlim([np.min(t_rv)-1-zero_t_rv,np.max(t_rv)+1-zero_t_rv])
-          if rvunits == 'ms':
-              ax.set_ylabel('Radial velocity (m/s)')
+          if rvmultipanel is False:
+              # Plot model and uncertainty in model given by posterior sampling:
+              ax.fill_between(t_rv_model - zero_t_rv,omodel_down1,omodel_up1,color='cornflowerblue',alpha=0.25)
+              ax.fill_between(t_rv_model - zero_t_rv,omodel_down2,omodel_up2,color='cornflowerblue',alpha=0.25)
+              ax.fill_between(t_rv_model - zero_t_rv,omodel_down3,omodel_up3,color='cornflowerblue',alpha=0.25)
+              ax.plot(t_rv_model - zero_t_rv,omedian_model,'-',linewidth=2,color='black') 
+              ax.set_xlim([np.min(t_rv)-1-zero_t_rv,np.max(t_rv)+1-zero_t_rv])
+              if rvunits == 'ms':
+                  ax.set_ylabel('Radial velocity (m/s)')
+              else:
+                  ax.set_ylabel('Radial velocity (km/s)')
+              ax.get_xaxis().set_major_formatter(plt.NullFormatter()) 
+              ax.legend(ncol=3)
           else:
-              ax.set_ylabel('Radial velocity (km/s)')
-          ax.get_xaxis().set_major_formatter(plt.NullFormatter()) 
-          ax.legend(ncol=3)
+              for npanel in chunks.keys():
+                  ax = axs[2*npanel] 
+                  ax.fill_between(t_rv_model - zero_t_rv,omodel_down1,omodel_up1,color='cornflowerblue',alpha=0.25)
+                  ax.fill_between(t_rv_model - zero_t_rv,omodel_down2,omodel_up2,color='cornflowerblue',alpha=0.25)
+                  ax.fill_between(t_rv_model - zero_t_rv,omodel_down3,omodel_up3,color='cornflowerblue',alpha=0.25)
+                  ax.plot(t_rv_model - zero_t_rv,omedian_model,'-',linewidth=2,color='black')
+                  ax.set_xlim([np.min(chunks[npanel]['tmin'])-zero_t_rv,chunks[npanel]['tmax']-zero_t_rv])
+                  if rvunits == 'ms':
+                      ax.set_ylabel('RV (m/s)')
+                  else:
+                      ax.set_ylabel('RV (km/s)')
+                  ax.get_xaxis().set_major_formatter(plt.NullFormatter())
+                  if npanel == 0:
+                      lgd = ax.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,ncol=len(inames_rv), mode="expand", borderaxespad=0.)
+                      #ax.legend(ncol=3)
         if i == 1:
           # Second row is residuals. First, compute the median real model to get the residuals:
           all_rv_models_real = np.median(all_rv_models_real,axis=0)
           # Plot a zero line to guide the eye:
-          ax.plot([-1e10,1e10],[0.,0.],'--',linewidth=2,color='black')
           # Compute, plot and save the residuals:
           color_counter = 0
           fout = open(out_folder+'rv_residuals.dat','w')
           fout.write('# Time Residual Error Instrument \n')
           for instrument in inames_rv:
-              ax.errorbar(t_rv[instrument_indexes_rv[instrument]] - zero_t_rv, \
-                           sys_corrected[instrument]['values'] - all_rv_models_real[instrument_indexes_rv[instrument]], \
-                           sys_corrected[instrument]['errors'],fmt='.',label=instrument,elinewidth=1,color=rv_colors[color_counter],alpha=0.5)
+              if rvmultipanel is False:
+                  ax.plot([-1e10,1e10],[0.,0.],'--',linewidth=2,color='black')
+                  ax.errorbar(t_rv[instrument_indexes_rv[instrument]] - zero_t_rv, \
+                               sys_corrected[instrument]['values'] - all_rv_models_real[instrument_indexes_rv[instrument]], \
+                               sys_corrected[instrument]['errors'],fmt='.',label=instrument,elinewidth=1,color=rv_colors[color_counter],alpha=0.5)
+              else:
+                  for npanel in chunks.keys():
+                      ax = axs[2*npanel+1]
+                      ax.plot([-1e10,1e10],[0.,0.],'--',linewidth=1,color='black')
+                      ax.errorbar(t_rv[instrument_indexes_rv[instrument]] - zero_t_rv, \
+                               sys_corrected[instrument]['values'] - all_rv_models_real[instrument_indexes_rv[instrument]], \
+                               sys_corrected[instrument]['errors'],fmt='.',label=instrument,elinewidth=1,color=rv_colors[color_counter],alpha=0.5)
               for ii in range(len(t_rv[instrument_indexes_rv[instrument]])):
                   vals = '{0:.10f} {1:.10f} {2:.10f}'.format(t_rv[instrument_indexes_rv[instrument]][ii],sys_corrected[instrument]['values'][ii] - all_rv_models_real[instrument_indexes_rv[instrument]][ii],\
                                                              sys_corrected[instrument]['errors'][ii])
                   fout.write(vals+' '+instrument+' \n')
               color_counter += 1
           fout.close()
-          ax.set_ylabel('Residuals')
-          ax.set_xlabel('Time (BJD - '+str(zero_t_rv)+')')
-          ax.set_xlim([np.min(t_rv)-1-zero_t_rv,np.max(t_rv)+1-zero_t_rv])
+          if rvmultipanel is False:
+              ax.set_ylabel('Residuals')
+              ax.set_xlabel('Time (BJD - '+str(zero_t_rv)+')')
+              ax.set_xlim([np.min(t_rv)-1-zero_t_rv,np.max(t_rv)+1-zero_t_rv])
+          else:
+              for npanel in chunks.keys():
+                  ax = axs[2*npanel+1]
+                  ax.set_xlim([np.min(chunks[npanel]['tmin'])-zero_t_rv,chunks[npanel]['tmax']-zero_t_rv])
+                  ax.set_ylabel('Residuals')
+                  if npanel == np.max(chunks.keys()):
+                      ax.set_xlabel('Time (BJD - '+str(zero_t_rv)+')')
     # Plot RV vs time:
     plt.tight_layout()
-    plt.savefig(out_folder+'rv_vs_time.pdf')
+    plt.savefig(out_folder+'rv_vs_time.pdf',bbox_extra_artists=(lgd,), bbox_inches='tight')
 
 
     ###############################################################
@@ -1653,7 +1733,7 @@ if rvfilename is not None:
         title_text = r'$P={0:.3f}$, $t_0 = {1:.5f}$'.format(P,t0)
         if n_rv>1:
             ax.set_title('Planet '+str(iplanet)+': '+title_text)
-        if iplanet == 0:
+        if n == 0:
             if rvunits == 'ms':
                 ax.set_ylabel('Radial velocity (m/s)')
             else:
@@ -1664,7 +1744,7 @@ if rvfilename is not None:
 
     # Plot RV v/s phase for each planet:
     plt.tight_layout()
-    plt.savefig(out_folder+'rvs_planets.pdf')
+    plt.savefig(out_folder+'rvs_planets.pdf',bbox_inches='tight')
 
 
 # Finally, transit plots:
