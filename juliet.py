@@ -77,6 +77,8 @@ parser.add_argument('-priorfile', default=None)
 parser.add_argument('-rvunits', default='ms')
 # This defines the minimum chunk of RV data that activates multi-panel plots:
 parser.add_argument('-nrvchunk', default = 100)
+# Decide if binned RVs will be plotted at the end:
+parser.add_argument('--plotbinnedrvs', dest='plotbinnedrvs', action='store_true') 
 # Allow user to change the maximum eccentricity for the fits; helps avoid issue that Batman can run into with high eccentricities
 parser.add_argument('-ecclim', default=0.95)
 # Define stellar density mean and stdev if you have it --- this will help with a constrained transit fit:
@@ -324,6 +326,8 @@ if not os.path.exists(out_folder+'priors.dat'):
 rvunits = args.rvunits
 # nrvchunk:
 nrvchunk = np.double(args.nrvchunk)
+# If binned rvs will be plotted:
+plotbinnedrvs = args.plotbinnedrvs
 
 print('\t Fitting ',n_transit,' transiting planets and ',n_rv,' radial-velocity systems.')
 print('\t ',n_params,' free parameters.')
@@ -1253,7 +1257,7 @@ else:
 
 # Ok, here comes the plotting functions (*takes deep breath*).
 # Colors for RV instruments:
-rv_colors = ['#B39C4D','#0571b0','#ca0020','#090446','#780116','#574AE2']
+rv_colors = ['#F6511D','#0571b0','#ca0020','#090446','#780116','#574AE2']
 
 
 # First, RV plots:
@@ -1296,7 +1300,7 @@ if rvfilename is not None:
         if 'tmax' not in chunks[npanels].keys():
             chunks[npanels]['tmax'] = chunks[npanels]['tmin'] + nrvchunk + 5
         # Now that all data is saved, create multi-panel plot:
-        fig, axs = plt.subplots(2*(npanels+1), 1, gridspec_kw = {'height_ratios':[3,1]*(npanels+1)}, figsize=(12,10))
+        fig, axs = plt.subplots(2*(npanels+1), 1, gridspec_kw = {'height_ratios':[3,1]*(npanels+1)}, figsize=(10,10))
             
         
                 
@@ -1567,7 +1571,7 @@ if rvfilename is not None:
               for npanel in chunks.keys():
                   ax = axs[2*npanel+1]
                   ax.set_xlim([np.min(chunks[npanel]['tmin'])-zero_t_rv,chunks[npanel]['tmax']-zero_t_rv])
-                  ax.set_ylabel('Residuals')
+                  ax.set_ylabel('O-C')
                   if npanel == np.max(chunks.keys()):
                       ax.set_xlabel('Time (BJD - '+str(zero_t_rv)+')')
     # Plot RV vs time:
@@ -1581,11 +1585,12 @@ if rvfilename is not None:
     ###############################################################
     ###############################################################
 
-    # Now, plot RV for each planet; each column is a different planet. As before, preambles:
+    # Now, plot RV for each planet; each column is a different planet, two rows: one for phased data, other for phased residuals. 
+    # As before, preambles: gridspec_kw = {'height_ratios':[3,1]*(npanels+1)}
     if n_rv == 1:
-        fig, axs = plt.subplots(1, n_rv, figsize=(5,4))
+        fig, axs = plt.subplots(2, n_rv, gridspec_kw = {'height_ratios':[3,1]}, figsize=(5,4))
     else:
-        fig, axs = plt.subplots(1, n_rv, figsize=(15,4))
+        fig, axs = plt.subplots(2, n_rv, gridspec_kw = {'height_ratios':[3,1]}, figsize=(13,4))
     sns.set_context("talk")
     sns.set_style("ticks")
     matplotlib.rcParams['mathtext.fontset'] = 'stix'
@@ -1601,9 +1606,12 @@ if rvfilename is not None:
     for n in range(n_rv):
         iplanet = numbering_rv[n]
         if n_rv == 1:
-            ax = axs
+            ax = axs[0]
+            ax_res = axs[1]
         else:
-            ax = axs[n]
+            ax = axs[0][n]
+            ax_res = axs[1][n]
+        ax_res.plot([-0.5,0.5],[0.,0.],'--',linewidth=1,color='black',zorder=0)
         # First, generate a model that contans the components of all the other planets. For computing this, simply use the medians 
         # of the samples (i.e., the uncertainties we'll plot for each planet are the --- marginalized --- uncertainties on those planets 
         # parameters only). If GP is on, also substract best-fit GP model:
@@ -1648,13 +1656,41 @@ if rvfilename is not None:
             rvmodel_minus_iplanet += np.median(all_gp_models_real,axis=0)
         #all_rv_data_phases = np.array([])
         #all_rv_data_data = np.array([])
+        possible_phases_bin = np.arange(-0.4,0.50,0.1)#np.arange(-0.45,0.55,0.1)#np.array([-0.45,-0.35,-0.25,-0.15,0.0,0.15,0.25,0.35,0.45])
+        phases_bin = np.array([])
+        rv_bin = np.array([])
+        rv_bin_err = np.array([])
+        res_rv_bin = np.array([])
+        for i in range(len(possible_phases_bin)):
+            data_planet = np.array([])
+            w = np.array([])
+            data_residuals = np.array([])
+            for instrument in inames_rv:
+                ppidx = np.where(np.abs(phases[instrument_indexes_rv[instrument]]-possible_phases_bin[i])<0.05)[0]
+                data_planet = np.append(data_planet,sys_corrected[instrument]['values'][ppidx]-rvmodel_minus_iplanet[instrument_indexes_rv[instrument]][ppidx])
+                w = np.append(w,1./(sys_corrected[instrument]['errors'][ppidx]**2))  
+                data_residuals = np.append(data_residuals,sys_corrected[instrument]['values'][ppidx] - all_rv_models_real[instrument_indexes_rv[instrument]][ppidx])     
+            if len(w)>3:
+                phases_bin = np.append(phases_bin,possible_phases_bin[i])
+                rv_bin = np.append(rv_bin,np.sum(w*data_planet)/np.sum(w))
+                res_rv_bin = np.append(res_rv_bin,np.sum(w*data_residuals)/np.sum(w))
+                rv_bin_err = np.append(rv_bin_err,np.sqrt(1./np.sum(w**2)))
+        if plotbinnedrvs:
+            ax.errorbar(phases_bin,rv_bin,yerr=rv_bin_err,fmt='o',ms=8,elinewidth=3,markerfacecolor='white',markeredgecolor='black',ecolor='black')
+            ax_res.errorbar(phases_bin,res_rv_bin,yerr=rv_bin_err,fmt='o',ms=8,elinewidth=3,markerfacecolor='white',markeredgecolor='black',ecolor='black')
+
         for instrument in inames_rv:
             #all_rv_data_phases = np.append(all_rv_data_phases,phases[instrument_indexes_rv[instrument]])
             #all_rv_data_data = np.append(all_rv_data_data,\
             #                   sys_corrected[instrument]['values']-rvmodel_minus_iplanet[instrument_indexes_rv[instrument]])
             ax.errorbar(phases[instrument_indexes_rv[instrument]],\
                         sys_corrected[instrument]['values']-rvmodel_minus_iplanet[instrument_indexes_rv[instrument]],\
-                        yerr=sys_corrected[instrument]['errors'],fmt='o',ms=4,elinewidth=1,color=rv_colors[color_counter],alpha=0.5)  
+                        yerr=sys_corrected[instrument]['errors'],fmt='o',ms=4,elinewidth=1,color=rv_colors[color_counter],alpha=0.5,zorder=1)  
+            # Plor binned data:
+            # Plot residuals phased at this planet:
+            ax_res.errorbar(phases[instrument_indexes_rv[instrument]], \
+                            sys_corrected[instrument]['values'] - all_rv_models_real[instrument_indexes_rv[instrument]],\
+                            sys_corrected[instrument]['errors'],fmt='o',ms=4,elinewidth=1,color=rv_colors[color_counter],alpha=0.5,zorder=1)
             # This following array is useful for computing limits of the plot:
             planet_rvs = np.append(planet_rvs,sys_corrected[instrument]['values']-rvmodel_minus_iplanet[instrument_indexes_rv[instrument]])
             color_counter += 1
@@ -1732,15 +1768,25 @@ if rvfilename is not None:
         print(P,t0,iplanet)
         title_text = r'$P={0:.3f}$, $t_0 = {1:.5f}$'.format(P,t0)
         if n_rv>1:
-            ax.set_title('Planet '+str(iplanet)+': '+title_text)
+            ax.set_title(title_text)
         if n == 0:
             if rvunits == 'ms':
                 ax.set_ylabel('Radial velocity (m/s)')
+                
             else:
                 ax.set_ylabel('Radial velocity (km/s)')
+            ax_res.set_ylabel('Residuals')
         yval_lim = np.max([np.abs(np.min(omodel_down3)),np.abs(np.max(omodel_up3)),3.*np.sqrt(np.var(planet_rvs))])
         ax.set_ylim([-yval_lim,yval_lim])
-        ax.set_xlabel('Phase')
+        ax.get_xaxis().set_major_formatter(plt.NullFormatter())
+        # Plot residuals phased at this planet:
+        ax_res.set_ylim([-5*np.median(rv_bin_err),5*np.median(rv_bin_err)])
+        ax_res.set_xlim([-0.5,0.5])
+        ax_res.set_xlabel('Phase')
+
+        #              ax.errorbar(t_rv[instrument_indexes_rv[instrument]] - zero_t_rv, \
+        #                       sys_corrected[instrument]['values'] - all_rv_models_real[instrument_indexes_rv[instrument]], \
+        #                       sys_corrected[instrument]['errors'],fmt='.',label=instrument,elinewidth=1,color=rv_colors[color_counter],alpha=0.5)
 
     # Plot RV v/s phase for each planet:
     plt.tight_layout()
