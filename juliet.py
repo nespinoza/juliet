@@ -1300,7 +1300,11 @@ if rvfilename is not None:
         if 'tmax' not in chunks[npanels].keys():
             chunks[npanels]['tmax'] = chunks[npanels]['tmin'] + nrvchunk + 5
         # Now that all data is saved, create multi-panel plot:
-        fig, axs = plt.subplots(2*(npanels+1), 1, gridspec_kw = {'height_ratios':[3,1]*(npanels+1)}, figsize=(10,10))
+        if npanels>1:
+            rr,cc = 10,10
+        else:
+            rr,cc = 10,6
+        fig, axs = plt.subplots(2*(npanels+1), 1, gridspec_kw = {'height_ratios':[3,1]*(npanels+1)}, figsize=(rr,cc))
             
         
                 
@@ -1521,12 +1525,13 @@ if rvfilename is not None:
               ax.get_xaxis().set_major_formatter(plt.NullFormatter()) 
               ax.legend(ncol=3)
           else:
+              idxsort = np.argsort(t_rv_model - zero_t_rv)
               for npanel in chunks.keys():
                   ax = axs[2*npanel] 
-                  ax.fill_between(t_rv_model - zero_t_rv,omodel_down1,omodel_up1,color='cornflowerblue',alpha=0.25)
-                  ax.fill_between(t_rv_model - zero_t_rv,omodel_down2,omodel_up2,color='cornflowerblue',alpha=0.25)
-                  ax.fill_between(t_rv_model - zero_t_rv,omodel_down3,omodel_up3,color='cornflowerblue',alpha=0.25)
-                  ax.plot(t_rv_model - zero_t_rv,omedian_model,'-',linewidth=2,color='black')
+                  ax.fill_between(t_rv_model[idxsort] - zero_t_rv,omodel_down1[idxsort],omodel_up1[idxsort],color='cornflowerblue',alpha=0.25)
+                  ax.fill_between(t_rv_model[idxsort] - zero_t_rv,omodel_down2[idxsort],omodel_up2[idxsort],color='cornflowerblue',alpha=0.25)
+                  ax.fill_between(t_rv_model[idxsort] - zero_t_rv,omodel_down3[idxsort],omodel_up3[idxsort],color='cornflowerblue',alpha=0.25)
+                  ax.plot(t_rv_model[idxsort] - zero_t_rv,omedian_model[idxsort],'-',linewidth=2,color='black')
                   ax.set_xlim([np.min(chunks[npanel]['tmin'])-zero_t_rv,chunks[npanel]['tmax']-zero_t_rv])
                   if rvunits == 'ms':
                       ax.set_ylabel('RV (m/s)')
