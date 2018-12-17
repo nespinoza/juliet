@@ -1,0 +1,13 @@
+# Physical parameters of the transiting system:
+P_p1                  Normal            6.569301,0.000029
+t0_p1                 Normal            2457588.28379,0.00026
+ecc_p1                FIXED             0.0
+omega_p1              FIXED             90.0
+K_p1                  Uniform           0,1.0
+# RV priors:
+mu_CORALIE            Normal            1.220,0.05
+sigma_w_rv_CORALIE    Jeffreys          0.0001,0.1
+mu_FIES               Normal            1.215,0.05
+sigma_w_rv_FIES       Jeffreys          0.0001,0.1
+mu_HARPS              Normal            1.240,0.05
+sigma_w_rv_HARPS      Jeffreys          0.0001,0.1
