@@ -1581,8 +1581,11 @@ if rvfilename is not None:
                       ax.set_xlabel('Time (BJD - '+str(zero_t_rv)+')')
     # Plot RV vs time:
     plt.tight_layout()
-    plt.savefig(out_folder+'rv_vs_time.pdf',bbox_extra_artists=(lgd,), bbox_inches='tight')
-
+    if rvmultipanel:
+        plt.savefig(out_folder+'rv_vs_time.pdf',bbox_extra_artists=(lgd,), bbox_inches='tight')
+    else:
+        ax.legend(ncol=3)
+        plt.savefig(out_folder+'rv_vs_time.pdf')
 
     ###############################################################
     ###############################################################
