@@ -838,6 +838,22 @@ G = 6.67408e-11 # mks
 # Maximum eccentricity limit:
 ecclim = args.ecclim
 
+# Save corresponding name of LD input instrument to the respective instrument (this is to link LD coefficients between 
+# different "instruments"):
+if lcfilename is not None:
+    ld_iname = {}
+    for pname in priors.keys():
+        if pname[0:2] == 'q1':
+            vec = pname.split('_')
+            if len(vec)>2:
+                for i in range(len(inames_lc)):
+                    if inames_lc[i] in vec:
+                        ld_iname[inames_lc[i]] = '_'.join(vec[1:])
+            else:
+                ld_iname[vec[1]] = vec[1]
+    priors['q1_'+instrument]
+
+
 def loglike(cube, ndim=None, nparams=None):
     # Evaluate the log-likelihood. For this, first extract all inputs:
     pcounter = 0
@@ -868,11 +884,11 @@ def loglike(cube, ndim=None, nparams=None):
             for n in range(n_transit):
                 i = numbering_transit[n]
                 if lc_dictionary[instrument]['ldlaw'] != 'linear':
-                    coeff1,coeff2 = reverse_ld_coeffs(lc_dictionary[instrument]['ldlaw'],priors['q1_'+instrument]['cvalue'],\
-                                    priors['q2_'+instrument]['cvalue'])
+                    coeff1,coeff2 = reverse_ld_coeffs(lc_dictionary[instrument]['ldlaw'],priors['q1_'+ld_iname[instrument]]['cvalue'],\
+                                    priors['q2_'+ld_iname[instrument]]['cvalue'])
                     lc_dictionary[instrument]['params'].u = [coeff1,coeff2]
                 else:
-                    lc_dictionary[instrument]['params'].u = [priors['q1_'+instrument]['cvalue']]
+                    lc_dictionary[instrument]['params'].u = [priors['q1_'+ld_iname[instrument]]['cvalue']]
 
                 if efficient_bp:
                     if not fitrho:
@@ -1858,11 +1874,11 @@ if lcfilename is not None:
             for n in range(n_transit):
                 i = numbering_transit[n]
                 if lc_dictionary[instrument]['ldlaw'] != 'linear':
-                    coeff1,coeff2 = reverse_ld_coeffs(lc_dictionary[instrument]['ldlaw'],priors['q1_'+instrument]['cvalue'],\
-                                    priors['q2_'+instrument]['cvalue'])
+                    coeff1,coeff2 = reverse_ld_coeffs(lc_dictionary[instrument]['ldlaw'],priors['q1_'+ld_iname[instrument]]['cvalue'],\
+                                    priors['q2_'+ld_iname[instrument]]['cvalue'])
                     lc_dictionary[instrument]['params'].u = [coeff1,coeff2]
                 else:
-                    lc_dictionary[instrument]['params'].u = [priors['q1_'+instrument]['cvalue']]
+                    lc_dictionary[instrument]['params'].u = [priors['q1_'+ld_iname[instrument]]['cvalue']]
 
                 if efficient_bp:
                     if not fitrho:
@@ -2179,11 +2195,11 @@ if lcfilename is not None:
 
             # First, generate the model for the planet under consideration:
             if lc_dictionary[instrument]['ldlaw'] != 'linear':
-                coeff1,coeff2 = reverse_ld_coeffs(lc_dictionary[instrument]['ldlaw'],priors['q1_'+instrument]['cvalue'],\
-                                priors['q2_'+instrument]['cvalue'])
+                coeff1,coeff2 = reverse_ld_coeffs(lc_dictionary[instrument]['ldlaw'],priors['q1_'+ld_iname[instrument]]['cvalue'],\
+                                priors['q2_'+ld_iname[instrument]]['cvalue'])
                 params_model.u = [coeff1,coeff2]
             else:
-                params_model.u = [priors['q1_'+instrument]['cvalue']]
+                params_model.u = [priors['q1_'+ld_iname[instrument]]['cvalue']]
 
             if efficient_bp:
                 if not fitrho:
@@ -2241,11 +2257,11 @@ if lcfilename is not None:
               i = numbering_transit[n]
               if i != iplanet:
                 if lc_dictionary[instrument]['ldlaw'] != 'linear':
-                    coeff1,coeff2 = reverse_ld_coeffs(lc_dictionary[instrument]['ldlaw'],priors['q1_'+instrument]['cvalue'],\
-                                    priors['q2_'+instrument]['cvalue'])
+                    coeff1,coeff2 = reverse_ld_coeffs(lc_dictionary[instrument]['ldlaw'],priors['q1_'+ld_iname[instrument]]['cvalue'],\
+                                    priors['q2_'+ld_iname[instrument]]['cvalue'])
                     lc_dictionary[instrument]['params'].u = [coeff1,coeff2]
                 else:
-                    lc_dictionary[instrument]['params'].u = [priors['q1_'+instrument]['cvalue']]
+                    lc_dictionary[instrument]['params'].u = [priors['q1_'+ld_iname[instrument]]['cvalue']]
 
                 if efficient_bp:
                     if not fitrho:
