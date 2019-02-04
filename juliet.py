@@ -2158,9 +2158,15 @@ if lcfilename is not None:
         matplotlib.rcParams['ytick.direction'] = 'out'
         matplotlib.rcParams['lines.markeredgewidth'] = 1
 
-        # First, get phases for the current planetary model. For this get median period and t0:
-        P,t0 = np.median(out['posterior_samples']['P_p'+str(iplanet)]),np.median(out['posterior_samples']['t0_p'+str(iplanet)])
-
+        # First, get phases for the current planetary model. For this get median period and t0 (if there were not fixed):
+        if priors['P_p'+str(iplanet)]['type'] != 'fixed':
+            P = np.median(out['posterior_samples']['P_p'+str(iplanet)])
+        else:
+            P = priors['P_p'+str(iplanet)]['cvalue']
+        if priors['t0_p'+str(iplanet)]['type'] != 'fixed':
+            t0 = np.median(out['posterior_samples']['t0_p'+str(iplanet)])
+        else:
+            t0 = priors['t0_p'+str(iplanet)]['cvalue']
         # Get the actual phases:
         phases = utils.get_phases(t_lc[instrument_indexes_lc[instrument]],P,t0)
 
