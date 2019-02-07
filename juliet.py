@@ -717,6 +717,14 @@ if rveparamfile is not None:
         # Finally, compute GP object. 
         rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rverr_rv)
 
+if n_transit == 0 and (lcfilename is not None):
+    print('\n\t >> WARNING: NOT FITTING ANY TRANSITING PLANET. PHOTOMETRY WILL BE ASSUMED AS FLAT. <<')
+    print('\t (If this was NOT desired, you forgot to define a prior for (p,b) or (r1,r2) for the transiting planets.)\n')
+
+if n_rv == 0 and (rvfilename is not None):
+    print('\n\t >> WARNING: NOT FITTING ANY RV PLANET. RV DATA WILL BE ASSUMED AS FLAT. <<')
+    print('\t (If this was NOT desired, you forgot to define a prior for K for the RV planets.)\n')
+
 # Other inputs like, e.g., nlive points:
 n_live_points = int(args.nlive)
 # Number of simulations:
