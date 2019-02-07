@@ -52,11 +52,12 @@ def readlc(fname):
                     lm_boolean[instrument.split()[0]] = True
                 else:
                     lm_boolean[instrument.split()[0]] = False 
-            if len(lm_arguments[instrument.split()[0]]) == 0:
-               lm_arguments[instrument.split()[0]] = np.array(lm_variables).astype(np.double)
-            else: 
-               lm_arguments[instrument.split()[0]] = np.vstack((lm_arguments[instrument.split()[0]],\
-                                                          np.array(lm_variables).astype(np.double)))
+            if lm_boolean[instrument.split()[0]]:
+                if len(lm_arguments[instrument.split()[0]]) == 0:
+                   lm_arguments[instrument.split()[0]] = np.array(lm_variables).astype(np.double)
+                else: 
+                   lm_arguments[instrument.split()[0]] = np.vstack((lm_arguments[instrument.split()[0]],\
+                                                              np.array(lm_variables).astype(np.double)))
         else:
             break
     # Identify instrument indeces:

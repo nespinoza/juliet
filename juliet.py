@@ -249,7 +249,7 @@ else:
     inames_lc = []
 if rvfilename is not None:
     t_rv,rv_rv,rverr_rv,instruments_rv,instrument_indexes_rv,\
-    ninstruments_rv,inames_rv = utils.readlc(rvfilename)
+    ninstruments_rv,inames_rv,lm_rv_boolean, lm_rv_arguments = utils.readlc(rvfilename)
     rvresiduals = np.zeros(len(t_rv))
     rvresiduals_err = np.zeros(len(t_rv))
     idx_ordered_rv = np.argsort(len(t_rv))
