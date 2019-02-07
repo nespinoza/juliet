@@ -188,7 +188,7 @@ if sd_mean is not None:
 
 if lcfilename is not None:
     t_lc,f_lc,ferr_lc,instruments_lc,instrument_indexes_lc,\
-    ninstruments_lc,inames_lc = utils.readlc(lcfilename)
+    ninstruments_lc,inames_lc, lm_boolean, lm_arguments = utils.readlc(lcfilename)
     print('\t Photometric instruments:',inames_lc)
 
     # First of all, generate a dictionary for each instrument. This will save the 
@@ -949,6 +949,11 @@ def loglike(cube, ndim=None, nparams=None):
         inst_model = (lcmodel[instrument_indexes_lc[instrument]]*priors['mdilution_'+instrument]['cvalue'] \
                      + (1. - priors['mdilution_'+instrument]['cvalue']))*\
                      (1./(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue'])) 
+
+        # If inputs for linear model, add it to the instrumental model:
+        if lm_boolean[instrument]:
+            for idx_X in range(lm_arguments[instrument].shape[1]):
+                inst_model = inst_model + lm_arguments[instrument][:,idx_X]*priors['theta'+str(idx_X)+'_'+instrument]['cvalue']
         residuals = f_lc[instrument_indexes_lc[instrument]] - inst_model
 
         # If not GP Detrend (which means no external parameters given for the instrument), 
@@ -1832,6 +1837,7 @@ if lcfilename is not None:
     # First, photometry (time vs flux) per instrument on different plots. Top plot will be relative flux 
     # vs time, lower plot residuals:
     norm_factors = {}
+    linear_model = {}
     for instrument in inames_lc:
         print(r'\t Generating plot for instrument '+instrument)
         tbaseline = np.max(t_lc[instrument_indexes_lc[instrument]]) - np.min(t_lc[instrument_indexes_lc[instrument]])
@@ -1854,6 +1860,7 @@ if lcfilename is not None:
         all_lc_real_models = np.ones([nsims,len(tinstrument)])
         all_lc_GP_models = np.zeros([nsims,len(tinstrument)])
         GPmodel = np.ones(len(tinstrument))
+        median_linear_model = np.zeros(len(tinstrument))
         # Generate model lightcurves for each sample in the current instrument:
         counter = -1
         # Here we will save the normalization factors. People from the future: this basically corrects a plotting bug that appears 
@@ -1863,6 +1870,9 @@ if lcfilename is not None:
         norm_factors[instrument] = {}
         norm_factors[instrument]['F1'] = np.array([])
         norm_factors[instrument]['F2'] = np.array([])
+        # Now that we are adding possible linear models, also store the posterior samples of this linear model to substract it later:
+        linear_model[instrument] = np.zeros([nsims,len(tinstrument)])
+
         for j in idx_sims:
             counter = counter + 1
             # Sample the jth sample of parameter values:
@@ -1933,6 +1943,12 @@ if lcfilename is not None:
                                       (1. - priors['mdilution_'+instrument]['cvalue']))*\
                                       (1./(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue']))
 
+            # If inputs for linear model, add it to the instrumental model:
+            if lm_boolean[instrument]:
+                for idx_X in range(lm_arguments[instrument].shape[1]):
+                    linear_model[instrument][counter,:] = linear_model[instrument][counter,:] + lm_arguments[instrument][:,idx_X]*priors['theta'+str(idx_X)+'_'+instrument]['cvalue']
+                    all_lc_real_models[counter,:] = all_lc_real_models[counter,:] + lm_arguments[instrument][:,idx_X]*priors['theta'+str(idx_X)+'_'+instrument]['cvalue']
+                    
             F1,F2 = priors['mdilution_'+instrument]['cvalue']/(1. + (priors['mdilution_'+instrument]['cvalue'])*(priors['mflux_'+instrument]['cvalue'])),\
                     (1. - priors['mdilution_'+instrument]['cvalue'])/(1. + priors['mdilution_'+instrument]['cvalue']*priors['mflux_'+instrument]['cvalue'])
             norm_factors[instrument]['F1'] = np.append(norm_factors[instrument]['F1'],F1)
@@ -2039,6 +2055,10 @@ if lcfilename is not None:
         for i_tsample in range(len(tinstrument)):
             GPmodel[i_tsample] = np.median(all_lc_GP_models[:,i_tsample])
 
+        # And same for linear models (if no linear model, this will be an array of zeros as well):
+        for i_tsample in range(len(tinstrument)):
+            median_linear_model[i_tsample] = np.median(linear_model[instrument][:,i_tsample])
+
         ax = axs[0]
         # Calculate time baseline of observations. Useful to define bounds of the plotted data:
         tbaseline = np.max(tinstrument)-np.min(tinstrument)
@@ -2070,12 +2090,12 @@ if lcfilename is not None:
                     fmt='.k',markersize=1,alpha=alpha_notbinned,elinewidth=1)
 
         fout = open(out_folder+'time_lc_'+instrument+'.dat','w')
-        fout.write('# Time \t Data \t Error \t Model \t GP Component\n')
+        fout.write('# Time \t Data \t Error \t Model \t Linear + GP Component\n')
 
         F1med,F2med = np.median(norm_factors[instrument]['F1']),np.median(norm_factors[instrument]['F2'])
         for i in range(len(tinstrument)):
             fout.write('{0:.10f} {1:.10f} {2:.10f} {3:.10f} {4:.10f}\n'.format(tinstrument[i],f_lc[instrument_indexes_lc[instrument]][i],\
-                                                                      ferr_instrument[i],omedian_model[i],F1med + F2med + GPmodel[i]))
+                                                                      ferr_instrument[i],omedian_model[i],F1med + F2med + median_linear_model[i] + GPmodel[i]))
         fout.close()
         # Now plot the phased model. Compute sorting indexes as well and plot sorted phases:
         ax.fill_between(tinstrument-tzero,omodel_down1,omodel_up1,color='cornflowerblue',alpha=0.25)
@@ -2115,6 +2135,9 @@ if lcfilename is not None:
         if lc_dictionary[instrument]['GPDetrend']:
             f_lc[instrument_indexes_lc[instrument]] = f_lc[instrument_indexes_lc[instrument]] - GPmodel
             lc_dictionary[instrument]['GPDetrend'] = False
+        # Also remove linear trend if any:
+        if lm_boolean[instrument]:
+            f_lc[instrument_indexes_lc[instrument]] = f_lc[instrument_indexes_lc[instrument]] - median_linear_model
 
     ###############################################################
     ###############################################################

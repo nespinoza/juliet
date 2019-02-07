@@ -28,24 +28,42 @@ def readlc(fname):
     fs = np.array([])
     ferrs = np.array([])
     instruments = np.array([])
+    # Arguments of an optional linear model. This will save the regression matrix "X" in a model of the form X*theta = y, where theta
+    # are the coefficients:
+    lm_arguments = {}
+    # This will save a True or False for each instrument --- True if there are 
+    # inputs and therefore we want a linear model, False if not:
+    lm_boolean = {}
     instrument_names = []
     while True:
         line = fin.readline()
         if line != '':
-            t,f,ferr,instrument = line.split()[0:4]
+            all_vals = line.split()
+            t,f,ferr,instrument = all_vals[0:4]
+            lm_variables = all_vals[4:]
             ts = np.append(ts,np.double(t))
             fs = np.append(fs,np.double(f))
             ferrs = np.append(ferrs,np.double(ferr))
             instruments = np.append(instruments,instrument.split()[0])
             if instrument.split()[0] not in instrument_names:
                 instrument_names.append(instrument.split()[0])
+                if len(lm_variables)>0:
+                    lm_arguments[instrument.split()[0]] = np.array([])
+                    lm_boolean[instrument.split()[0]] = True
+                else:
+                    lm_boolean[instrument.split()[0]] = False 
+            if len(lm_arguments[instrument.split()[0]]) == 0:
+               lm_arguments[instrument.split()[0]] = np.array(lm_variables).astype(np.double)
+            else: 
+               lm_arguments[instrument.split()[0]] = np.vstack((lm_arguments[instrument.split()[0]],\
+                                                          np.array(lm_variables).astype(np.double)))
         else:
             break
     # Identify instrument indeces:
     indexes = {}
     for instrument in instrument_names:
         indexes[instrument] = np.where(instruments == instrument)[0]
-    return ts,fs,ferrs,instruments,indexes,len(instrument_names),instrument_names
+    return ts,fs,ferrs,instruments,indexes,len(instrument_names),instrument_names,lm_boolean,lm_arguments
 
 def readeparams(fname,RV=False):
     fin = open(fname,'r')
