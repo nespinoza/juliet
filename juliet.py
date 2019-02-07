@@ -177,7 +177,7 @@ lceparamfile = args.lceparamfile
 rveparamfile = args.rveparamfile
 if (not os.path.exists(out_folder+'lc_eparams.dat')) and (lceparamfile is not None):
     os.system('cp '+lceparamfile+' '+out_folder+'lc_eparams.dat')
-if (not os.path.exists(out_folder+'rvs.dat')) and (rveparamfile is not None):
+if (not os.path.exists(out_folder+'rv_eparams.dat')) and (rveparamfile is not None):
     os.system('cp '+rveparamfile+' '+out_folder+'rv_eparams.dat')
 
 sd_mean,sd_sigma = args.sdensity_mean,args.sdensity_sigma
