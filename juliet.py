@@ -1683,13 +1683,17 @@ if rvfilename is not None:
         # If GP, remove it as well:
         if rveparamfile is not None:
             rvmodel_minus_iplanet += np.median(all_gp_models_real,axis=0)
-        #all_rv_data_phases = np.array([])
-        #all_rv_data_data = np.array([])
-        possible_phases_bin = np.arange(-0.4,0.50,0.1)#np.arange(-0.45,0.55,0.1)#np.array([-0.45,-0.35,-0.25,-0.15,0.0,0.15,0.25,0.35,0.45])
+        # Now we generate possible binned RV data to be plotted. This also serves for defining y-axis limits in the residuals.
+        # This combines all the RV data of all instruments. First, generate all possible bins:
+        possible_phases_bin = np.arange(-0.4,0.50,0.1)
+        # (The possible_phases_bin = np.array([-0.45,-0.35,-0.25,-0.15,0.0,0.15,0.25,0.35,0.45]))
         phases_bin = np.array([])
         rv_bin = np.array([])
         rv_bin_err = np.array([])
         res_rv_bin = np.array([])
+        # Iterate through each possible bin; all points within 0.05 in phase-space from a given phase-bin are gathered in the index ppidx, 
+        # then data for the planet is obtained by substracting the model without the current planet under analysis/plotting (data_planet), 
+        # along with the inverse variance (w) and the residuals (data_residuals):
         for i in range(len(possible_phases_bin)):
             data_planet = np.array([])
             w = np.array([])
@@ -1698,12 +1702,15 @@ if rvfilename is not None:
                 ppidx = np.where(np.abs(phases[instrument_indexes_rv[instrument]]-possible_phases_bin[i])<0.05)[0]
                 data_planet = np.append(data_planet,sys_corrected[instrument]['values'][ppidx]-rvmodel_minus_iplanet[instrument_indexes_rv[instrument]][ppidx])
                 w = np.append(w,1./(sys_corrected[instrument]['errors'][ppidx]**2))  
-                data_residuals = np.append(data_residuals,sys_corrected[instrument]['values'][ppidx] - all_rv_models_real[instrument_indexes_rv[instrument]][ppidx])     
-            if len(w)>3:
+                data_residuals = np.append(data_residuals,sys_corrected[instrument]['values'][ppidx] - all_rv_models_real[instrument_indexes_rv[instrument]][ppidx])
+            # If more than one datapoint in the current bin, generate binned points:
+            if len(w)>1:
                 phases_bin = np.append(phases_bin,possible_phases_bin[i])
                 rv_bin = np.append(rv_bin,np.sum(w*data_planet)/np.sum(w))
                 res_rv_bin = np.append(res_rv_bin,np.sum(w*data_residuals)/np.sum(w))
                 rv_bin_err = np.append(rv_bin_err,np.sqrt(1./np.sum(w**2)))
+            elif len(w) == 1:
+                rv_bin_err = np.append(rv_bin_err,np.sqrt(1./w**2.))
         if plotbinnedrvs:
             ax.errorbar(phases_bin,rv_bin,yerr=rv_bin_err,fmt='o',ms=8,elinewidth=3,markerfacecolor='white',markeredgecolor='black',ecolor='black')
             ax_res.errorbar(phases_bin,res_rv_bin,yerr=rv_bin_err,fmt='o',ms=8,elinewidth=3,markerfacecolor='white',markeredgecolor='black',ecolor='black')
@@ -1808,7 +1815,7 @@ if rvfilename is not None:
         yval_lim = np.max([np.abs(np.min(omodel_down3)),np.abs(np.max(omodel_up3)),3.*np.sqrt(np.var(planet_rvs))])
         ax.set_ylim([-yval_lim,yval_lim])
         ax.get_xaxis().set_major_formatter(plt.NullFormatter())
-        # Plot residuals phased at this planet:
+        # Plot residuals phased at this planet.
         ax_res.set_ylim([-5*np.median(rv_bin_err),5*np.median(rv_bin_err)])
         ax_res.set_xlim([-0.5,0.5])
         ax_res.set_xlabel('Phase')
