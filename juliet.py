@@ -1524,7 +1524,7 @@ if rvfilename is not None:
                   rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rvresiduals_err)
 
                   # Generate Keplerians:
-                  if counter%100==0: print(counter)
+                  #if counter%100==0: print(counter)
                   model = radvel.model.RVModel(radvel_params).__call__(t_rv_model)
                   model_real = radvel.model.RVModel(radvel_params).__call__(t_rv)
                   # Predict real values: 
@@ -1819,7 +1819,7 @@ if rvfilename is not None:
         #out['posterior_samples'][pname]
         P,t0 = np.median(out['posterior_samples']['P_p'+str(iplanet)]),\
                np.median(out['posterior_samples']['t0_p'+str(iplanet)])
-        print(P,t0,iplanet)
+        #print(P,t0,iplanet)
         title_text = r'$P={0:.3f}$, $t_0 = {1:.5f}$'.format(P,t0)
         if n_rv>1:
             ax.set_title(title_text)
