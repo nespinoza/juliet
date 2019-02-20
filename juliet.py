@@ -86,9 +86,9 @@ parser.add_argument('-sdensity_mean', default=None)
 parser.add_argument('-sdensity_sigma', default=None)
 # Define if the sampling for p and b in Espinoza (2018) wants to be used; define pl and pu (this assumes 
 # sampling parameters in prior file are r1 and r2):
-parser.add_argument('--efficient_bp', dest='efficient_bp', action='store_true')
-parser.add_argument('-pl', default=None)
-parser.add_argument('-pu', default=None)
+#parser.add_argument('--efficient_bp', dest='efficient_bp', action='store_true')
+parser.add_argument('-pl', default=0.)
+parser.add_argument('-pu', default=1.)
 # Number of live points:
 parser.add_argument('-nlive', default=1000)
 # Number of samples to draw from posterior to compute models:
@@ -151,13 +151,13 @@ else:
     print('\t Running NESTED SAMPLING (multinest)')
 
 # Extract parameters for efficient sampling of b and p, calculate Ar:
-efficient_bp = args.efficient_bp
+#efficient_bp = args.efficient_bp
 
-if efficient_bp:
-    print('\t Efficient sampling of the (b,p) plane detected')
-    pl,pu = np.double(args.pl),np.double(args.pu)
-    Ar = (pu - pl)/(2. + pl + pu)
-    print('\t > pl:',pl,'pu:',pu,'Ar:',Ar)
+#if efficient_bp:
+#    print('\t Efficient sampling of the (b,p) plane detected')
+#    pl,pu = np.double(args.pl),np.double(args.pu)
+#    Ar = (pu - pl)/(2. + pl + pu)
+#    print('\t > pl:',pl,'pu:',pu,'Ar:',Ar)
 
 # Output folder:
 out_folder = args.ofolder+'/'
@@ -293,6 +293,10 @@ else:
 ecc_parametrization = {} # np.zeros(np.max([n_transit,n_rv]))
 ecc_parametrization['rv'] = {}
 ecc_parametrization['transit'] = {}
+# At the same time, check if efficient exploration of the (b,p) plane was forced for each planet 
+# (i.e., check if planets where constrained by r1,r2 or by b,p directly). Assume it was not for 
+# each planet:
+efficient_bp = n_transit*[False]
 # First for the transiting planets:
 for n in range(n_transit):
     i = numbering_transit[n]
@@ -305,7 +309,11 @@ for n in range(n_transit):
     else:
         ecc_parametrization['transit'][i] = 0
         print('\t e,omega parametrization for transiting planet ',i)
-
+    if 'r1_p'+str(i) in priors.keys():
+        efficient_bp[n] = True
+        print('\t Efficient sampling of the (b,p) plane detected for planet p'+str(i))
+        pl,pu = np.double(args.pl),np.double(args.pu)
+        Ar = (pu - pl)/(2. + pl + pu)
 for n in range(n_rv):
     i = numbering_rv[n]
     if 'ecosomega_p'+str(i) in priors.keys():
@@ -664,7 +672,8 @@ if rveparamfile is not None:
         kernel = rot_kernel #+ kernel_jitter
         rv_dictionary['GPObject'] = celerite.GP(kernel, mean=0.0)
         # Note order of GP Vector: logB, logL, logProt, logC, logJitter
-        rv_dictionary['GPVector'] = np.zeros(5)
+        rv_dictionary['GPVector'] = np.zeros(4)
+        rv_dictionary['X'] = rv_dictionary['X'][:,0] 
         rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rverr_rv)
     if rv_dictionary['GPType'] == 'CeleriteSHOKernel':
         # Now that we know the type of GP, we extract the "instrument" corresponding to each GP 
@@ -690,6 +699,7 @@ if rveparamfile is not None:
         rv_dictionary['GPObject'] = celerite.GP(kernel, mean=0.0)
         # Note order of GP Vector: logS0, logQ, logomega0
         rv_dictionary['GPVector'] = np.zeros(3)
+        rv_dictionary['X'] = rv_dictionary['X'][:,0]
         rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rverr_rv)
     if rv_dictionary['GPType'] == 'ExpSineSquaredSEKernel':
         for GPvariable in ['sigma','alpha','Gamma','Prot']:
@@ -898,7 +908,7 @@ def loglike(cube, ndim=None, nparams=None):
                 else:
                     lc_dictionary[instrument]['params'].u = [priors['q1_'+ld_iname[instrument]]['cvalue']]
 
-                if efficient_bp:
+                if efficient_bp[n]:
                     if not fitrho:
                         a,r1,r2,t0,P = priors['a_p'+str(i)]['cvalue'],priors['r1_p'+str(i)]['cvalue'],\
                                        priors['r2_p'+str(i)]['cvalue'], priors['t0_p'+str(i)]['cvalue'], \
@@ -1239,7 +1249,7 @@ if (not os.path.exists(out_folder+'posteriors.pkl')) and (not os.path.exists(out
             priors[pname]['cvalue'] = np.median(posterior_samples[:,pcounter])
             out['posterior_samples'][pname] = posterior_samples[:,pcounter]
             pcounter += 1
-    if efficient_bp:
+    if True in efficient_bp:
         out['pu'] = pu
         out['pl'] = pl
     if use_dynesty:
@@ -1905,7 +1915,7 @@ if lcfilename is not None:
                 else:
                     lc_dictionary[instrument]['params'].u = [priors['q1_'+ld_iname[instrument]]['cvalue']]
 
-                if efficient_bp:
+                if efficient_bp[n]:
                     if not fitrho:
                         a,r1,r2,t0,P = priors['a_p'+str(i)]['cvalue'],priors['r1_p'+str(i)]['cvalue'],\
                                        priors['r2_p'+str(i)]['cvalue'], priors['t0_p'+str(i)]['cvalue'], \
@@ -2245,7 +2255,7 @@ if lcfilename is not None:
             else:
                 params_model.u = [priors['q1_'+ld_iname[instrument]]['cvalue']]
 
-            if efficient_bp:
+            if efficient_bp[nplanet]:
                 if not fitrho:
                     a,r1,r2,t0,P = priors['a_p'+str(iplanet)]['cvalue'],priors['r1_p'+str(iplanet)]['cvalue'],\
                                    priors['r2_p'+str(iplanet)]['cvalue'], priors['t0_p'+str(iplanet)]['cvalue'], \
@@ -2307,7 +2317,7 @@ if lcfilename is not None:
                 else:
                     lc_dictionary[instrument]['params'].u = [priors['q1_'+ld_iname[instrument]]['cvalue']]
 
-                if efficient_bp:
+                if efficient_bp[n]:
                     if not fitrho:
                         a,r1,r2,t0,P = priors['a_p'+str(i)]['cvalue'],priors['r1_p'+str(i)]['cvalue'],\
                                        priors['r2_p'+str(i)]['cvalue'], priors['t0_p'+str(i)]['cvalue'], \
@@ -2432,7 +2442,7 @@ if lcfilename is not None:
         ax.plot(model_phases,omedian_model,'-',linewidth=2,color='black')
         ax.set_ylabel('Relative flux')
 
-        if not efficient_bp:
+        if not efficient_bp[nplanet]:
             depth = np.median(out['posterior_samples']['p_p'+str(iplanet)])**2#priors['p_p'+str(iplanet)]['cvalue']
         else:
             depth = np.array([])
