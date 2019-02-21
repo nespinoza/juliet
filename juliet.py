@@ -1420,9 +1420,10 @@ if rvfilename is not None:
           
           # If GP is on, generate a vector that will save the GP component, to be substracted later for the 
           # phased RVs:
-          if rveparamfile is not None:
-              all_gp_models_real = np.zeros([nsims,len(t_rv)])
-
+          #if rveparamfile is not None:
+          all_gp_models_real = np.zeros([nsims,len(t_rv)])
+          all_gp_models = np.zeros([nsims,len(t_rv_model)])
+              
           # Here comes one of the slow parts: for the first nsims posterior samples, compute a model:
           print('Sampling models...')
           counter = -1
@@ -1532,10 +1533,12 @@ if rvfilename is not None:
                   all_gp_models_real[counter,:] = gpmodel_real
                   all_rv_models_real[counter,:] = model_real + gpmodel_real
                   gpmodel,gpvar = rv_dictionary['GPObject'].predict(rvresiduals, t_rv_model, return_var=True)
+                  all_gp_models[counter,:] = gpmodel
                   all_rv_models[counter,:] = gpmodel + model
           # Now, finally, compute the median and the quantiles (1,2 and 3-sigma) for each time sample of the 
           # oversampled model (this is the "o" before the names). 
           omedian_model = np.zeros(len(t_rv_model))
+          omedian_model_GP = np.zeros(len(t_rv_model))
           omodel_up1, omodel_down1 = np.zeros(len(t_rv_model)),np.zeros(len(t_rv_model))
           omodel_up2, omodel_down2 = np.zeros(len(t_rv_model)),np.zeros(len(t_rv_model))
           omodel_up3, omodel_down3 = np.zeros(len(t_rv_model)),np.zeros(len(t_rv_model))
@@ -1546,10 +1549,19 @@ if rvfilename is not None:
               val,valup2,valdown2 = utils.get_quantiles(all_rv_models[:,i_tsample],alpha=0.95)
               val,valup3,valdown3 = utils.get_quantiles(all_rv_models[:,i_tsample],alpha=0.99)
               omedian_model[i_tsample] = val
+              valGP,valup1GP,valdown1GP = utils.get_quantiles(all_gp_models[:,i_tsample])
+              omedian_model_GP[i_tsample] = valGP
               omodel_up1[i_tsample],omodel_down1[i_tsample] = valup1,valdown1
               omodel_up2[i_tsample],omodel_down2[i_tsample] = valup2,valdown2
               omodel_up3[i_tsample],omodel_down3[i_tsample] = valup3,valdown3
           
+          # Save oversampled full RV models and GP models:
+          fout = open(out_folder+'time_rv_model.dat','w')
+          fout.write('# Time \t GP Component \t Full model (GP + Keplerian) \n')
+          for ii in range(len(omedian_model_GP)):
+              fout.write('{0:.10f} \t {1:.10f} \t {2:.10f}\n'.format(t_rv_model[ii],omedian_model_GP[ii],omedian_model[ii]))
+          fout.close()
+
           if rvmultipanel is False:
               # Plot model and uncertainty in model given by posterior sampling:
               ax.fill_between(t_rv_model - zero_t_rv,omodel_down1,omodel_up1,color='cornflowerblue',alpha=0.25)
@@ -1583,11 +1595,15 @@ if rvfilename is not None:
         if i == 1:
           # Second row is residuals. First, compute the median real model to get the residuals:
           all_rv_models_real = np.median(all_rv_models_real,axis=0)
+          all_gp_models_real = np.median(all_gp_models_real,axis=0)
           # Plot a zero line to guide the eye:
           # Compute, plot and save the residuals:
           color_counter = 0
+          # Prepare file to save systemic-and-quadratic-trend corrected RVs:
           fout = open(out_folder+'rv_residuals.dat','w')
           fout.write('# Time Residual Error Instrument \n')
+          fout2 = open(out_folder+'time_rv_data.dat','w')
+          fout2.write('# Time \t RV - Systemic RV - Quadratic Trend \t RV Error \t GP Component \t Full Model (GP + Keplerians) \t Instrument\n')
           for instrument in inames_rv:
               if rvmultipanel is False:
                   ax.plot([-1e10,1e10],[0.,0.],'--',linewidth=2,color='black')
@@ -1604,9 +1620,13 @@ if rvfilename is not None:
               for ii in range(len(t_rv[instrument_indexes_rv[instrument]])):
                   vals = '{0:.10f} {1:.10f} {2:.10f}'.format(t_rv[instrument_indexes_rv[instrument]][ii],sys_corrected[instrument]['values'][ii] - all_rv_models_real[instrument_indexes_rv[instrument]][ii],\
                                                              sys_corrected[instrument]['errors'][ii])
+                  vals2 = '{0:.10f} \t {1:.10f} \t {2:.10f} \t {3:.10f} \t {4:.10f}'.format(t_rv[instrument_indexes_rv[instrument]][ii],sys_corrected[instrument]['values'][ii],sys_corrected[instrument]['errors'][ii], \
+                                                              all_gp_models_real[instrument_indexes_rv[instrument]][ii],all_rv_models_real[instrument_indexes_rv[instrument]][ii])
                   fout.write(vals+' '+instrument+' \n')
+                  fout2.write(vals2+' '+instrument+' \n')
               color_counter += 1
           fout.close()
+          fout2.close()
           if rvmultipanel is False:
               ax.set_ylabel('Residuals')
               ax.set_xlabel('Time (BJD - '+str(zero_t_rv)+')')
@@ -1733,6 +1753,9 @@ if rvfilename is not None:
             ax.errorbar(phases_bin,rv_bin,yerr=rv_bin_err,fmt='o',ms=8,elinewidth=3,markerfacecolor='white',markeredgecolor='black',ecolor='black')
             ax_res.errorbar(phases_bin,res_rv_bin,yerr=rv_bin_err,fmt='o',ms=8,elinewidth=3,markerfacecolor='white',markeredgecolor='black',ecolor='black')
 
+        # Define output file to save planet RVs and model:
+        fout = open(out_folder+'phased_rv_planet'+str(iplanet)+'.dat','w')
+        fout.write('# Phases \t Time \t Phased RV \t Phased RV Error \t Model\n')
         for instrument in inames_rv:
             #all_rv_data_phases = np.append(all_rv_data_phases,phases[instrument_indexes_rv[instrument]])
             #all_rv_data_data = np.append(all_rv_data_data,\
@@ -1740,6 +1763,14 @@ if rvfilename is not None:
             ax.errorbar(phases[instrument_indexes_rv[instrument]],\
                         sys_corrected[instrument]['values']-rvmodel_minus_iplanet[instrument_indexes_rv[instrument]],\
                         yerr=sys_corrected[instrument]['errors'],fmt='o',ms=4,elinewidth=1,color=rv_colors[color_counter],alpha=0.5,zorder=1)  
+
+            # Save RVs and model:
+            for ii in range(len(phases[instrument_indexes_rv[instrument]])):
+                fout.write('{0:.10f} {1:.10f} {2:.10f} {3:.10f} {4:.10f} {5}\n'.format(phases[instrument_indexes_rv[instrument]][ii],t_rv[instrument_indexes_rv[instrument]][ii],\
+                                                                                   sys_corrected[instrument]['values'][ii]-rvmodel_minus_iplanet[instrument_indexes_rv[instrument]][ii],\
+                                                                                   sys_corrected[instrument]['errors'][ii],all_rv_models_real[instrument_indexes_rv[instrument]][ii]-rvmodel_minus_iplanet[instrument_indexes_rv[instrument]][ii],\
+                                                                                   instrument))
+
             # Plor binned data:
             # Plot residuals phased at this planet:
             ax_res.errorbar(phases[instrument_indexes_rv[instrument]], \
@@ -1748,7 +1779,7 @@ if rvfilename is not None:
             # This following array is useful for computing limits of the plot:
             planet_rvs = np.append(planet_rvs,sys_corrected[instrument]['values']-rvmodel_minus_iplanet[instrument_indexes_rv[instrument]])
             color_counter += 1
-       
+        fout.close() 
         #idx_phases_sorted = np.argsort(all_rv_data_phases)
         #phases_bin,rv_bin,rv_bin_err = utils.bin_data(all_rv_data_phases[idx_phases_sorted],\
         #                                            all_rv_data_data[idx_phases_sorted],5)
