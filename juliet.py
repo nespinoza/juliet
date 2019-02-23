@@ -93,6 +93,8 @@ parser.add_argument('-pu', default=1.)
 parser.add_argument('-nlive', default=1000)
 # Number of samples to draw from posterior to compute models:
 parser.add_argument('-nsims', default=5000)
+# Number of oversample points in rvs:
+parser.add_argument('-noversample', default=1000)
 # Dealing with supersampling for long exposure times for LC. n_supersamp is the number of 
 # supersampled points, exptime_supersamp the exposure time and instrument_supersamp the instrument
 # for which you want to apply supersampling. If you need several instruments to have supersampling,
@@ -739,6 +741,8 @@ if n_rv == 0 and (rvfilename is not None):
 n_live_points = int(args.nlive)
 # Number of simulations:
 n_sims = int(args.nsims)
+# Number of oversamples in rvs:
+noversample = int(args.noversample)
 
 # Define transit-related functions:
 def reverse_ld_coeffs(ld_law, q1, q2):
@@ -1404,13 +1408,14 @@ if rvfilename is not None:
               sys_corrected[instrument]['errors'] = corrected_rv_err
           # Now RV model on top. For this, oversample the times:
           if rvmultipanel is False:
-              t_rv_model = np.linspace(np.min(t_rv)-10,np.max(t_rv)+10,5000)
+              t_rv_model = np.linspace(np.min(t_rv)-10,np.max(t_rv)+10,5*noversample)
           else:
               t_rv_model = np.array([])
               for npanels in chunks.keys():
-                  t_rv_model = np.append(t_rv_model,np.linspace(chunks[npanels]['tmin'],chunks[npanels]['tmax'],1000))
-                  
-
+                  t_rv_model = np.append(t_rv_model,np.linspace(chunks[npanels]['tmin'],chunks[npanels]['tmax'],noversample))
+          
+          # We might want to change this when implementing multi-dimensional GPs:        
+          t_rv_gp_model = t_rv_model
           # Now compute many models, for which we'll get the quantiles later for the 
           # joint RV model. Do the same for the samples according to the times in t_rv_model 
           # (oversampled model) and for the times in t_rv_model (model with same samples as data 
@@ -1532,7 +1537,7 @@ if rvfilename is not None:
                   gpmodel_real,gpvar = rv_dictionary['GPObject'].predict(rvresiduals, rv_dictionary['X'], return_var=True)
                   all_gp_models_real[counter,:] = gpmodel_real
                   all_rv_models_real[counter,:] = model_real + gpmodel_real
-                  gpmodel,gpvar = rv_dictionary['GPObject'].predict(rvresiduals, t_rv_model, return_var=True)
+                  gpmodel,gpvar = rv_dictionary['GPObject'].predict(rvresiduals, t_rv_gp_model, return_var=True)
                   all_gp_models[counter,:] = gpmodel
                   all_rv_models[counter,:] = gpmodel + model
           # Now, finally, compute the median and the quantiles (1,2 and 3-sigma) for each time sample of the 
