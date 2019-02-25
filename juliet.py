@@ -873,7 +873,7 @@ if lcfilename is not None:
                         ld_iname[inames_lc[i]] = '_'.join(vec[1:])
             else:
                 ld_iname[vec[1]] = vec[1]
-    priors['q1_'+instrument]
+    #priors['q1_'+instrument]
 
 
 def loglike(cube, ndim=None, nparams=None):
