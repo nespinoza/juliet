@@ -729,6 +729,58 @@ if rveparamfile is not None:
         # Finally, compute GP object. 
         rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rverr_rv)
 
+    if rv_dictionary['GPType'] == 'CeleriteExpKernel':
+        exp_kernel = terms.RealTerm(log_a=np.log(10.), log_c=np.log(10.))
+
+        for GPvariable in ['sigma','timescale']:
+            for pnames in priors.keys():
+                vec = pnames.split('_')
+                if (vec[0] == 'GP') and (GPvariable in vec[1]) and ('rv' in vec[-1].lower()):
+                   rv_dictionary['GP_'+GPvariable] = '_'.join(vec[2:])
+
+        # Wrap GP object to compute likelihood:
+        kernel = exp_kernel
+        rv_dictionary['GPObject'] = celerite.GP(kernel, mean=0.0)
+        # Note order of GP Vector: logsigma, log(1/timescale)
+        rv_dictionary['GPVector'] = np.zeros(2)
+        rv_dictionary['X'] = rv_dictionary['X'][:,0]
+        rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rverr_rv)
+
+    if rv_dictionary['GPType'] == 'CeleriteMatern':
+        matern_kernel = terms.Matern32Term(log_sigma=np.log(10.), log_rho=np.log(10.))
+
+        for GPvariable in ['sigma','rho']:
+           for pnames in priors.keys():
+                vec = pnames.split('_')
+                if (vec[0] == 'GP') and (GPvariable in vec[1]) and ('rv' in vec[-1].lower()):
+                    rv_dictionary['GP_'+GPvariable] = '_'.join(vec[2:])
+        # Wrap GP object to compute likelihood:
+        kernel = matern_kernel# + kernel_jitter
+        rv_dictionary['GPObject'] = celerite.GP(kernel, mean=0.0)
+        # Note order of GP Vector: logsigma, log(1/timescale)
+        rv_dictionary['GPVector'] = np.zeros(2)
+        rv_dictionary['X'] = rv_dictionary['X'][:,0]
+        rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rverr_rv)
+
+    if rv_dictionary['GPType'] == 'CeleriteMaternExpKernel':
+        matern_kernel = terms.Matern32Term(log_sigma=np.log(10.), log_rho=np.log(10.))
+        exp_kernel = terms.RealTerm(log_a=np.log(10.), log_c=np.log(10.))
+        for GPvariable in ['sigma','rho','timescale']:
+            for pnames in priors.keys():
+                vec = pnames.split('_')
+                if (vec[0] == 'GP') and (GPvariable in vec[1]) and ('rv' in vec[-1].lower()):
+                    lc_dictionary[instrument]['GP_'+GPvariable] = '_'.join(vec[2:])
+
+        # Wrap GP object to compute likelihood:
+        kernel = exp_kernel*matern_kernel# + kernel_jitter
+        rv_dictionary['GPObject'] = celerite.GP(kernel, mean=0.0)
+        # IMPORTANT: here first term of GP vector is log_a (our log GP_sigma), second log_c (our log 1/timescale),
+        # third is log_sigma of matern (which we set to sigma = one, so log_sigma = 0), fourth is log_rho. However, 
+        # we dont change the log_sigma of the matern, so this stays as zero forever and ever.
+        rv_dictionary['GPVector'] = np.zeros(4)
+        rv_dictionary['X'] = rv_dictionary['X'][:,0]
+        rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rverr_rv)
+
 if n_transit == 0 and (lcfilename is not None):
     print('\n\t >> WARNING: NOT FITTING ANY TRANSITING PLANET. PHOTOMETRY WILL BE ASSUMED AS FLAT. <<')
     print('\t (If this was NOT desired, you forgot to define a prior for (p,b) or (r1,r2) for the transiting planets.)\n')
@@ -1150,6 +1202,27 @@ def loglike(cube, ndim=None, nparams=None):
             rv_dictionary['GPVector'][2] = priors['GP_Gamma_'+rv_dictionary['GP_Gamma']]['cvalue']
             # And save log(Prot):
             rv_dictionary['GPVector'][3] = np.log(priors['GP_Prot_'+rv_dictionary['GP_Prot']]['cvalue'])
+        if rv_dictionary['GPType'] == 'CeleriteExpKernel':
+            # Note order of GP Vector: logB, logL, logProt, logC, logJitter                  
+            # Save the log(sigma) term of the current GP vector:
+            rv_dictionary['GPVector'][0] = np.log(priors['GP_sigma_'+rv_dictionary['GP_sigma']]['cvalue'])
+            # Save the log(timescale) term of the current GP vector:
+            rv_dictionary['GPVector'][1] = np.log(priors['GP_timescale_'+rv_dictionary['GP_timescale']]['cvalue'])
+        if rv_dictionary['GPType'] == 'CeleriteMatern':
+            # Note order of GP Vector: logB, logL, logProt, logC, logJitter                  
+            # Save the log(sigma) term of the current GP vector:
+            rv_dictionary['GPVector'][0] = np.log(priors['GP_sigma_'+rv_dictionary['GP_sigma']]['cvalue'])
+            # Save the log(rho) term of the current GP vector:
+            rv_dictionary['GPVector'][1] = np.log(priors['GP_rho_'+rv_dictionary['GP_rho']]['cvalue'])
+        if rv_dictionary['GPType'] == 'CeleriteMaternExpKernel':
+            # NOTE: We leave index 2 without value ON PURPOSE: the idea is that here, that is always 0 (because this defines the log(sigma) of the 
+            # matern kernel in the multiplication, which we set to 1).
+            # Save the log(sigma_GP) term of the current GP vector:
+            rv_dictionary['GPVector'][0] = np.log(priors['GP_sigma_'+rv_dictionary['GP_sigma']]['cvalue'])
+            # Save the log(timescale) term of the current GP vector:
+            rv_dictionary['GPVector'][1] = np.log(priors['GP_timescale_'+rv_dictionary['GP_timescale']]['cvalue'])
+            # Save the log(rho) term of the current GP vector:
+            rv_dictionary['GPVector'][3] = np.log(priors['GP_rho_'+rv_dictionary['GP_rho']]['cvalue'])
         if rv_dictionary['GPType'] == 'CeleriteQPKernel':
             # Note order of GP Vector: logB, logL, logProt, logC, logJitter                  
             # Save the log(B) term of the current GP vector:
@@ -1503,6 +1576,27 @@ if rvfilename is not None:
                       rv_dictionary['GPVector'][2] = priors['GP_Gamma_'+rv_dictionary['GP_Gamma']]['cvalue']
                       # And save log(Prot):
                       rv_dictionary['GPVector'][3] = np.log(priors['GP_Prot_'+rv_dictionary['GP_Prot']]['cvalue'])
+                  if rv_dictionary['GPType'] == 'CeleriteExpKernel':
+                      # Note order of GP Vector: logB, logL, logProt, logC, logJitter                  
+                      # Save the log(sigma) term of the current GP vector:
+                      rv_dictionary['GPVector'][0] = np.log(priors['GP_sigma_'+rv_dictionary['GP_sigma']]['cvalue'])
+                      # Save the log(timescale) term of the current GP vector:
+                      rv_dictionary['GPVector'][1] = np.log(priors['GP_timescale_'+rv_dictionary['GP_timescale']]['cvalue'])
+                  if rv_dictionary['GPType'] == 'CeleriteMatern':
+                      # Note order of GP Vector: logB, logL, logProt, logC, logJitter                  
+                      # Save the log(sigma) term of the current GP vector:
+                      rv_dictionary['GPVector'][0] = np.log(priors['GP_sigma_'+rv_dictionary['GP_sigma']]['cvalue'])
+                      # Save the log(rho) term of the current GP vector:
+                      rv_dictionary['GPVector'][1] = np.log(priors['GP_rho_'+rv_dictionary['GP_rho']]['cvalue'])
+                  if rv_dictionary['GPType'] == 'CeleriteMaternExpKernel':
+                      # NOTE: We leave index 2 without value ON PURPOSE: the idea is that here, that is always 0 (because this defines the log(sigma) of the 
+                      # matern kernel in the multiplication, which we set to 1).
+                      # Save the log(sigma_GP) term of the current GP vector:
+                      rv_dictionary['GPVector'][0] = np.log(priors['GP_sigma_'+rv_dictionary['GP_sigma']]['cvalue'])
+                      # Save the log(timescale) term of the current GP vector:
+                      rv_dictionary['GPVector'][1] = np.log(priors['GP_timescale_'+rv_dictionary['GP_timescale']]['cvalue'])
+                      # Save the log(rho) term of the current GP vector:
+                      rv_dictionary['GPVector'][3] = np.log(priors['GP_rho_'+rv_dictionary['GP_rho']]['cvalue'])
                   if rv_dictionary['GPType'] == 'CeleriteQPKernel':
                       # Note order of GP Vector: logB, logL, logProt, logC, logJitter                  
                       # Save the log(B) term of the current GP vector:
