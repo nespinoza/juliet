@@ -624,6 +624,21 @@ if rveparamfile is not None:
             # Detected exp-sine-squared kernel:
             rv_dictionary['GPType'] = 'ExpSineSquaredSEKernel'
             break
+        if (vec[0] == 'GP') and ('timescale' in vec[1]) and ('rv' in vec[-1].lower()):
+            # If already defined, then this is a multiplication of Matern and Exp kernels:
+            if 'GPType' in rv_dictionary:
+                rv_dictionary['GPType'] = 'CeleriteMaternExpKernel'
+                break
+            # Detected celerite Exp kernel:
+            rv_dictionary['GPType'] = 'CeleriteExpKernel'
+        if (vec[0] == 'GP') and ('rho' in vec[1]) and ('rv' in vec[-1].lower()):
+            # If already defined, then this is a multiplication of Matern and Exp kernels:
+            if 'GPType' in rv_dictionary:
+                rv_dictionary['GPType'] = 'CeleriteMaternExpKernel'
+                break
+            # Detected celerite matern:
+            rv_dictionary['GPType'] = 'CeleriteMatern'
+
         if (vec[0] == 'GP') and ('B' in vec[1]) and ('rv' in vec[-1].lower()):
             # Detected celerite quasi-periodic kernel:
             rv_dictionary['GPType'] = 'CeleriteQPKernel'
@@ -769,7 +784,7 @@ if rveparamfile is not None:
             for pnames in priors.keys():
                 vec = pnames.split('_')
                 if (vec[0] == 'GP') and (GPvariable in vec[1]) and ('rv' in vec[-1].lower()):
-                    lc_dictionary[instrument]['GP_'+GPvariable] = '_'.join(vec[2:])
+                    rv_dictionary['GP_'+GPvariable] = '_'.join(vec[2:])
 
         # Wrap GP object to compute likelihood:
         kernel = exp_kernel*matern_kernel# + kernel_jitter
