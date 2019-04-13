@@ -942,7 +942,6 @@ if lcfilename is not None:
                 ld_iname[vec[1]] = vec[1]
     #priors['q1_'+instrument]
 
-
 def loglike(cube, ndim=None, nparams=None):
     # Evaluate the log-likelihood. For this, first extract all inputs:
     pcounter = 0
@@ -1757,7 +1756,7 @@ if rvfilename is not None:
     if rvmultipanel:
         plt.savefig(out_folder+'rv_vs_time.pdf',bbox_extra_artists=(lgd,), bbox_inches='tight')
     else:
-        ax.legend(ncol=3)
+        #ax.legend(ncol=3)
         plt.savefig(out_folder+'rv_vs_time.pdf')
 
     ###############################################################
@@ -1793,41 +1792,51 @@ if rvfilename is not None:
             ax = axs[0][n]
             ax_res = axs[1][n]
         ax_res.plot([-0.5,0.5],[0.,0.],'--',linewidth=1,color='black',zorder=0)
-        # First, generate a model that contans the components of all the other planets. For computing this, simply use the medians 
-        # of the samples (i.e., the uncertainties we'll plot for each planet are the --- marginalized --- uncertainties on those planets 
-        # parameters only). If GP is on, also substract best-fit GP model:
-        rvmodel_minus_iplanet = np.zeros(len(t_rv))
+        # First, generate a model that contains the components of all the other planets. For computing this, let us be consistent and not use 
+        # simply the medians of the samples but lets use samples from the posterior, which we will then marginalize through median combining 
+        # the models we draw from the posterior samples. If GP is on, also substract best-fit GP model:
+        rvmodel_minus_iplanet = np.zeros([len(t_rv),len(idx_sims)])
         for nn in range(n_rv):
-            i = numbering_rv[nn]
-            if i != iplanet:
-                K,t0,P = np.median(out['posterior_samples']['K_p'+str(i)]),\
-                         np.median(out['posterior_samples']['t0_p'+str(i)]),\
-                         np.median(out['posterior_samples']['P_p'+str(i)])
+            counter = 0
+            for ii in idx_sims:
+                i = numbering_rv[nn]
+                if i != iplanet:
+                    for pname in priors.keys():
+                        if priors[pname]['type'] != 'fixed':
+                            priors[pname]['cvalue'] = out['posterior_samples'][pname][ii]
+                    K,t0,P = priors['K_p'+str(i)]['cvalue'],\
+                             priors['t0_p'+str(i)]['cvalue'],\
+                             priors['P_p'+str(i)]['cvalue'] 
+                    if ecc_parametrization['rv'][i] == 0:
+                        ecc,omega = priors['ecc_p'+str(i)]['cvalue'],priors['omega_p'+str(i)]['cvalue']*np.pi/180.
+                    elif ecc_parametrization['rv'][i] == 1:
+                        ecc = np.sqrt(priors['ecosomega_p'+str(i)]['cvalue']**2+priors['esinomega_p'+str(i)]['cvalue']**2)
+                        omega = np.arctan2(priors['esinomega_p'+str(i)]['cvalue'],priors['ecosomega_p'+str(i)]['cvalue'])
+                    else:
+                        ecc = priors['secosomega_p'+str(i)]['cvalue']**2+priors['sesinomega_p'+str(i)]['cvalue']**2
+                        omega = np.arctan2(priors['sesinomega_p'+str(i)]['cvalue'],priors['secosomega_p'+str(i)]['cvalue'])
 
-                if ecc_parametrization['rv'][i] == 0:
-                    ecc,omega = priors['ecc_p'+str(i)]['cvalue'],priors['omega_p'+str(i)]['cvalue']*np.pi/180.
-                elif ecc_parametrization['rv'][i] == 1:
-                    ecc = np.sqrt(priors['ecosomega_p'+str(i)]['cvalue']**2+priors['esinomega_p'+str(i)]['cvalue']**2)
-                    omega = np.arctan2(priors['esinomega_p'+str(i)]['cvalue'],priors['ecosomega_p'+str(i)]['cvalue'])
-                else:
-                    ecc = priors['secosomega_p'+str(i)]['cvalue']**2+priors['sesinomega_p'+str(i)]['cvalue']**2
-                    omega = np.arctan2(priors['sesinomega_p'+str(i)]['cvalue'],priors['secosomega_p'+str(i)]['cvalue'])
-
-                ecc = np.median(ecc)
-                omega = np.median(omega)
-
-                radvel_params['per'+str(nn+1)] = radvel.Parameter(value=P)
-                radvel_params['tc'+str(nn+1)] = radvel.Parameter(value=t0)
-                radvel_params['w'+str(nn+1)] = radvel.Parameter(value=omega)
-                radvel_params['e'+str(nn+1)] = radvel.Parameter(value=ecc)
-                radvel_params['k'+str(nn+1)] = radvel.Parameter(value=K)
-                rvmodel_minus_iplanet += radvel.model.RVModel(radvel_params).__call__(t_rv,planet_num=nn+1) 
-
-        # Get phases for the current planetary model. For this get median period and t0:
-        P,t0 = np.median(out['posterior_samples']['P_p'+str(iplanet)]),np.median(out['posterior_samples']['t0_p'+str(iplanet)])
-
+                    radvel_params['per'+str(nn+1)] = radvel.Parameter(value=P)
+                    radvel_params['tc'+str(nn+1)] = radvel.Parameter(value=t0)
+                    radvel_params['w'+str(nn+1)] = radvel.Parameter(value=omega)
+                    radvel_params['e'+str(nn+1)] = radvel.Parameter(value=ecc)
+                    radvel_params['k'+str(nn+1)] = radvel.Parameter(value=K)
+                    rvmodel_minus_iplanet[:,counter] += radvel.model.RVModel(radvel_params).__call__(t_rv,planet_num=nn+1) 
+                counter = counter + 1
+        # Get median of the posterior modelled samples:
+        rvmodel_minus_iplanet = np.median(rvmodel_minus_iplanet,axis=1)
+        # Get (median) phases for the current planetary model:
+        sim_phases = np.zeros([len(idx_sims),len(t_rv)])  
+        counter= 0 
+        for ii in idx_sims:
+            for pname in priors.keys():
+                if priors[pname]['type'] != 'fixed':   
+                    priors[pname]['cvalue'] = out['posterior_samples'][pname][ii]
+            P,t0 = priors['P_p'+str(iplanet)]['cvalue'],priors['t0_p'+str(iplanet)]['cvalue']
+            sim_phases[counter,:] = utils.get_phases(t_rv,P,t0)
+            counter = counter + 1
         # Get the actual phases:
-        phases = utils.get_phases(t_rv,P,t0)
+        phases = np.median(sim_phases,axis=0)
 
         # Now plot phased RVs minus the component model without the current planet:
         planet_rvs = np.array([])
@@ -1902,12 +1911,14 @@ if rvfilename is not None:
         # For this, first define a range of phases of interest:
         model_phases = np.linspace(-0.6,0.6,10000) 
 
+        #t_model_phases = np.zeros(len(model_phases),len(idx_sims))
+        #counter = -1
+
         # With this get the respective times for the model phases:
-        t_model_phases = model_phases*P + t0
+        #t_model_phases = model_phases*P + t0
 
         # Now generate the models:
-        all_rv_models = np.zeros([nsims,len(t_model_phases)])
-
+        all_rv_models = np.zeros([nsims,len(model_phases)])
         counter = -1
         for j in idx_sims:
             counter = counter + 1
@@ -1918,8 +1929,8 @@ if rvfilename is not None:
 
             # With those samples, compute full RV model and the planet-by-planet model:
             K,t0,P = priors['K_p'+str(iplanet)]['cvalue'],\
-                     priors['t0_p'+str(iplanet)]['cvalue'],\
-                     priors['P_p'+str(iplanet)]['cvalue']
+                priors['t0_p'+str(iplanet)]['cvalue'],\
+                priors['P_p'+str(iplanet)]['cvalue']
 
             if ecc_parametrization['rv'][iplanet] == 0:
                 ecc,omega = priors['ecc_p'+str(iplanet)]['cvalue'],priors['omega_p'+str(iplanet)]['cvalue']*np.pi/180.
@@ -1937,8 +1948,8 @@ if rvfilename is not None:
             radvel_params['k'+str(n+1)] = radvel.Parameter(value=K)
 
             # Compute full RV model:
+            t_model_phases = model_phases*P + t0
             all_rv_models[counter,:] = radvel.model.RVModel(radvel_params).__call__(t_model_phases,planet_num=n+1)
-
         # As before, once again compute median model and the respective error bands:
         omedian_model = np.zeros(len(t_model_phases))
         omodel_up1, omodel_down1 = np.zeros(len(t_model_phases)),np.zeros(len(t_model_phases))
@@ -1978,8 +1989,14 @@ if rvfilename is not None:
         yval_lim = np.max([np.abs(np.min(omodel_down3)),np.abs(np.max(omodel_up3)),3.*np.sqrt(np.var(planet_rvs))])
         ax.set_ylim([-yval_lim,yval_lim])
         ax.get_xaxis().set_major_formatter(plt.NullFormatter())
-        # Plot residuals phased at this planet.
+        # Plot residuals phased at this planet. 
+        #UNCOMMENT:
         ax_res.set_ylim([-5*np.median(rv_bin_err),5*np.median(rv_bin_err)])
+        #ax_res.set_ylim([-80,80])
+        ########################## ERASE THIS
+        #for iii in range(all_rv_models.shape[0]):
+        #    ax.plot(model_phases,all_rv_models[iii,:],color='black',alpha=0.001,zorder=100)
+        #####################################
         ax_res.set_xlim([-0.5,0.5])
         ax_res.set_xlabel('Phase')
 
