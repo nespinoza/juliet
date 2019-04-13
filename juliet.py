@@ -80,7 +80,7 @@ parser.add_argument('-nrvchunk', default = 100)
 # Decide if binned RVs will be plotted at the end:
 parser.add_argument('--plotbinnedrvs', dest='plotbinnedrvs', action='store_true') 
 # Allow user to change the maximum eccentricity for the fits; helps avoid issue that Batman can run into with high eccentricities
-parser.add_argument('-ecclim', default=0.95)
+parser.add_argument('-ecclim', default=0.95,type=float)
 # Define stellar density mean and stdev if you have it --- this will help with a constrained transit fit:
 parser.add_argument('-sdensity_mean', default=None)
 parser.add_argument('-sdensity_sigma', default=None)
@@ -925,7 +925,7 @@ if lcfilename is not None:
 G = 6.67408e-11 # mks
 
 # Maximum eccentricity limit:
-ecclim = args.ecclim
+ecclim = np.double(args.ecclim)
 
 # Save corresponding name of LD input instrument to the respective instrument (this is to link LD coefficients between 
 # different "instruments"):
