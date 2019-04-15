@@ -1843,7 +1843,7 @@ if rvfilename is not None:
         color_counter = 0
         # If GP, remove it as well:
         if rveparamfile is not None:
-            rvmodel_minus_iplanet += np.median(all_gp_models_real,axis=0)
+            rvmodel_minus_iplanet += all_gp_models_real#np.median(all_gp_models_real,axis=0)
         # Now we generate possible binned RV data to be plotted. This also serves for defining y-axis limits in the residuals.
         # This combines all the RV data of all instruments. First, generate all possible bins:
         possible_phases_bin = np.arange(-0.4,0.50,0.1)
