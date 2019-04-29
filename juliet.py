@@ -1096,14 +1096,14 @@ def loglike(cube, ndim=None, nparams=None):
                 lc_dictionary[instrument]['GPVector'][4] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)
             if lc_dictionary[instrument]['GPType'] == 'CeleriteExpKernel':
                 # Save the log(sigma_GP) term of the current GP vector:
-                lc_dictionary[instrument]['GPVector'][0] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']**2)*1e-6)
+                lc_dictionary[instrument]['GPVector'][0] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue'])*1e-6)
                 # Save the log(1/timescale) term of the current GP vector:
                 lc_dictionary[instrument]['GPVector'][1] = np.log(1./priors['GP_timescale_'+lc_dictionary[instrument]['GP_timescale']]['cvalue'])
                 # Save the log(jitte) term of the current GP vector:
                 lc_dictionary[instrument]['GPVector'][2] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)
             if lc_dictionary[instrument]['GPType'] == 'CeleriteMatern':
                 # Save the log(sigma_GP) term of the current GP vector:
-                lc_dictionary[instrument]['GPVector'][0] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']**2)*1e-6)
+                lc_dictionary[instrument]['GPVector'][0] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue'])*1e-6)
                 # Save the log(1/timescale) term of the current GP vector:
                 lc_dictionary[instrument]['GPVector'][1] = np.log(priors['GP_rho_'+lc_dictionary[instrument]['GP_rho']]['cvalue'])
                 # Save the log(jitte) term of the current GP vector:
@@ -1112,7 +1112,7 @@ def loglike(cube, ndim=None, nparams=None):
                 # NOTE: We leave index 2 without value ON PURPOSE: the idea is that here, that is always 0 (because this defines the log(sigma) of the 
                 # matern kernel in the multiplication, which we set to 1).
                 # Save the log(sigma_GP) term of the current GP vector:
-                lc_dictionary[instrument]['GPVector'][0] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']**2)*1e-6)
+                lc_dictionary[instrument]['GPVector'][0] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue'])*1e-6)
                 # Save the log(1/timescale) term of the current GP vector:
                 lc_dictionary[instrument]['GPVector'][1] = np.log(1./priors['GP_timescale_'+lc_dictionary[instrument]['GP_timescale']]['cvalue'])
                 # Save the log(1/timescale) term of the current GP vector:
@@ -1423,25 +1423,29 @@ if rvfilename is not None:
         rvmultipanel = False
 
     # The first plot is RV v/s time. First, we define some preambles for this plot:
+    ### ERASE THIS:
+    #idxERASE = np.where(((t_rv-2450839)>(2900+2900))&((t_rv-2450839)<(2900+2900+2900)))[0]
     if rvmultipanel is False:
         fig, axs = plt.subplots(2, 1, gridspec_kw = {'height_ratios':[3,1]}, figsize=(10,4))
     else:
         # If in multi-panel plot, first agglomerate data in nrvchunks, and save all the corresponding
         # data for each panel to the chunks dictionary:
-        idxrv = np.argsort(t_rv)
+        idxrv = np.argsort(t_rv)#t_rv[idxERASE])
         npanels = 0
         chunks  = {} 
         chunks[npanels] = {}
-        chunks[npanels]['tmin'] = t_rv[idxrv[0]] - 5
+        chunks[npanels]['tmin'] = t_rv[idxrv[0]]-5#[idxERASE][idxrv[0]] - 5
         for i in idxrv:
             if t_rv[i]-chunks[npanels]['tmin'] > nrvchunk:
                 chunks[npanels]['tmax'] = chunks[npanels]['tmin'] + nrvchunk + 5
                 npanels += 1
                 chunks[npanels] = {}
-                chunks[npanels]['tmin'] = t_rv[i] - 5
+                chunks[npanels]['tmin'] = t_rv[i]-5#t_rv[idxERASE][i] - 5
         if 'tmax' not in chunks[npanels].keys():
             chunks[npanels]['tmax'] = chunks[npanels]['tmin'] + nrvchunk + 5
         # Now that all data is saved, create multi-panel plot:
+        if npanels>6:
+            rr,cc = 20,20
         if npanels>1:
             rr,cc = 10,10
         else:
@@ -1713,6 +1717,8 @@ if rvfilename is not None:
                       ax.set_ylabel('RV (m/s)')
                   else:
                       ax.set_ylabel('RV (km/s)')
+                  #### ERASE:
+                  ax.set_ylim([-10,10])
                   ax.get_xaxis().set_major_formatter(plt.NullFormatter())
                   if npanel == 0:
                       lgd = ax.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,ncol=len(inames_rv), mode="expand", borderaxespad=0.)
@@ -1763,6 +1769,8 @@ if rvfilename is not None:
                   ax.set_ylabel('O-C')
                   if npanel == np.max(chunks.keys()):
                       ax.set_xlabel('Time (BJD - '+str(zero_t_rv)+')')
+                  # ERASE:
+                  ax.set_ylim([-10,10])
     # Plot RV vs time:
     plt.tight_layout()
     if rvmultipanel:
@@ -1999,7 +2007,9 @@ if rvfilename is not None:
                 ax.set_ylabel('Radial velocity (km/s)')
             ax_res.set_ylabel('Residuals')
         yval_lim = np.max([np.abs(np.min(omodel_down3)),np.abs(np.max(omodel_up3)),3.*np.sqrt(np.var(planet_rvs))])
+        ##########3 CHANGE RV PHASE PLOT YLIM:
         ax.set_ylim([-yval_lim,yval_lim])
+        #ax.set_ylim([-5,5])
         ax.get_xaxis().set_major_formatter(plt.NullFormatter())
         # Plot residuals phased at this planet. 
         #UNCOMMENT:
@@ -2196,14 +2206,14 @@ if lcfilename is not None:
                     lc_dictionary[instrument]['GPVector'][2] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)
                 if lc_dictionary[instrument]['GPType'] == 'CeleriteMatern':
                     # Save the log(sigma_GP) term of the current GP vector:
-                    lc_dictionary[instrument]['GPVector'][0] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']**2)*1e-6)
+                    lc_dictionary[instrument]['GPVector'][0] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue'])*1e-6)
                     # Save the log(1/timescale) term of the current GP vector:
                     lc_dictionary[instrument]['GPVector'][1] = np.log(priors['GP_rho_'+lc_dictionary[instrument]['GP_rho']]['cvalue'])
                     # Save the log(jitte) term of the current GP vector:
                     lc_dictionary[instrument]['GPVector'][2] = np.log(priors['sigma_w_'+instrument]['cvalue']*1e-6)
                 if lc_dictionary[instrument]['GPType'] == 'CeleriteMaternExpKernel':
                     # Save the log(sigma_GP) term of the current GP vector:
-                    lc_dictionary[instrument]['GPVector'][0] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']**2)*1e-6)
+                    lc_dictionary[instrument]['GPVector'][0] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue'])*1e-6)
                     # Save the log(1/timescale) term of the current GP vector:
                     lc_dictionary[instrument]['GPVector'][1] = np.log(1./priors['GP_timescale_'+lc_dictionary[instrument]['GP_timescale']]['cvalue'])
                     # Save the log(1/timescale) term of the current GP vector:
@@ -2304,7 +2314,10 @@ if lcfilename is not None:
         ax.plot(tinstrument-tzero,omedian_model,'-',linewidth=1,color='black')
         ax.set_ylabel('Relative flux')
 
+        ########### CHANGE FOR CHANGING Y AXIS PHOT PLOT:
         ax.set_ylim([np.min(omedian_model) - np.max(ferr_instrument)*7.5,np.max(omedian_model)+np.max(ferr_instrument)*7.5])
+        #ax.set_ylim([0.996,1.003])
+        ###########
         # Define the x-axis limits based on time baseline of observations. Basically if it is larger than 
         # half a day, it is most likely space-based and we thus base our plot around the phased transit event. 
         # If not, we base our plot around the expected ingress and egress:
@@ -2327,7 +2340,10 @@ if lcfilename is not None:
         ax2.ticklabel_format(useOffset=False, style='plain')
         ax2.set_ylabel('Residuals (ppm)')
         ax2.set_xlabel('Time (BJD - '+str(tzero)+')')
+        ################ CHANGE FOR CHANGING Y AXIS RES PHOT PLOT:
         ax2.set_ylim([-np.max(ferr_instrument)*7.5*1e6,np.max(ferr_instrument)*7.5*1e6])
+        #ax2.set_ylim([-2500,2500])
+        ################
         ax2.set_xlim([np.min(tinstrument-tzero),np.max(tinstrument-tzero)])
         plt.tight_layout()
         plt.savefig(out_folder+'phot_vs_time_instrument_'+instrument+'.pdf')
@@ -2587,7 +2603,9 @@ if lcfilename is not None:
 
             if tbaseline > 0.5 and (not lc_dictionary[instrument]['resampling']):
                 ax.plot(phases,finstrument[instrument]['flux']/lcmodel_noplanet,'.k',markersize=5,alpha=alpha_notbinned)
-                phases_bin,f_bin,f_bin_err = utils.bin_data(phases,finstrument[instrument]['flux']/lcmodel_noplanet,15)
+                idx_sort = np.argsort(phases)
+                phases_bin,f_bin,f_bin_err = utils.bin_data(phases[idx_sort],\
+                                             finstrument[instrument]['flux'][idx_sort]/lcmodel_noplanet[idx_sort],15)
                 ax.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=alpha_binned)
             else:
                 ax.errorbar(phases,finstrument[instrument]['flux']/lcmodel_noplanet,\
@@ -2635,7 +2653,9 @@ if lcfilename is not None:
 
             ax.get_xaxis().set_major_formatter(plt.NullFormatter())
             ax.set_xlim([-2*min_phase,2*min_phase])
+            #### CHANGE Y AXIS PHASE PHOT PLOT:
             ax.set_ylim([1. - depth - sigma_median*10,1. + sigma_median*5])
+            #ax.set_ylim([0.997,1.002])
             #if lc_dictionary[instrument]['GPDetrend']:
             #    ax.set_ylim([1- depth - depth*0.5,1.001 + depth*0.5+0.001])
             #else:
@@ -2667,12 +2687,17 @@ if lcfilename is not None:
                             fmt='.k',markersize=5,elinewidth=1,alpha=alpha_notbinned)
             else:
                 ax2.plot(phases,(finstrument[instrument]['flux']/lcmodel_noplanet-lcmodel)*1e6,'.k',markersize=5,alpha=alpha_notbinned)
-                phases_bin,f_bin,f_bin_err = utils.bin_data(phases,(finstrument[instrument]['flux']/lcmodel_noplanet-lcmodel)*1e6,15)
+                idx_argsort = np.argsort(phases)
+                phases_bin,f_bin,f_bin_err = utils.bin_data(phases[idx_argsort],\
+                                             (finstrument[instrument]['flux'][idx_argsort]/lcmodel_noplanet[idx_argsort]-\
+                                             lcmodel[idx_argsort])*1e6,15)
                 ax2.errorbar(phases_bin,f_bin,yerr=f_bin_err,fmt='.k',markersize=5,elinewidth=1,alpha=alpha_binned)
             ax2.set_ylabel('Residuals (ppm)')
             ax2.set_xlabel('Phase')
             ax2.set_xlim([-2*min_phase,2*min_phase])
+            # CHANGE PHASE PLOT PHOT RESIDUALS:
             ax2.set_ylim([-sigma_median*5*1e6,sigma_median*5*1e6])
+            #ax2.set_ylim([-2000,2000])
             #if tbaseline>0.5:
             #    if depth*1e6 > 1000.:
             #        ax.set_xlim([-0.03,0.03])
