@@ -298,8 +298,11 @@ else:
 # Check for which instruments transits will be fitted:
 if lcfilename is not None:
     for i in range(ninstruments_lc):
-        if 'q1_'+inames_lc[i] in priors.keys():
-            lc_dictionary[inames_lc[i]]['TransitFit'] = True
+        for pri in priors.keys():
+            if pri[0:2]:
+                if inames_lc[i] in pri.split('_'):
+                    lc_dictionary[inames_lc[i]]['TransitFit'] = True
+                    print('\t Transit fit detected for instrument ',inames_lc[i])
 
 # Check eccentricity parametrization for each planet in the juliet numbering scheme.
 # 0 = ecc, omega  1: ecosomega,esinomega  2: sqrt(e)cosomega, sqrt(e)sinomega
