@@ -89,6 +89,8 @@ parser.add_argument('-sdensity_sigma', default=None)
 #parser.add_argument('--efficient_bp', dest='efficient_bp', action='store_true')
 parser.add_argument('-pl', default=0.)
 parser.add_argument('-pu', default=1.)
+# Flux limits for the phased photometry plots:
+parser.add_argument('-phasefluxplotlim', default=None)
 # Number of live points:
 parser.add_argument('-nlive', default=1000)
 # Number of samples to draw from posterior to compute models:
@@ -224,7 +226,17 @@ if lcfilename is not None:
         for ld_law in ld_laws:
             instrument,ld = ld_law.split('-')
             lc_dictionary[instrument.split()[0]]['ldlaw'] = ld.split()[0].lower()
-                                   
+                             
+    # Extract phased-flux plot limits:
+    phasefluxplotlim = args.phasefluxplotlim
+    if phasefluxplotlim is not None:
+        ylow_pflux,yhigh_pflux = args.phasefluxplotlim.split(',')
+        ylow_pflux = np.double(ylow_pflux)
+        yhigh_pflux = np.double(yhigh_pflux)
+        phasefluxlims = True
+    else:
+        phasefluxlims = False
+      
     # Extract supersampling parameters for transit model. If not given for each instrument, assume all must be 
     # resampled:
     if args.instrument_supersamp is not None:
@@ -299,7 +311,7 @@ else:
 if lcfilename is not None:
     for i in range(ninstruments_lc):
         for pri in priors.keys():
-            if pri[0:2]:
+            if pri[0:2] == 'q1':
                 if inames_lc[i] in pri.split('_'):
                     lc_dictionary[inames_lc[i]]['TransitFit'] = True
                     print('\t Transit fit detected for instrument ',inames_lc[i])
@@ -2657,7 +2669,10 @@ if lcfilename is not None:
             ax.get_xaxis().set_major_formatter(plt.NullFormatter())
             ax.set_xlim([-2*min_phase,2*min_phase])
             #### CHANGE Y AXIS PHASE PHOT PLOT:
-            ax.set_ylim([1. - depth - sigma_median*10,1. + sigma_median*5])
+            if phasefluxlims:
+                ax.set_ylim([ylow_pflux,yhigh_pflux])
+            else:
+                ax.set_ylim([1. - depth - sigma_median*10,1. + sigma_median*5])
             #ax.set_ylim([0.997,1.002])
             #if lc_dictionary[instrument]['GPDetrend']:
             #    ax.set_ylim([1- depth - depth*0.5,1.001 + depth*0.5+0.001])
