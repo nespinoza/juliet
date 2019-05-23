@@ -14,9 +14,15 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 # Import dynesty for dynamic nested sampling:
-import dynesty
+try:
+    import dynesty
+except:
+    print('Dynesty installation not detected.')
 # Import multinest for (importance) nested sampling:
-import pymultinest
+try:
+    import pymultinest
+except:
+    print('(py)MultiNest installation (or libmultinest.dylib) not detected. juliet will only work with dynesty')
 import sys
 
 from scipy.interpolate import interp1d
@@ -2008,8 +2014,16 @@ if rvfilename is not None:
         ax.plot(model_phases,omedian_model,'-',linewidth=2,color='black')
         ax.set_xlim([-0.5,0.5])       
         #out['posterior_samples'][pname]
-        P,t0 = np.median(out['posterior_samples']['P_p'+str(iplanet)]),\
-               np.median(out['posterior_samples']['t0_p'+str(iplanet)])
+        if priors['P_p'+str(iplanet)]['type'] != 'fixed':
+            P = np.median(out['posterior_samples']['P_p'+str(iplanet)])
+        else:
+            P = priors['P_p'+str(iplanet)]['cvalue']
+        if priors['t0_p'+str(iplanet)]['type'] != 'fixed':
+            t0 = np.median(out['posterior_samples']['t0_p'+str(iplanet)])
+        else:
+            t0 = priors['t0_p'+str(iplanet)]['cvalue']
+        #P,t0 = np.median(out['posterior_samples']['P_p'+str(iplanet)]),\
+        #:       np.median(out['posterior_samples']['t0_p'+str(iplanet)])
         #print(P,t0,iplanet)
         title_text = r'$P={0:.3f}$, $t_0 = {1:.5f}$'.format(P,t0)
         if n_rv>1:
