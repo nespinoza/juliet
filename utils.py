@@ -209,7 +209,7 @@ def writepp(fout,posteriors):
 
     fout.write('# {0:18} \t \t {1:12} \t \t {2:12} \t \t {3:12}\n'.format('Parameter Name','Median','Upper 68 CI','Lower 68 CI'))
     for pname in posteriors['posterior_samples'].keys():
-      if pname != 'unnamed':
+      if pname != 'unnamed' and pname != 'loglike':
         val,valup,valdown = get_quantiles(posteriors['posterior_samples'][pname]) 
         usigma = valup-val
         dsigma = val - valdown
