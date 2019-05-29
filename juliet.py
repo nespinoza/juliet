@@ -57,7 +57,7 @@ class RotationTerm(terms.Term):
             2*np.pi*np.exp(-log_period),
         )   
 
-# Definition of user-defined arguments:
+# Definition of user-defined arguments. Useful when juliet is used in command-line mode:
 parser = argparse.ArgumentParser()
 # This reads the lightcurve file. First column is time, second column is flux, third flux_err, fourth telescope name:
 parser.add_argument('-lcfile', default=None)
@@ -141,7 +141,7 @@ from dynesty.utils import resample_equal
 
 print('\n\t \t ---------------------------------------------\n')
 
-print('\t \t                   juliet v.1.0            ') 
+print('\t \t                   juliet v.2.0            ') 
 print('\t \t                                     ')
 print('\t \t      Authors: N. Espinoza, D. Kossakowski')
 print('\t \t      Contact: espinoza at mpia.de\n')
@@ -159,15 +159,6 @@ if use_dynesty:
 else:
     prefix = 'multinest_'
     print('\t Running NESTED SAMPLING (multinest)')
-
-# Extract parameters for efficient sampling of b and p, calculate Ar:
-#efficient_bp = args.efficient_bp
-
-#if efficient_bp:
-#    print('\t Efficient sampling of the (b,p) plane detected')
-#    pl,pu = np.double(args.pl),np.double(args.pu)
-#    Ar = (pu - pl)/(2. + pl + pu)
-#    print('\t > pl:',pl,'pu:',pu,'Ar:',Ar)
 
 # Output folder:
 out_folder = args.ofolder+'/'
@@ -370,13 +361,6 @@ rvunits = args.rvunits
 nrvchunk = np.double(args.nrvchunk)
 # If binned rvs will be plotted:
 plotbinnedrvs = args.plotbinnedrvs
-
-print('\t Fitting ',n_transit,' transiting planets and ',n_rv,' radial-velocity systems.')
-print('\t ',n_params,' free parameters.')
-if fitrvline:
-    print('\t RV Line Fit: True')
-if fitrvquad:
-    print('\t RV Quadratic Fit: True')
 
 if lcfilename is not None:
     # Float the times (batman doesn't like non-float 64):
@@ -827,14 +811,6 @@ if rveparamfile is not None:
         rv_dictionary['GPVector'] = np.zeros(4)
         rv_dictionary['X'] = rv_dictionary['X'][:,0]
         rv_dictionary['GPObject'].compute(rv_dictionary['X'],yerr=rverr_rv)
-
-if n_transit == 0 and (lcfilename is not None):
-    print('\n\t >> WARNING: NOT FITTING ANY TRANSITING PLANET. PHOTOMETRY WILL BE ASSUMED AS FLAT. <<')
-    print('\t (If this was NOT desired, you forgot to define a prior for (p,b) or (r1,r2) for the transiting planets.)\n')
-
-if n_rv == 0 and (rvfilename is not None):
-    print('\n\t >> WARNING: NOT FITTING ANY RV PLANET. RV DATA WILL BE ASSUMED AS FLAT. <<')
-    print('\t (If this was NOT desired, you forgot to define a prior for K for the RV planets.)\n')
 
 # Other inputs like, e.g., nlive points:
 n_live_points = int(args.nlive)
@@ -1301,9 +1277,21 @@ def loglike(cube, ndim=None, nparams=None):
     # And now return joint log-likelihood:
     return log_likelihood
 
-    
-
 out_file = out_folder+'out_multinest_'
+print('\t Fitting ',n_transit,' transiting planets and ',n_rv,' radial-velocity systems.')
+print('\t ',n_params,' free parameters.')
+if fitrvline:
+    print('\t RV Line Fit: True')
+if fitrvquad:
+    print('\t RV Quadratic Fit: True')
+
+if n_transit == 0 and (lcfilename is not None):
+    print('\n\t >> WARNING: NOT FITTING ANY TRANSITING PLANET. PHOTOMETRY WILL BE ASSUMED AS FLAT. <<')
+    print('\t (If this was NOT desired, you forgot to define a prior for (p,b) or (r1,r2) for the transiting planets.)\n')
+
+if n_rv == 0 and (rvfilename is not None):
+    print('\n\t >> WARNING: NOT FITTING ANY RV PLANET. RV DATA WILL BE ASSUMED AS FLAT. <<')
+    print('\t (If this was NOT desired, you forgot to define a prior for K for the RV planets.)\n')
 
 import pickle
 # If not ran already, run dynesty or MultiNest, and save posterior samples and evidences to pickle file:
@@ -1373,6 +1361,9 @@ if (not os.path.exists(out_folder+'posteriors.pkl')) and (not os.path.exists(out
             priors[pname]['cvalue'] = np.median(posterior_samples[:,pcounter])
             out['posterior_samples'][pname] = posterior_samples[:,pcounter]
             pcounter += 1
+    out['posterior_samples']['loglike'] = np.zeros(posterior_samples.shape[0])
+    for i in range(posterior_samples.shape[0]):
+        out['posterior_samples']['loglike'][i] = loglike(posterior_samples[i,:])
     if True in efficient_bp:
         out['pu'] = pu
         out['pl'] = pl
