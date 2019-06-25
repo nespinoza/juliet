@@ -1379,11 +1379,20 @@ else:
     priors,n_transit,n_rv,numbering_transit,numbering_rv,n_params = utils.readpriors(out_folder+'priors.dat')
     if use_dynesty:
         if dynamic:
-            out = pickle.load(open(out_folder+'_dynesty_DNS_posteriors.pkl','rb'))
+            try:
+                out = pickle.load(open(out_folder+'_dynesty_DNS_posteriors.pkl','rb'))
+            except:
+                out = pickle.load(open(out_folder+'_dynesty_DNS_posteriors.pkl','rb'), encoding='latin1')
         else:
-            out = pickle.load(open(out_folder+'_dynesty_NS_posteriors.pkl','rb'))
+            try:
+                out = pickle.load(open(out_folder+'_dynesty_NS_posteriors.pkl','rb'))
+            except:
+                out = pickle.load(open(out_folder+'_dynesty_NS_posteriors.pkl','rb'), encoding='latin1')
     else:
-        out = pickle.load(open(out_folder+'posteriors.pkl','rb'))
+        try:
+            out = pickle.load(open(out_folder+'posteriors.pkl','rb'))
+        except:
+            out = pickle.load(open(out_folder+'posteriors.pkl','rb'), encoding='latin1')
     # Extract parameters:
     for pname in priors.keys():
         if priors[pname]['type'] != 'fixed':
