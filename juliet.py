@@ -1403,7 +1403,7 @@ if not os.path.exists(out_folder+'posteriors.dat'):
 # Define number of samples we'll get to plot the models + uncertainties (default is maximum between all and 
 # 5000).
 nsims = np.min([n_sims,out['posterior_samples']['unnamed'].shape[0]])
-print('\t Drawing',nsims,'samples from the posterior...')
+print('\t Drawing',nsims,'out of',out['posterior_samples']['unnamed'].shape[0],'samples from the posterior...')
 if nsims == out['posterior_samples']['unnamed'].shape[0]:
     idx_sims = np.arange(out['posterior_samples']['unnamed'].shape[0])
 else:
@@ -1412,7 +1412,7 @@ else:
 # Ok, here comes the plotting functions (*takes deep breath*).
 # Colors for RV instruments:
 rv_colors = ['#F6511D','#0571b0','#ca0020','#090446','#780116','#574AE2']
-
+rv_markers = ['o','o','o','o','o','o']
 
 # First, RV plots:
 if rvfilename is not None:
@@ -1465,7 +1465,6 @@ if rvfilename is not None:
         fig, axs = plt.subplots(2*(npanels+1), 1, gridspec_kw = {'height_ratios':[3,1]*(npanels+1)}, figsize=(rr,cc))
             
         
-                
     sns.set_context("talk")
     sns.set_style("ticks")
     matplotlib.rcParams['mathtext.fontset'] = 'stix'
@@ -1510,12 +1509,14 @@ if rvfilename is not None:
               corrected_rv_err = np.sqrt(rverr_rv[instrument_indexes_rv[instrument]]**2 + priors['sigma_w_rv_'+instrument]['cvalue']**2)
               if rvmultipanel is False:
                   ax.errorbar(t_rv[instrument_indexes_rv[instrument]] - zero_t_rv,corrected_rv,\
-                              yerr=corrected_rv_err,fmt='.',label=instrument.upper(),elinewidth=1,color=rv_colors[color_counter],alpha=0.75)
+                              yerr=corrected_rv_err,fmt=rv_markers[color_counter],ms=7,\
+                              label=instrument.upper(),elinewidth=1,color=rv_colors[color_counter],alpha=0.75)
               else:
                   for npanel in chunks.keys():
                       ax = axs[2*npanel] 
                       ax.errorbar(t_rv[instrument_indexes_rv[instrument]] - zero_t_rv,corrected_rv,\
-                              yerr=corrected_rv_err,fmt='.',label=instrument.upper(),elinewidth=1,color=rv_colors[color_counter],alpha=0.75) 
+                              yerr=corrected_rv_err,fmt=rv_markers[color_counter],ms=7,\
+                              label=instrument.upper(),elinewidth=1,color=rv_colors[color_counter],alpha=0.75) 
               color_counter += 1
               # Save systemic corrected RVs:
               sys_corrected[instrument] = {}
@@ -1671,6 +1672,10 @@ if rvfilename is not None:
                   model_real = radvel.model.RVModel(radvel_params).__call__(t_rv)
                   # Predict real values: 
                   gpmodel_real,gpvar = rv_dictionary['GPObject'].predict(rvresiduals, rv_dictionary['X'], return_var=True)
+                  # If the GP model returns NaN values -- skip it
+                  if np.isnan(np.mean(gpmodel_real)):
+                    print('Detected a sample that computes a NaN GP model')
+                    continue
                   all_gp_models_real[counter,:] = gpmodel_real
                   all_rv_models_real[counter,:] = model_real + gpmodel_real
                   gpmodel,gpvar = rv_dictionary['GPObject'].predict(rvresiduals, t_rv_gp_model, return_var=True)
@@ -1752,14 +1757,16 @@ if rvfilename is not None:
                   ax.plot([-1e10,1e10],[0.,0.],'--',linewidth=2,color='black')
                   ax.errorbar(t_rv[instrument_indexes_rv[instrument]] - zero_t_rv, \
                                sys_corrected[instrument]['values'] - all_rv_models_real[instrument_indexes_rv[instrument]], \
-                               sys_corrected[instrument]['errors'],fmt='.',label=instrument,elinewidth=1,color=rv_colors[color_counter],alpha=0.5)
+                               sys_corrected[instrument]['errors'],fmt=rv_markers[color_counter],ms=7,\
+                               label=instrument,elinewidth=1,color=rv_colors[color_counter],alpha=0.75)
               else:
                   for npanel in chunks.keys():
                       ax = axs[2*npanel+1]
                       ax.plot([-1e10,1e10],[0.,0.],'--',linewidth=1,color='black')
                       ax.errorbar(t_rv[instrument_indexes_rv[instrument]] - zero_t_rv, \
                                sys_corrected[instrument]['values'] - all_rv_models_real[instrument_indexes_rv[instrument]], \
-                               sys_corrected[instrument]['errors'],fmt='.',label=instrument,elinewidth=1,color=rv_colors[color_counter],alpha=0.5)
+                               sys_corrected[instrument]['errors'],fmt=rv_markers[color_counter],ms=7,\
+                               label=instrument,elinewidth=1,color=rv_colors[color_counter],alpha=0.75)
               for ii in range(len(t_rv[instrument_indexes_rv[instrument]])):
                   vals = '{0:.10f} {1:.10f} {2:.10f}'.format(t_rv[instrument_indexes_rv[instrument]][ii],sys_corrected[instrument]['values'][ii] - all_rv_models_real[instrument_indexes_rv[instrument]][ii],\
                                                              sys_corrected[instrument]['errors'][ii])
@@ -1917,7 +1924,12 @@ if rvfilename is not None:
             #                   sys_corrected[instrument]['values']-rvmodel_minus_iplanet[instrument_indexes_rv[instrument]])
             ax.errorbar(phases[instrument_indexes_rv[instrument]],\
                         sys_corrected[instrument]['values']-rvmodel_minus_iplanet[instrument_indexes_rv[instrument]],\
-                        yerr=sys_corrected[instrument]['errors'],fmt='o',ms=4,elinewidth=1,color=rv_colors[color_counter],alpha=0.5,zorder=1)  
+                        yerr=sys_corrected[instrument]['errors'],fmt=rv_markers[color_counter],ms=6,\
+                        elinewidth=1,color=rv_colors[color_counter],alpha=0.3,zorder=1)  
+            ax.errorbar(phases[instrument_indexes_rv[instrument]],\
+                        sys_corrected[instrument]['values']-rvmodel_minus_iplanet[instrument_indexes_rv[instrument]],\
+                        fmt=rv_markers[color_counter],ms=6,\
+                        color=rv_colors[color_counter],alpha=0.8,zorder=1)  
 
             # Save RVs and model:
             for ii in range(len(phases[instrument_indexes_rv[instrument]])):
@@ -1930,7 +1942,12 @@ if rvfilename is not None:
             # Plot residuals phased at this planet:
             ax_res.errorbar(phases[instrument_indexes_rv[instrument]], \
                             sys_corrected[instrument]['values'] - all_rv_models_real[instrument_indexes_rv[instrument]],\
-                            sys_corrected[instrument]['errors'],fmt='o',ms=4,elinewidth=1,color=rv_colors[color_counter],alpha=0.5,zorder=1)
+                            sys_corrected[instrument]['errors'],fmt=rv_markers[color_counter],ms=6,elinewidth=1,\
+                            color=rv_colors[color_counter],alpha=0.3,zorder=1)
+            ax_res.errorbar(phases[instrument_indexes_rv[instrument]], \
+                            sys_corrected[instrument]['values'] - all_rv_models_real[instrument_indexes_rv[instrument]],\
+                            fmt=rv_markers[color_counter],ms=6,elinewidth=1,\
+                            color=rv_colors[color_counter],alpha=0.8,zorder=1)
             # This following array is useful for computing limits of the plot:
             planet_rvs = np.append(planet_rvs,sys_corrected[instrument]['values']-rvmodel_minus_iplanet[instrument_indexes_rv[instrument]])
             color_counter += 1
@@ -2087,7 +2104,7 @@ if lcfilename is not None:
         # Generate lightcurve models for each instrument, for each posterior sample:
         tinstrument = t_lc[instrument_indexes_lc[instrument]]
         all_lc_real_models = np.ones([nsims,len(tinstrument)])
-        all_lc_GP_models = np.zeros([nsims,len(tinstrument)])
+        all_lc_GP_real_models = np.zeros([nsims,len(tinstrument)])
         GPmodel = np.ones(len(tinstrument))
         median_linear_model = np.zeros(len(tinstrument))
         # Generate model lightcurves for each sample in the current instrument:
@@ -2262,7 +2279,11 @@ if lcfilename is not None:
                 # Predict sampled points:
                 pred_mean = lc_dictionary[instrument]['GPObject'].predict(residuals, \
                             lc_dictionary[instrument]['X'], return_var=False,return_cov=False)
-                all_lc_GP_models[counter,:] = pred_mean
+                # If the GP model returns NaN values -- skip it
+                if np.isnan(np.mean(pred_mean)):
+                    print('Detected a sample that computes a NaN GP model')
+                    continue
+                all_lc_GP_real_models[counter,:] = pred_mean
                 all_lc_real_models[counter,:] = all_lc_real_models[counter,:] + pred_mean
 
         # As before, once again compute median model and the respective error bands:
@@ -2283,7 +2304,7 @@ if lcfilename is not None:
 
         # Do the same for the GP (if no GP, this will be an array of zeros):
         for i_tsample in range(len(tinstrument)):
-            GPmodel[i_tsample] = np.median(all_lc_GP_models[:,i_tsample])
+            GPmodel[i_tsample] = np.median(all_lc_GP_real_models[:,i_tsample])
 
         # And same for linear models (if no linear model, this will be an array of zeros as well):
         for i_tsample in range(len(tinstrument)):
