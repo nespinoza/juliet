@@ -1,7 +1,7 @@
 juliet
 ======
 
-.. image:: https://github.com/nespinoza/juliet/blob/master/juliet.png
+.. image:: ../juliet.png
     :width: 200pt
 
 `juliet` is a versatile modelling tool for transiting and non-transiting exoplanetary 
