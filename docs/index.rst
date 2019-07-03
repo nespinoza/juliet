@@ -2,7 +2,8 @@ juliet
 ======
 
 .. image:: ../juliet.png
-    :width: 200pt
+    :width: 400pt
+    :align: center
 
 `juliet` is a versatile modelling tool for transiting and non-transiting exoplanetary 
 systems that allows to perform quick-and-easy fits to data coming from transit photometry, 
