@@ -17,8 +17,8 @@ To use `juliet` as an **imported library**, inside any python script you can sim
     import juliet
     out = juliet.fit(priors,t_lc=times,y_lc=flux,yerr_lc=flux_error)
 
-In this example, `juliet` will perform a fit on a lightcurve defined by a vector of times `times`, 
-relative fluxes `flux` and error on those fluxes `flux_error` given some prior information `prior` which, 
+In this example, `juliet` will perform a fit on a lightcurve defined by a vector of times ``times``, 
+relative fluxes ``flux`` and error on those fluxes ``flux_error`` given some prior information ``prior`` which, 
 as we will see below, is defined through a dictionary. 
 
 
@@ -29,7 +29,7 @@ installing juliet, you can from anywhere in your system simply do:
 
     juliet -flag1 -flag2 --flag3
 
-In this example, `juliet` is performing a fit using different inputs defined by `-flag1`, `-flag2` and `--flag3`. 
+In this example, `juliet` is performing a fit using different inputs defined by ``-flag1``, ``-flag2`` and ``--flag3``. 
 There are several flags that can be used to accomodate your `juliet` runs. If this mode suits your needs, 
 check out the `project's wiki page to find out more about this mode <https://github.com/nespinoza/juliet/wiki>`_.
 

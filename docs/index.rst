@@ -1,6 +1,9 @@
 juliet
 ======
 
+.. image:: https://github.com/nespinoza/juliet/blob/master/juliet.png
+    :width: 200pt
+
 `juliet` is a versatile modelling tool for transiting and non-transiting exoplanetary 
 systems that allows to perform quick-and-easy fits to data coming from transit photometry, 
 radial velocity or both using bayesian inference and, in particular, using Nested Sampling in 
