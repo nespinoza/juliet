@@ -190,13 +190,6 @@ class fit(object):
     :param ecclim: (optional, float)                   
         Upper limit on the maximum eccentricity to sample. Default is ``1``.
 
-    :param sdensity_mean: (optional, float)           
-        Value of mean stellar density (in SI units), in case one wants to use it as a datapoint (not recommended).
-
-    :param sdensity_sigma: (optional, float)           
-        Value of the standard deviation of the stellar density (in SI units), in case one wants to use it as a datapoint (not recommended).
-
-
     :param instrument_supersamp: (optional, array of strings)     
         Define for which lightcurve instruments super-sampling will be applied (e.g., in the case of long-cadence integrations).
 
@@ -217,8 +210,7 @@ class fit(object):
                  out_folder = None, lcfilename = None, rvfilename = None, GPlceparamfile = None,\
                  GPrveparamfile = None, lctimedef = 'TDB', rvtimedef = 'UTC',\
                  ld_laws = 'quadratic', priorfile = None,\
-                 pl = 0., pu = 1., n_live_points = 1000, ecclim = 1., sdensity_mean = None, \
-                 sdensity_sigma = None, n_supersamp = None, exptime_supersamp = None, \
+                 pl = 0., pu = 1., n_live_points = 1000, ecclim = 1., n_supersamp = None, exptime_supersamp = None, \
                  instrument_supersamp = None):
 
         # Define cases in which data is given through files: 
@@ -338,5 +330,6 @@ class fit(object):
                         else:
                             fout.write('\n')
                     fout.close()    
+        
         #val1,val2 = reverse_ld_coeffs('quadratic',0.1,0.5)     
         #print("yup:",val1,val2)   
