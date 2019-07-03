@@ -7,10 +7,10 @@ Two ways of using juliet
 -------------------------
 
 In the spirit of accomodating the code for everyone to use, `juliet` can be used in two different ways: as 
-an *imported library* and also in *command line mode*. Both give rise to the same results because the command 
+an **imported library** and also in **command line mode**. Both give rise to the same results because the command 
 line mode simply calls the `juliet` libraries in a python script.
 
-To use `juliet` as an *imported library*, inside any python script you can simply do:
+To use `juliet` as an **imported library**, inside any python script you can simply do:
 
 .. code-block:: python
 
@@ -22,7 +22,7 @@ relative fluxes `flux` and error on those fluxes `flux_error` given some prior i
 as we will see below, is defined through a dictionary. 
 
 
-In *command line mode*, `juliet` can be used through a simple call in any terminal. To do this, after 
+In **command line mode**, `juliet` can be used through a simple call in any terminal. To do this, after 
 installing juliet, you can from anywhere in your system simply do:
 
 .. code-block:: bash
