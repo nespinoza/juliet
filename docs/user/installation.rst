@@ -3,6 +3,11 @@
 Installation
 ===============
 
+.. _pip_install:
+
+Installing via pip
++++++++++++
+
 `juliet` can be easily installed using `pip <https://pip.pypa.io>`_:
 
 .. code-block:: bash
@@ -20,6 +25,19 @@ the `pymultinest` installation can involve a couple of extra steps, which we rea
 `pymultinest` might be faster for problems involving less than about 20 free parameters (see below).
 
 
+.. _source_install:
+
+Installing from source
++++++++++++
+
+The source code for `juliet` can be downloaded `from GitHub
+<https://github.com/nespinoza/juliet>`_ by running
+
+.. code-block:: bash
+
+    git clone https://github.com/nespinoza/juliet.git
+
+
 .. _pymultinest_install:
 
 Installing pymultinest
@@ -33,7 +51,7 @@ install it via `pip <https://pip.pypa.io>`_:
 
     pip install pymultinest
 
-Then, you need to build and compile `MultiNest`. For this, do:
+Then, you need to build and compile `MultiNest`. For this, do: 
 
 .. code-block:: bash
 
@@ -42,20 +60,9 @@ Then, you need to build and compile `MultiNest`. For this, do:
     cmake ..
     make
 
-This will create a file `libmultinest.so` under `MultiNest/lib`, that is the one that will allow us 
+This will create a file `libmultinest.so` under `MultiNest/lib`, that is the one that will allow us  
 to use `pymultinest`. Include that directory then in your `LD_LIBRARY_PATH` so you can use it from any 
 directory in your system.
-
-From Source
-+++++++++++
-
-The source code for `juliet` can be downloaded `from GitHub
-<https://github.com/nespinoza/juliet>`_ by running
-
-.. code-block:: bash
-
-    git clone https://github.com/nespinoza/juliet.git
-
 
 .. _python-deps:
 
