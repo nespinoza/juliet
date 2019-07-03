@@ -73,6 +73,6 @@ For `juliet` to run you need a Python installation. After installation, you need
 1. `NumPy <http://www.numpy.org/>`_,
 2. `SciPy <http://www.numpy.org/>`_,
 3. `matplotlib <https://matplotlib.org/>`_, and
-4. `seaborn <https://seaborn.pydata.org/>`.
+4. `seaborn <https://seaborn.pydata.org/>`_.
 
 The last two are optional, and are only needed for certain plotting functions within `juliet`.
