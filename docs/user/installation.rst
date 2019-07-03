@@ -1,10 +1,7 @@
 .. _installation:
 
-Getting started
-===============
-
 Installation
-------------
+===============
 
 `juliet` can be easily installed using `pip <https://pip.pypa.io>`_:
 .. code-block:: bash
