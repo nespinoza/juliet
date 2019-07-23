@@ -2037,7 +2037,7 @@ if rvfilename is not None:
         fout = open(out_folder+'phased_rv_planet'+str(iplanet)+'_model.dat','w')
         fout.write('# Phases \t model \t model1down \t model1up \t model2down \t model2up \t model3down \t model3up\n')
         for ii in range(len(omedian_model)):
-            fout.write('{0:.10f} \t {1:.10f} \t {2:.10f} \t {3:.10f} \t {4:.10f} \t {5:.10f} \t {6:.10f}\n'.format(\
+            fout.write('{0:.10f} \t {1:.10f} \t {2:.10f} \t {3:.10f} \t {4:.10f} \t {5:.10f} \t {6:.10f} \t {7:.10f}\n'.format(\
                 model_phases[ii],omedian_model[ii],\
                 omodel_down1[ii], omodel_up1[ii], omodel_down2[ii], omodel_up2[ii], omodel_down3[ii], omodel_up3[ii]))
         fout.close()
