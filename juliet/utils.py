@@ -39,7 +39,22 @@ def transform_truncated_normal(x,mu,sigma,a=0.,b=1.):
     ar, br = (a - mu) / sigma, (b - mu) / sigma
     return truncnorm.ppf(x,ar,br,loc=mu,scale=sigma)
 
-def readlc(fname):
+def input_error_catcher(t,y,yerr,instruments,datatype):
+    if datatype == 'lightcurve':
+        dname = 'lc'
+    else:
+        dname = 'rv'
+    if (y is None):
+        raise Exception('INPUT ERROR: No '+datatype+' data was fed to juliet. \n'+\
+                        ' Make sure to pass data (y_'+dname+'), errors (yerr_'+dname+') and instrument names (instruments_'+dname+') associated to each of those.')
+    if (yerr is None):
+        raise Exception('INPUT ERROR: No ERRORS (yerr_'+dname+') on the '+datatype+' data were fed to juliet. \n'+\
+                        ' Make sure to pass data (y_'+dname+'), errors (yerr_'+dname+') and instrument names (instruments_'+dname+') associated to each of those.')
+    if (instruments is None):
+        raise Exception('INPUT ERROR: No INSTRUMENTS (instruments_'+dname+') associated to the '+datatype+' data were fed to juliet. \n'+\
+                        ' Make sure to pass data (y_'+dname+'), errors (yerr_'+dname+') AND instrument names (instruments_'+dname+') associated to each of those.')
+
+def read_data(fname):
     fin = open(fname,'r')
     ts = np.array([])
     fs = np.array([])
@@ -300,7 +315,7 @@ def writepp(fout,posteriors):
             val,valup,valdown = get_quantiles(omega[idx])
             usigma = valup-val
             dsigma = val - valdown
-         fout.write('{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.format('omega_'+planet,val,usigma,dsigma))
+            fout.write('{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.format('omega_'+planet,val,usigma,dsigma))
 
         if pname.split('_')[0] == 'secosomega':
             par,planet = pname.split('_')
