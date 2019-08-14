@@ -98,51 +98,100 @@ def read_data(fname):
         indexes[instrument] = np.where(instruments == instrument)[0]
     return ts,fs,ferrs,instruments,indexes,len(instrument_names),instrument_names,lm_boolean,lm_arguments
 
-def readeparams(fname,RV=False):
+def will_it_float(value):
+    """
+    Function name idea taken from https://stackoverflow.com/questions/736043/checking-if-a-string-can-be-converted-to-float-in-python.
+    """
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+        
+def readGPeparams(fname):
     fin = open(fname,'r')
     GPDictionary = {}
     ftime = True
+    global_model = False
     while True:
         line = fin.readline()
         if line != '':
             if line[0] != '#':
                 vector = line.split()
-                if RV:
-                    variables = vector
+                variables,instrument = vector[:-1],vector[-1].split()[0]
+                if ftime:
+                    if will_it_float(instrument):
+                        global_model = True
+                        appended_vector = np.append(np.double(np.array(variables)),np.double(np.array(instrument)))
+                    else:
+                        global_model = False
+                        appended_vector = np.double(np.array(variables))
+                else:
+                    if global_model:
+                        appended_vector = np.append(np.double(np.array(variables)),np.double(np.array(instrument)))
+                    else:
+                        appended_vector = np.double(np.array(variables))
+                    
+                if global_model:
                     if ftime:
-                        GPDictionary['variables'] = np.double(np.array(variables))
+                        GPDictionary['global_model'] = appended_vector
                         ftime = False
                     else:
-                        GPDictionary['variables'] = np.vstack((GPDictionary['variables'],np.double(np.array(variables))))
+                        GPDictionary['global_model'] = np.vstack((GPDictionary['global_model'],appended_vector))
                 else:
-                    variables,instrument = vector[:-1],vector[-1].split()[0]
+                    #variables,instrument = vector[:-1],vector[-1].split()[0]
+                    if ftime:
+                        ftime = False
                     if instrument in GPDictionary.keys():
-                        GPDictionary[instrument]['variables'] = np.vstack((GPDictionary[instrument]['variables'],np.double(np.array(variables))))
+                        GPDictionary[instrument] = np.vstack((GPDictionary[instrument],appended_vector))
                     else:
                         GPDictionary[instrument] = {}
-                        GPDictionary[instrument]['variables'] = np.double(np.array(variables))
+                        GPDictionary[instrument] = appended_vector
         else:
             break
-    return GPDictionary
+    return GPDictionary,global_model
 
 def readpriors(priorname):
-    fin = open(priorname)
-    priors = {}
+    """
+    This function takes either a string or a dict and spits out information about the prior. If a string, it 
+    reads a prior file. If a dict, it assumes the input dictionary has already defined all the variables and 
+    distributions and simply spits out information about the system (e.g., number of transiting planets, RV 
+    planets, etc.)
+    """
+    input_dict = False
+    if type(priorname) == str:
+        fin = open(priorname)
+        priors = {}
+    else:
+        counter = -1
+        priors = priorname
+        input_dict = True
+        all_parameters = priors.keys()
+        n_allkeys = len(all_parameters)
     n_transit = 0
     n_rv = 0
     n_params = 0
     numbering_transit = np.array([])
     numbering_rv = np.array([])
     while True:
-        line = fin.readline()
-        if line != '':
+        if not input_dict:
+            line = fin.readline()
+        else:
+            # Dummy variable so we enter the while:
+            line = 'nc'
+            counter += 1
+        if line != '': 
             if line[0] != '#':
-                out = line.split()
-                parameter,prior_name,vals = line.split()
-                parameter = parameter.split()[0]
-                prior_name = prior_name.split()[0]
-                vals = vals.split()[0]
-                priors[parameter] = {}
+                if not input_dict:
+                    out = line.split()
+                    parameter,prior_name,vals = line.split()
+                    parameter = parameter.split()[0]
+                    prior_name = prior_name.split()[0]
+                    vals = vals.split()[0]
+                    priors[parameter] = {}
+                else:
+                    param = all_parameters[counter]
+                    parameter,prior_name = param,priors[param]['distribution']
                 pvector = parameter.split('_')
                 # Check if parameter/planet is from a transiting planet:
                 if pvector[0] == 'r1' or pvector[0] == 'p':
@@ -154,23 +203,37 @@ def readpriors(priorname):
                     pnumber = int(pvector[1][1:])
                     numbering_rv = np.append(numbering_rv,pnumber)
                     n_rv += 1
+                #if parameter == 'r1_p'+str(n_transit+1) or parameter == 'p_p'+str(n_transit+1):
+                #    numbering_transit = np.append(numbering_transit,n_transit+1)
+                #    n_transit += 1
+                #if parameter == 'K_p'+str(n_rv+1):
+                #    numbering_rv = np.append(numbering_rv,n_rv+1)
+                #    n_rv += 1
                 if prior_name.lower() == 'fixed':
-                    priors[parameter]['type'] = prior_name.lower()
-                    priors[parameter]['value'] = np.double(vals)
-                    priors[parameter]['cvalue'] = np.double(vals)
+                    if not input_dict:
+                        priors[parameter]['distribution'] = prior_name.lower()
+                        priors[parameter]['hyperparameters'] = np.double(vals)
+                        priors[parameter]['cvalue'] = np.double(vals)
                 else:
                     n_params += 1
-                    priors[parameter]['type'] = prior_name.lower()
-                    if priors[parameter]['type'] != 'truncatednormal':
-                        v1,v2 = vals.split(',')
-                        priors[parameter]['value'] = [np.double(v1),np.double(v2)]
-                    else:
-                        v1,v2,v3,v4 = vals.split(',')
-                        priors[parameter]['value'] = [np.double(v1),np.double(v2),np.double(v3),np.double(v4)]
-                    priors[parameter]['cvalue'] = 0.
+                    if not input_dict:
+                        priors[parameter]['distribution'] = prior_name.lower()
+                        if priors[parameter]['distribution'] != 'truncatednormal':
+                            v1,v2 = vals.split(',')
+                            priors[parameter]['hyperparameters'] = [np.double(v1),np.double(v2)]
+                        else:
+                            v1,v2,v3,v4 = vals.split(',')
+                            priors[parameter]['hyperparameters'] = [np.double(v1),np.double(v2),np.double(v3),np.double(v4)]
+                        priors[parameter]['cvalue'] = 0.
         else:
             break
-    return priors,n_transit,n_rv,numbering_transit.astype('int'),numbering_rv.astype('int'),n_params
+        if input_dict:
+            if counter == n_allkeys-1:
+                break
+    if not input_dict:
+        return priors,n_transit,n_rv,numbering_transit.astype('int'),numbering_rv.astype('int'),n_params
+    else:
+        return n_transit,n_rv,numbering_transit.astype('int'),numbering_rv.astype('int'),n_params
 
 def get_phases(t,P,t0):
     """
