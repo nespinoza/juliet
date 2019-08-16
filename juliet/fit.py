@@ -160,25 +160,6 @@ class load(object):
     :param george_hodlr: (optional, boolean)             
         If ``True``, use the HODLR solver for george Gaussian Process evaluation. Default is ``False``.
    
-    :param use_dynesty: (optional, boolean)              
-        If ``True``, use dynesty instead of `MultiNest` for posterior sampling and evidence evaluation. Default is 
-        ``False``, unless `MultiNest` via ``pymultinest`` is not working on the system.
- 
-    :param dynamic: (optional, boolean)                 
-        If ``True``, use dynamic Nested Sampling with dynesty. Default is ``False``.
- 
-    :param dynesty_bound: (optional, string)           
-        Define the dynesty bound method to use (currently either ``single`` or ``multi``, to use either single ellipsoids or multiple 
-        ellipsoids). Default is ``multi`` (for details, see the `dynesty API <https://dynesty.readthedocs.io/en/latest/api.html>`_).
-
-    :param dynesty_sample: (optional, string)         
-        Define the sampling method for dynesty to use. Default is ``rwalk``. Accorfing to the `dynesty API <https://dynesty.readthedocs.io/en/latest/api.html>`_, 
-        this should be changed depending on the number of parameters being fitted. If smaller than about 20, ``rwalk`` is optimal. For larger dimensions, 
-        ``slice`` or ``rslice`` should be used.
-
-    :param dynesty_nthreads: (optional, int)        
-        Define the number of threads to use within dynesty. Default is to use just 1.
-
     :param out_folder: (optional, string) 
         If a path is given, results will be saved to that path as a ``pickle`` file, along with all inputs in the standard juliet format.
 
@@ -240,6 +221,9 @@ class load(object):
 
     :param delta_z_lim: (optional, double)
         Define the convergence delta_z limit for the nested samplers. Default is 0.5.
+ 
+    :param verbose: (optional, boolean)
+        If True, all outputs of the code are printed to terminal. Default is False.
 
     """
 
@@ -340,6 +324,7 @@ class load(object):
             exptime_supersamp = self.lc_exptime_supersamp
             GP_regressors = self.GP_lc_arguments
             global_model = self.global_lc_model
+            numbering_planets = self.numbering_transiting_planets
         elif dictype == 'rv':
             inames = self.inames_rv
             ninstruments = self.ninstruments_rv
@@ -350,6 +335,7 @@ class load(object):
             exptime_supersamp = None
             GP_regressors = self.GP_rv_arguments
             global_model = self.global_rv_model
+            numbering_planets = self.numbering_rv_planets
         else:
             raise Exception('INPUT ERROR: dictype not understood. Has to be either lc or rv.')
 
@@ -393,13 +379,18 @@ class load(object):
                     if pri[0:2] == 'q1':
                         if inames[i] in pri.split('_'):
                             dictionary[inames[i]]['TransitFit'] = True
-                            print('\t Transit fit detected for instrument ',inames[i])
+                            if self.verbose:
+                                print('\t Transit fit detected for instrument ',inames[i])
 
         # Now, implement noise models for each of the instrument. First check if model should be global or instrument-by-instrument, 
         # based on the input instruments given for the GP regressors.
         if global_model:
             dictionary['global_model'] = {}
-            dictionary['global_model']['noise_model'] = gaussian_process(self, model_type = dictype,instrument = dictype, george_hodlr = self.george_hodlr)
+            if GP_regressors is not None:
+                dictionary['global_model']['GPDetrend'] = True
+                dictionary['global_model']['noise_model'] = gaussian_process(self, model_type = dictype,instrument = dictype, george_hodlr = self.george_hodlr)
+            else:
+                dictionary['global_model']['GPDetrend'] = False
         else:
             for i in range(ninstruments):
                 instrument = inames[i]    
@@ -407,6 +398,55 @@ class load(object):
                     dictionary[instrument]['GPDetrend'] = True
                     dictionary[instrument]['noise_model'] =  gaussian_process(self, model_type = dictype, instrument = instrument, george_hodlr = self.george_hodlr)
 
+        # Check which eccentricity parametrization is going to be used for each planet in the juliet numbering scheme.
+        # 0 = ecc, omega  1: ecosomega,esinomega  2: sqrt(e)cosomega, sqrt(e)sinomega
+        dictionary['ecc_parametrization'] = {}
+        if dictype == 'lc':
+            dictionary['efficient_bp'] = {}
+        for i in numbering_planets:
+            if 'ecosomega_p'+str(i) in self.priors.keys():
+                dictionary['ecc_parametrization'][i] = 1
+                if self.verbose:
+                    print('\t >> ecosomega,esinomega parametrization detected for '+dictype+' planet p'+str(i))
+            elif 'secosomega_p'+str(i) in self.priors.keys():
+                dictionary['ecc_parametrization'][i] = 2
+                if self.verbose:
+                    print('\t >> sqrt(e)cosomega, sqrt(e)sinomega parametrization detected for '+dictype+' planet p'+str(i))
+            else:
+                dictionary['ecc_parametrization'][i] = 0
+                if self.verbose:
+                    print('\t >> ecc,omega parametrization detected for '+dictype+' planet p'+str(i))
+            if dictype == 'lc':
+                # Check if Espinoza (2018), (b,p) parametrization is on:
+                if 'r1_p'+str(i) in self.priors.keys():
+                    dictionary['efficient_bp'][i] = True
+                    if self.verbose:
+                        print('\t >> (b,p) parametrization detected for '+dictype+' planet p'+str(i))
+                else:
+                    dictionary['efficient_bp'][i] = False
+
+        # Check if stellar density is in the prior:
+        if dictype == 'lc':
+            dictionary['fitrho'] = False
+            if 'rho' in self.priors.keys():
+                dictionary['fitrho'] = True
+           
+
+        # For RV dictionaries, check if RV trend will be fitted:
+        if dictype == 'rv':
+            dictionary['fitrvline'] = False
+            dictionary['fitrvquad'] = False
+            if 'rv_slope' in self.priors.keys():
+                if 'rv_quad' in self.priors.keys():
+                    dictionary['fitrvquad'] = True
+                    if self.verbose:
+                        print('\t Fitting quadratic trend to RVs.')
+                else:
+                    dictionary['fitrvline'] = True
+                    if self.verbose:
+                        print('\t Fitting linear trend to RVs.')
+
+        # Save dictionary to self:
         if dictype == 'lc':
             self.lc_dict = dictionary
         elif dictype == 'rv':
@@ -470,25 +510,25 @@ class load(object):
                 self.prior_fname = self.out_folder+'priors.dat'
                 self.save_priorfile(self.out_folder+'priors.dat')
 
-    def fit(self):
+    def fit(self, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
+            n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5):
         """
         Perhaps the most important function of the juliet data object. This function fits your data using the nested 
         sampler of choice. This returns a results object which contains all the posteriors information.
         """
-        return fit(self)
+        # Note this return call creates a fit *object* with the current data object. The fit class definition is below.
+        return fit(self, use_dynesty = use_dynesty, dynamic = dynamic, dynesty_bound = dynesty_bound, dynesty_sample = dynesty_sample, dynesty_nthreads = dynesty_nthreads, \
+                   n_live_points = n_live_points, ecclim = ecclime, delta_z_lim = delta_z_lim)
 
     def __init__(self,priors = None, input_folder = None, t_lc = None, y_lc = None, yerr_lc = None, instruments_lc = None,\
                  t_rv = None, y_rv = None, yerr_rv = None, instruments_rv = None,\
                  GP_regressors_lc = None, linear_regressors_lc = None, \
                  linear_instruments_lc = None, GP_regressors_rv = None, \
                  linear_regressors_rv = None, linear_instruments_rv = None,\
-                 george_hodlr = False, use_dynesty = False, dynamic = False, \
-                 dynesty_bound = 'multi',dynesty_sample='rwalk',dynesty_nthreads = None,\
-                 out_folder = None, lcfilename = None, rvfilename = None, GPlceparamfile = None,\
+                 george_hodlr = False, out_folder = None, lcfilename = None, rvfilename = None, GPlceparamfile = None,\
                  GPrveparamfile = None, lctimedef = 'TDB', rvtimedef = 'UTC',\
-                 ld_laws = 'quadratic', priorfile = None,\
-                 pl = 0., pu = 1., n_live_points = 1000, ecclim = 1., lc_n_supersamp = None, lc_exptime_supersamp = None, \
-                 lc_instrument_supersamp = None, delta_z_lim = 0.5):
+                 ld_laws = 'quadratic', priorfile = None, pl = 0., pu = 1., lc_n_supersamp = None, lc_exptime_supersamp = None, \
+                 lc_instrument_supersamp = None, verbose = False):
 
         self.delta_z_lim = delta_z_lim
         self.george_hodlr = george_hodlr
@@ -503,6 +543,7 @@ class load(object):
         self.GPrveparamfile = GPrveparamfile
         self.n_live_points = n_live_points
         self.ecclim = ecclim
+        self.verbose = verbose
 
         # Initialize data options for lightcurves:
         self.t_lc = None
@@ -542,7 +583,6 @@ class load(object):
         self.global_rv_model = False
         self.rv_dictionary = {}
 
-        self.sampler_prefix = None
         self.out_folder = None
 
         if input_folder is not None:
@@ -659,23 +699,12 @@ class load(object):
             # Save data to object:
             self.set_rv_data(t_rv,y_rv,yerr_rv,instruments_rv,instrument_indexes_rv,ninstruments_rv,inames_rv,lm_rv_boolean,lm_rv_arguments)
         
-        # Define prefixes in case saving is turned on (i.e., user passed an out_folder):
-        if use_dynesty:
-            if dynamic:
-                prefix = 'dynamic_dynesty_'
-            else:
-                prefix = 'dynesty_'
-        else:
-            prefix = 'multinest_'
-
-        # Save sampler prefix:
-        self.sampler_prefix = prefix
-
         # If out_folder does not exist, create it, and save data to it:
         if out_folder is not None:
             self.out_folder = out_folder
             self.save()
-        # Finally, generate datadicts:  
+        # Finally, generate datadicts, that will save information about the fits, including gaussian_process objects for each instrument that requires it 
+        # (including the case of global models):  
         if t_lc is not None:
             self.generate_datadict('lc')
         if t_rv is not None:
@@ -691,43 +720,273 @@ class fit(object):
     :params data: (juliet object)
         An object containing all the information regarding the data to be fitted, including options of the fit. 
         Generated via juliet.load().
+
+    :param use_dynesty: (optional, boolean)              
+        If ``True``, use dynesty instead of `MultiNest` for posterior sampling and evidence evaluation. Default is 
+        ``False``, unless `MultiNest` via ``pymultinest`` is not working on the system.
+ 
+    :param dynamic: (optional, boolean)                 
+        If ``True``, use dynamic Nested Sampling with dynesty. Default is ``False``.
+ 
+    :param dynesty_bound: (optional, string)           
+        Define the dynesty bound method to use (currently either ``single`` or ``multi``, to use either single ellipsoids or multiple 
+        ellipsoids). Default is ``multi`` (for details, see the `dynesty API <https://dynesty.readthedocs.io/en/latest/api.html>`_).
+
+    :param dynesty_sample: (optional, string)         
+        Define the sampling method for dynesty to use. Default is ``rwalk``. Accorfing to the `dynesty API <https://dynesty.readthedocs.io/en/latest/api.html>`_, 
+        this should be changed depending on the number of parameters being fitted. If smaller than about 20, ``rwalk`` is optimal. For larger dimensions, 
+        ``slice`` or ``rslice`` should be used.
+
+    :param dynesty_nthreads: (optional, int)        
+        Define the number of threads to use within dynesty. Default is to use just 1.
+
+    :param n_live_points: (optional, int)            
+        Number of live-points to be sampled. Default is ``500``.
+
+    :param ecclim: (optional, float)                   
+        Upper limit on the maximum eccentricity to sample. Default is ``1``.
+
+    :param delta_z_lim: (optional, double)
+        Define the convergence delta_z limit for the nested samplers. Default is 0.5.
+
     """
 
-    def __init__(self, data):
+    def set_prior_transform(self):
+        for pname in data.priors.keys():
+            if self.data.priors[pname]['distribution'] != 'fixed':
+                if self.data.priors[pname]['distribution'] == 'uniform':
+                    self.transform_prior[pname] = transform_uniform
+                if self.data.priors[pname]['distribution'] == 'normal':
+                    self.transform_prior[pname] = transform_normal
+                if self.data.priors[pname]['distribution'] == 'truncatednormal':
+                    self.transform_prior[pname] = transform_truncated_normal
+                if self.data.priors[pname]['distribution'] == 'jeffreys' or 'loguniform':
+                    self.transform_prior[pname] = transform_loguniform
+                if self.data.priors[pname]['distribution'] == 'beta':
+                    self.transform_prior[pname] = transform_beta
+                if self.data.priors[pname]['distribution'] == 'exponential':
+                    self.transform_prior[pname] = exponential
+
+    def prior(self, cube, ndim = None, nparams = None):
+        pcounter = 0
+        for pname in self.data.priors.keys():
+            if self.data.priors[pname]['distribution'] != 'fixed':
+                if self.use_dynesty:
+                    self.transformed_priors[pcounter] = self.transform_prior[pname](cube[pcounter], \
+                                                                             self.data.priors[pname]['hyperparameters']) 
+                else:
+                    cube[pcounter] = self.transform_prior[pname](cube[pcounter], \
+                                                          self.data.priors[pname]['hyperparameters'])
+                pcounter += 1
+        if self.use_dynesty:
+            return self.transformed_priors[pcounter]
+
+    def loglike(self, cube, ndim=None, nparams=None):
+        # Evaluate the joint log-likelihood. For this, first extract all inputs:
+        pcounter = 0
+        for pname in self.posteriors.keys():
+            if self.data.priors[pname]['distribution'] != 'fixed':
+                self.posteriors[pname] = cube[pcounter]
+                pcounter += 1
+
+        # Initialize log-likelihood:
+        log_likelihood = 0.0
+
+        # Evaluate photometric model first:
+        if self.data.t_lc is not None:
+             self.lc_model.set_parameter_vector(self.posteriors)
+             log_likelihood += self.lc_model.get_log_likelihood()
+
+        # Now RV model:
+        if self.data.t_rv is not None:
+             self.rv_model.set_parameter_vector(self.posteriors)
+             log_likelihood += self.rv_model.get_log_likelihood()
+      
+        # Return total log-likelihood:
+        return log_likelihood
+
+    def __init__(self, data, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
+                       n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5):
+
+        # Define output results object:
         self.results = None
+        # Save sampler inputs:
+        self.use_dynesty = use_dynesty
+        self.dynamic = dynamic
+        self.dynesty_bound = dynesty_bound
+        self.dynesty_sample = dynesty_sample
+        self.dynesty_nthreads = dynesty_nthreads
+        self.n_live_points = n_live_points
+        self.ecclim = ecclim 
+        self.delta_z_lim = delta_z_lim
+        # Inhert data object:
+        self.data = data
+        # Inhert some other fit options:
+        if self.data.t_lc is not None:
+            if True in self.data.lc_dict['efficient_bp']:
+                self.pu = self.data.pu
+                self.pl = self.data.pl
+                self.Ar = (self.pu - self.pl)/(2. + self.pl + self.pu)
+        # Inhert the output folder:
+        self.out_folder = data.out_folder
+        # For each of the variables in the prior that is not fixed, define an internal dictionary that will save the 
+        # corresponding transformation function to the prior corresponding to that variable. Idea is that with this one 
+        # simply does self.transform_prior[variable_name](value) and you get the transformed value to the 0,1 prior. 
+        # This avoids having to keep track of the prior distribution on each of the interations:
+        self.transform_prior = {}
+        self.set_prior_transform()
+        self.transformed_priors = np.zeros(self.data.n_params)
 
-class lc_model(object):
+        # Define prefixes in case saving is turned on (i.e., user passed an out_folder):
+        if self.use_dynesty:
+            if self.dynamic:
+                self.sampler_prefix = 'dynamic_dynesty_'
+            else:
+                self.sampler_prefix = 'dynesty_'
+        else:
+            self.sampler_prefix = 'multinest_'
+
+        # Generate a posteriors self that will save the current values of each of the parameters:
+        self.posteriors = {}
+        for pname in self.data.priors.keys():
+            self.posteriors[pname] = self.data.priors[pname]['cvalue']
+
+        # Generate light-curve and radial-velocity models:
+        self.lc_model = model(self.data, modeltype = 'lc')
+        self.rv_model = model(self.data, modeltype = 'rv')
+
+        # If not ran and saved already, run dynesty or MultiNest, and save posterior samples and evidences to pickle file:
+        out = {}
+        runMultiNest = False
+        runDynesty = False
+        if not self.use_dynesty:
+            if self.out_folder is None:
+                out_folder = os.getcwd()+'/'
+                runMultiNest = True
+            else:
+                if (not os.path.exists(self.out_folder+'posteriors.pkl')):
+                    runMultiNest = True
+            if runMultiNest:
+                pymultinest.run(self.loglike, self.prior, self.data.nparams, \
+                                n_live_points = self.n_live_points,\
+                                max_modes = 100,\
+                                outputfiles_basename = self.out_folder + 'jomnest_', resume = False,\
+                                verbose = self.data.verbose)
+                # Run and get output:
+                output = pymultinest.Analyzer(outputfiles_basename = self.out_folder + 'jomnest_', n_params = self.data.nparams)
+                # Get out parameters: this matrix has (samples,n_params+1):
+                posterior_samples = output.get_equal_weighted_posterior()[:,:-1]
+                # Get INS lnZ:
+                out['lnZ'] = output.get_stats()['global evidence']
+                out['lnZerr'] = output.get_stats()['global evidence error']
+                if self.out_folder is None:
+                    os.system('rm '+out_folder+'jomnest_*')
+        elif self.use_dynesty:
+            if self.out_folder is None:
+                runDynesty = True
+            else:
+                if self.dynamic and (not os.path.exists(self.out_folder+'_dynesty_DNS_posteriors.pkl')):
+                    DynestySampler = dynesty.DynamicNestedSampler
+                    runDynesty = True
+                elif (not self.dynamic) and (not os.path.exists(self.out_folder+'_dynesty_NS_posteriors.pkl')):
+                    DynestySampler = dynesty.NestedSampler
+                    runDynesty = True
+            if runDynesty:
+                if self.dynesty_nthreads is None:
+                    sampler = dynesty.DynamicNestedSampler(self.loglike, self.prior, self.data.nparams, nlive = self.n_live_points, \
+                                                           bound = self.dynesty_bound, sample = self.dynesty_sample)
+                    # Run and get output:
+                    sampler.run_nested()
+                    results = sampler.results
+                else:
+                    from multiprocessing import Pool
+                    import contextlib
+                    nthreads = int(self.dynesty_nthreads)
+                    with contextlib.closing(Pool(processes=nthreads-1)) as executor:
+                        sampler = dynesty.DynamicNestedSampler(self.loglike, self.prior, self.data.nparams, nlive = self.n_live_points, \
+                                                              bound = self.dynesty_bound, sample = self.dynesty_sample, pool=executor, queue_size=nthreads)
+                        sampler.run_nested()
+                        results = sampler.results
+                out['dynesty_output'] = results
+                # Get weighted posterior:
+                weights = np.exp(results['logwt'] - results['logz'][-1])
+                posterior_samples = resample_equal(results.samples, weights)
+                # Get lnZ:
+                out['lnZ'] = results.logz[-1]
+                out['lnZerr'] = results.logzerr[-1]
+        if runMultiNest or runDynesty:
+            out['posterior_samples'] = {}
+            out['posterior_samples']['unnamed'] = posterior_samples
+            # Extract parameters:
+            pcounter = 0
+            for pname in self.posteriors.keys():
+                if data.priors[pname]['distribution'] != 'fixed':
+                    self.posteriors[pname] = np.median(posterior_samples[:,pcounter])
+                    out['posterior_samples'][pname] = posterior_samples[:,pcounter]
+                    pcounter += 1
+            
+            if self.data.t_lc is not None:
+                if True in self.data.lc_dict['efficient_bp']:
+                    out['pu'] = self.pu
+                    out['pl'] = self.pl
+            if runDynesty:
+                if self.dynamic and (self.out_folder is not None):
+                    pickle.dump(out,open(self.out_folder+'_dynesty_DNS_posteriors.pkl','wb'))
+                elif (not self.dynamic) and (self.out_folder is not None):
+                    pickle.dump(out,open(self.out_folder+'_dynesty_NS_posteriors.pkl','wb'))
+            else:
+                if self.out_folder is not None:
+                pickle.dump(out,open(self.out_folder+'posteriors.pkl','wb'))
+        else:
+            # Probably already ran any of the above, so read the outputs:
+            if self.use_dynesty and (self.out_folder not None):
+                if self.dynamic:
+                    if os.path.exists(self.out_folder+'_dynesty_DNS_posteriors.pkl'):
+                        if data.self.verbose:
+                            print('Detected (dynesty) Dynamic NS output files --- extracting...')
+                        out = pickle.load(open(self.out_folder+'_dynesty_DNS_posteriors.pkl','rb'))
+                else:
+                    if os.path.exists(self.out_folder+'_dynesty_NS_posteriors.pkl'):
+                        if data.self.verbose:
+                            print('Detected (dynesty) NS output files --- extracting...')
+                        out = pickle.load(open(self.out_folder+'_dynesty_NS_posteriors.pkl','rb'))
+            elif self.out_folder not None:
+                if data.self.verbose:
+                    print('Detected (MultiNest) NS output files --- extracting...')
+                out = pickle.load(open(self.out_folder+'posteriors.pkl','rb')) 
+            if len(out.keys()) == 0:
+                print('Warning: no output generated or extracted. Check the fit options given to juliet.fit().')
+            else:
+                # Extract parameters:
+                for pname in self.posteriors.keys():
+                    if data.priors[pname]['distribution'] != 'fixed':
+                        self.posteriors[pname] = np.median(out['posterior_samples'][pname])
+                posterior_samples = out['posterior_samples']['unnamed']
+                if 'pu' in out.keys():
+                    self.pu = out['pu']
+                    self.pl = out['pl']
+                    self.Ar = (self.pu - self.pl)/(2. + self.pl + self.pu)
+
+        # Either fit done or extracted. If doesn't exist, create the posteriors.dat file:
+        if self.out_folder is not None:
+            if not os.path.exists(self.out_folder+'posteriors.dat'):
+                outpp = open(self.out_folder+'posteriors.dat','w')
+                writepp(outpp,out)
+
+        # Save all results (posteriors) to the self.results object:
+        self.results = out
+
+class model(object):
     """
-    Given an array of times, this kernel initializes either a lightcurve model object for use within 
-    the juliet library. Example usage:
+    Given a juliet data object, this kernel generates either a lightcurve or a radial-velocity object. Example usage:
 
-               >>> model = juliet.lc_model(times)
+               >>> model = juliet.model(data, modeltype = 'lc')
 
-    :param times: (array of floats)
-        An array of floats that define the times at which the model will be evaluated.
+    :param data: (juliet.load object)
+        An object containing all the information about the current dataset.
 
-    :param ld_law: (optional, string)
-        String indicating the limb-darkening law to use. Can be either ``linear``, ``quadratic``, ``squareroot``, 
-        or ``logarithmic``.
-
-    :param instrument: (optional, string)
-        Instrument to be modelled with the object. Useful for cross-talk with GP modelling and the juliter 
-        ``posteriors`` dictionary.
-
-    :param linear_regressors: (optional, multi-dimensional array of floats)
-        Multi-dimensional array of length ``[len(times),n]`` with ``n`` linear regressors for the ``len(times)`` 
-        photometric datapoints.
-
-    :param GP_regressors: (optional, multi-dimensional array of floats)
-        Multi-dimensional array of length ``[len(times),n]`` with ``n`` GP regressors for the ``len(times)`` 
-        photometric datapoints.
-
-    :param n_ss: (optional, int)
-        Int indicating the number of points to super-sample in the lightcurve.
-
-    :param exptime_ss: (optinal, float)
-        Float indicating the exposure time of the observations that will be used for the super-sampling.
-
+    :param modeltype: (optional, string)
+        String indicating whether the model to generate should be a lightcurve ('lc') or a radial-velocity ('rv') model. 
     """
     def init_batman(self):
          """  
@@ -776,26 +1035,97 @@ class lc_model(object):
             #    coeff1,coeff2 = reverse_ld_coeffs(lc_dictionary[instrument]['ldlaw'],priors['q1_'+ld_iname[instr     ument]]['cvalue']
             #else:
          
+    def set_lc_parameters(self, parameter_values):
+        if self.global_model:
+        else:
+            for instrument in inames:
+                if self.dictionary[instrument]['TransitFit']:
+                    if self.dictionary[instrument]['ldlaw'] != 'linear':
+                        coeff1,coeff2 = reverse_ld_coeffs(dictionary[instrument]['ldlaw'], parameter_values['q1_'+self.ld_iname[instrument]],\
+                                                          parameter_values['q2_'+self.ld_iname[instrument]])
+                        
 
     def get_1pl_transit_model(self):
         return self.m.light_curve(self.params)
 
-    def __init__(self, times, yerr = None, instrument = None, ld_law = 'quadratic', linear_regressors = None, GP_regressors = None,\
-                 kernel_name = None, n_ss = None, exptime_ss = None, george_hodlr = False):
-        self.t = times
-        self.ld_law = ld_law
-        self.n_ss = n_ss
-        self.exptime_ss = exptime_ss
-        self.linear_regressors = linear_regressors
-        self.GP_regressors = GP_regressors
-        self.kernel_name = kernel_name
-        self.yerr = yerr
-        self.instrument = instrument
+    def __init__(self, data, modeltype):
+        # Inhert the priors dictionary from data:
+        self.priors = data.priors
+        if modeltype == 'lc':
+            self.modeltype = 'lc'
+            # Inhert times, fluxes, errors, indexes, etc. from data:
+            self.t = data.t_lc
+            self.y = data.y_lc
+            self.yerr = data.yerr_lc
+            self.instruments = data.instruments_lc
+            self.ninstruments = data.ninstruments_lc
+            self.inames = data.inames_lc
+            self.instrument_indexes = data.instrument_indexes_lc
+            self.lm_boolean = data.lm_lc_boolean
+            self.lm_arguments = data.lm_lc_arguments
+            self.pl = data.pl
+            self.pu = data.pu
+            self.global_model = data.global_lc_model
+            self.dictionary = lc_dictionary
+            # If limb-darkening or dilution factors will be shared by different instruments, set the correct variable name for each:
+            for iname in inames:
+                if self.dictionary[iname]['TransitFit']:
+                    self.ld_iname = {}
+                    self.mdilution_iname = {}
+                    for pname in self.priors.keys():
+                        # Check if variable name is a limb-darkening coefficient:
+                        if pname[0:2] == 'q1':
+                            vec = pname.split('_')
+                            if len(vec)>2:
+                                if iname in vec:
+                                    ld_iname[iname] = '_'.join(vec[1:])
+                            else:
+                                ld_iname[iname] = vec[1]
+                        # Check if it is a dilution factor:
+                        if pname[0:9] == 'mdilution':
+                            vec = pname.split('_')
+                            if len(vec)>2:
+                                if iname in vec:
+                                    mdilution_iname[iname] = '_'.join(vec[1:])
+                            else:
+                                mdilution_iname[iname] = vec[1]
+            # Set the model-type to M(t):
+            self.evaluate = self.lc_model
+            self.predict = self.predict_lc_model
+        elif modeltype == 'rv':
+            self.modeltype = 'rv'
+            # Inhert times, RVs, errors, indexes, etc. from data:
+            self.t = data.t_rv
+            self.y = data.y_rv
+            self.yerr = data.yerr_rv
+            self.instruments = data.instruments_rv
+            self.ninstruments = data.ninstruments_rv
+            self.inames = data.inames_rv
+            self.instrument_indexes = data.instrument_indexes_rv
+            self.lm_boolean = data.lm_rv_boolean
+            self.lm_arguments = data.lm_rv_arguments
+            self.global_model = data.global_rv_model
+            self.dictionary = rv_dictionary
+            # Set the model-type to M(t):
+            self.evaluate = self.rv_model
+            self.predit = self.predict_rv_model
+        else:
+            raise Exception('Model type "'+lc+'" not recognized. Currently it can only be "lc" for a light-curve model or "rv" for radial-velocity model.')
+       
+        # If not a global model, replace data, given as a big array, with dictionaries, so we don't have to call the indexes each time. 
+        # It's faster this way (although perhaps a little more memory intensive):
+        if not self.global_model:
+            td,yd,yerrd = {}, {}, {}
+            for instrument in instruments:
+                td[instrument] = self.t[self.instrument_indexes[instrument]]
+                yd[instrument] = self.y[self.instrument_indexes[instrument]]
+                yerrd[instrument] = self.yerr[self.instrument_indexes[instrument]]
+            self.t = td
+            self.y = yd
+            self.yerr = yerrd
+
         # Initialize lightcurve for object, inhert the batman params and m objects:
         self.params, self.m = self.init_batman()
-        # Initialize the GP object:
-        self.GPmodel = gaussian_process(kernel_name = self.kernel_name, X = self.GP_regressors, model_type = 'lc', \
-                                        yerr = self.yerr, instrument = self.instrument, george_hodlr = george_hodlr) 
 
 class gaussian_process(object):
     """
@@ -884,48 +1214,48 @@ class gaussian_process(object):
         base_index = 0
         if self.kernel_name == 'SEKernel':
             if not self.global_GP:
-                self.parameter_vector[base_index] = np.log((parameter_values['sigma_w_'+self.instrument]['cvalue']*self.sigma_factor)**2)
+                self.parameter_vector[base_index] = np.log((parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)**2)
                 base_index += 1
-            self.parameter_vector[base_index] = np.log((parameter_values['GP_sigma_'+self.input_instrument[0]]['cvalue']*self.sigma_factor)**2.)
+            self.parameter_vector[base_index] = np.log((parameter_values['GP_sigma_'+self.input_instrument[0]]*self.sigma_factor)**2.)
             for i in range(self.nX):
-                self.parameter_vector[base_index + 1 + i] = np.log(1./priors['GP_alpha'+str(i)+'_'+self.input_instrument[1+i]]['cvalue'])
+                self.parameter_vector[base_index + 1 + i] = np.log(1./priors['GP_alpha'+str(i)+'_'+self.input_instrument[1+i]])
         elif self.kernel_name == 'ExpSineSquaredSEKernel':
             if not self.global_GP:
-                self.parameter_vector[base_index] = np.log((parameter_values['sigma_w_'+self.instrument]['cvalue']*self.sigma_factor)**2)
+                self.parameter_vector[base_index] = np.log((parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)**2)
                 base_index += 1
-            self.parameter_vector[base_index] = np.log((parameter_values['GP_sigma_'+self.input_instrument[0]]['cvalue']*self.sigma_factor)**2.)
-            self.parameter_vector[base_index + 1] = np.log(1./(parameter_values['GP_alpha_'+self.input_instrument[1]]['cvalue']))
-            self.parameter_vector[base_index + 2] = parameter_values['GP_Gamma_'+self.input_instrument[2]]['cvalue']
-            self.parameter_vector[base_index + 3] = np.log(parameter_values['GP_Prot_'+self.input_instrument[3]]['cvalue'])
+            self.parameter_vector[base_index] = np.log((parameter_values['GP_sigma_'+self.input_instrument[0]]*self.sigma_factor)**2.)
+            self.parameter_vector[base_index + 1] = np.log(1./(parameter_values['GP_alpha_'+self.input_instrument[1]]))
+            self.parameter_vector[base_index + 2] = parameter_values['GP_Gamma_'+self.input_instrument[2]]
+            self.parameter_vector[base_index + 3] = np.log(parameter_values['GP_Prot_'+self.input_instrument[3]])
         elif self.kernel_name == 'CeleriteQPKernel':
-            self.parameter_vector[0] = np.log(parameter_values['GP_B_'+self.input_instrument[0]]['cvalue'])
-            self.parameter_vector[1] = np.log(parameter_values['GP_L_'+self.input_instrument[1]]['cvalue'])
-            self.parameter_vector[2] = np.log(parameter_values['GP_Prot_'+self.input_instrument[2]]['cvalue'])
-            self.parameter_vector[3] = np.log(parameter_values['GP_C_'+self.input_instrument[3]]['cvalue'])
+            self.parameter_vector[0] = np.log(parameter_values['GP_B_'+self.input_instrument[0]])
+            self.parameter_vector[1] = np.log(parameter_values['GP_L_'+self.input_instrument[1]])
+            self.parameter_vector[2] = np.log(parameter_values['GP_Prot_'+self.input_instrument[2]])
+            self.parameter_vector[3] = np.log(parameter_values['GP_C_'+self.input_instrument[3]])
             if not self.global_GP:
-                self.parameter_vector[4] = np.log(parameter_values['sigma_w_'+self.instrument]['cvalue']*self.sigma_factor)
+                self.parameter_vector[4] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
         elif self.kernel_name == 'CeleriteExpKernel':
-            self.parameter_vector[0] = np.log(parameter_values['GP_sigma_'+self.input_instrument[0]]['cvalue'])
-            self.parameter_vector[1] = np.log(parameter_values['GP_timescale_'+self.input_instrument[1]]['cvalue'])
+            self.parameter_vector[0] = np.log(parameter_values['GP_sigma_'+self.input_instrument[0]])
+            self.parameter_vector[1] = np.log(parameter_values['GP_timescale_'+self.input_instrument[1]])
             if not self.global_GP:
-                self.parameter_vector[2] = np.log(parameter_values['sigma_w_'+self.instrument]['cvalue']*self.sigma_factor)
+                self.parameter_vector[2] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
         elif self.kernel_name == 'CeleriteMaternKernel':
-            self.parameter_vector[0] = np.log(parameter_values['GP_sigma_'+self.input_instrument[0]]['cvalue'])
-            self.parameter_vector[1] = np.log(parameter_values['GP_rho_'+self.input_instrument[1]]['cvalue'])
+            self.parameter_vector[0] = np.log(parameter_values['GP_sigma_'+self.input_instrument[0]])
+            self.parameter_vector[1] = np.log(parameter_values['GP_rho_'+self.input_instrument[1]])
             if not self.global_GP:
-                self.parameter_vector[2] = np.log(parameter_values['sigma_w_'+self.instrument]['cvalue']*self.sigma_factor)
+                self.parameter_vector[2] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
         elif self.kernel_name == 'CeleriteMaternExpKernel':
-            self.parameter_vector[0] = np.log(parameter_values['GP_sigma_'+self.input_instrument[0]]['cvalue'])
-            self.parameter_vector[1] = np.log(parameter_values['GP_timescale_'+self.input_instrument[1]]['cvalue'])
-            self.parameter_vector[2] = np.log(parameter_values['GP_rho_'+self.input_instrument[2]]['cvalue'])
+            self.parameter_vector[0] = np.log(parameter_values['GP_sigma_'+self.input_instrument[0]])
+            self.parameter_vector[1] = np.log(parameter_values['GP_timescale_'+self.input_instrument[1]])
+            self.parameter_vector[2] = np.log(parameter_values['GP_rho_'+self.input_instrument[2]])
             if not self.global_GP:
-                self.parameter_vector[3] = np.log(parameter_values['sigma_w_'+self.instrument]['cvalue']*self.sigma_factor)
+                self.parameter_vector[3] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
         elif self.kernel_name == 'CeleriteSHOKernel':
-            self.parameter_vector[0] = np.log(parameter_values['GP_S0_'+self.input_instrument[0]]['cvalue'])
-            self.parameter_vector[1] = np.log(parameter_values['GP_Q_'+self.input_instrument[1]]['cvalue'])
-            self.parameter_vector[2] = np.log(parameter_values['GP_omega0_'+self.input_instrument[2]]['cvalue'])
+            self.parameter_vector[0] = np.log(parameter_values['GP_S0_'+self.input_instrument[0]])
+            self.parameter_vector[1] = np.log(parameter_values['GP_Q_'+self.input_instrument[1]])
+            self.parameter_vector[2] = np.log(parameter_values['GP_omega0_'+self.input_instrument[2]])
             if not self.global_GP:
-                self.parameter_vector[3] = np.log(parameter_values['sigma_w_'+self.instrument]['cvalue']*self.sigma_factor)
+                self.parameter_vector[3] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
         self.GP.set_parameter_vector(self.parameter_vector) 
 
     def __init__(self, data, model_type, instrument, george_hodlr = False):
