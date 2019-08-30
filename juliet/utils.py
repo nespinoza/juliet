@@ -18,41 +18,44 @@ def reverse_ld_coeffs(ld_law, q1, q2):
 from scipy.stats import gamma,norm,beta,truncnorm
 import numpy as np
 
-def transform_uniform(x,a,b):
+def transform_uniform(x,hyperparameters):
+    a,b = hyperparameters
     return a + (b-a)*x
 
-def transform_loguniform(x,a,b):
+def transform_loguniform(x,hyperparameters):
+    a,b = hyperparameters
     la=np.log(a)
     lb=np.log(b)
     return np.exp(la + x*(lb-la))
 
-def transform_normal(x,mu,sigma):
+def transform_normal(x,hyperparameters):
+    mu,sigma = hyperparameters
     return norm.ppf(x,loc=mu,scale=sigma)
 
-def transform_beta(x,a,b):
+def transform_beta(x,hyperparameters):
+    a,b = hyperparameters
     return beta.ppf(x,a,b)
 
-def transform_exponential(x,a=1.):
+def transform_exponential(x,hyperparameters):
+    a = hyperparameters
     return gamma.ppf(x, a)
 
-def transform_truncated_normal(x,mu,sigma,a=0.,b=1.):
+def transform_truncated_normal(x,hyperparameters):
+    mu, sigma, a, b = hyperparameters
     ar, br = (a - mu) / sigma, (b - mu) / sigma
     return truncnorm.ppf(x,ar,br,loc=mu,scale=sigma)
 
-def input_error_catcher(t,y,yerr,instruments,datatype):
+def input_error_catcher(t,y,yerr,datatype):
     if datatype == 'lightcurve':
         dname = 'lc'
     else:
         dname = 'rv'
     if (y is None):
         raise Exception('INPUT ERROR: No '+datatype+' data was fed to juliet. \n'+\
-                        ' Make sure to pass data (y_'+dname+'), errors (yerr_'+dname+') and instrument names (instruments_'+dname+') associated to each of those.')
+                        ' Make sure to pass data (y_'+dname+') and errors (yerr_'+dname+').')
     if (yerr is None):
         raise Exception('INPUT ERROR: No ERRORS (yerr_'+dname+') on the '+datatype+' data were fed to juliet. \n'+\
-                        ' Make sure to pass data (y_'+dname+'), errors (yerr_'+dname+') and instrument names (instruments_'+dname+') associated to each of those.')
-    if (instruments is None):
-        raise Exception('INPUT ERROR: No INSTRUMENTS (instruments_'+dname+') associated to the '+datatype+' data were fed to juliet. \n'+\
-                        ' Make sure to pass data (y_'+dname+'), errors (yerr_'+dname+') AND instrument names (instruments_'+dname+') associated to each of those.')
+                        ' Make sure to pass data (y_'+dname+') and errors (yerr_'+dname+')..')
 
 def read_data(fname):
     fin = open(fname,'r')
@@ -186,6 +189,11 @@ def readpriors(priorname):
                     out = line.split()
                     parameter,prior_name,vals = line.split()
                     parameter = parameter.split()[0]
+                    # For retro-compatibility, if parameter is of the form sigma_w_rv_instrument change to
+                    # sigma_w_instrument:
+                    if parameter[:10] == 'sigma_w_rv':
+                        instrument = parameter.split('_')[-1]
+                        parameter = 'sigma_w_'+instrument
                     prior_name = prior_name.split()[0]
                     vals = vals.split()[0]
                     priors[parameter] = {}
