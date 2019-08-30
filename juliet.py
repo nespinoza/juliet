@@ -1712,9 +1712,11 @@ if rvfilename is not None:
           
           # Save oversampled full RV models and GP models:
           fout = open(out_folder+'time_rv_model.dat','w')
-          fout.write('# Time \t GP Component \t Full model (GP + Keplerian) \n')
+          fout.write('# Time \t GP Component \t Full model (GP + Keplerian) \t model1down \t model1up \t model2down \t model2up \t model3down \t model3up\n')
           for ii in range(len(omedian_model_GP)):
-              fout.write('{0:.10f} \t {1:.10f} \t {2:.10f}\n'.format(t_rv_model[ii],omedian_model_GP[ii],omedian_model[ii]))
+              fout.write('{0:.10f} \t {1:.10f} \t {2:.10f} \t {3:.10f} \t {4:.10f} \t {5:.10f} \t {6:.10f} \t {7:.10f} \t {8:.10f}\n'.format(\
+                t_rv_model[ii],omedian_model_GP[ii],omedian_model[ii],\
+                omodel_down1[ii], omodel_up1[ii], omodel_down2[ii], omodel_up2[ii], omodel_down3[ii], omodel_up3[ii]))
           fout.close()
 
           if rvmultipanel is False:
@@ -1947,7 +1949,7 @@ if rvfilename is not None:
                                                                                    sys_corrected[instrument]['errors'][ii],all_rv_models_real[instrument_indexes_rv[instrument]][ii]-rvmodel_minus_iplanet[instrument_indexes_rv[instrument]][ii],\
                                                                                    instrument))
 
-            # Plor binned data:
+            # Plot binned data:
             # Plot residuals phased at this planet:
             ax_res.errorbar(phases[instrument_indexes_rv[instrument]], \
                             sys_corrected[instrument]['values'] - all_rv_models_real[instrument_indexes_rv[instrument]],\
@@ -2030,7 +2032,16 @@ if rvfilename is not None:
         ax.fill_between(model_phases,omodel_down3,omodel_up3,color='cornflowerblue',alpha=0.25)
         ax.plot(model_phases,omedian_model,'-',linewidth=2,color='black')
         ax.set_xlim([-0.5,0.5])       
-        #out['posterior_samples'][pname]
+        
+         # Save oversampled full RV models and GP models phased version:
+        fout = open(out_folder+'phased_rv_planet'+str(iplanet)+'_model.dat','w')
+        fout.write('# Phases \t model \t model1down \t model1up \t model2down \t model2up \t model3down \t model3up\n')
+        for ii in range(len(omedian_model)):
+            fout.write('{0:.10f} \t {1:.10f} \t {2:.10f} \t {3:.10f} \t {4:.10f} \t {5:.10f} \t {6:.10f} \t {7:.10f}\n'.format(\
+                model_phases[ii],omedian_model[ii],\
+                omodel_down1[ii], omodel_up1[ii], omodel_down2[ii], omodel_up2[ii], omodel_down3[ii], omodel_up3[ii]))
+        fout.close()
+        
         if priors['P_p'+str(iplanet)]['type'] != 'fixed':
             P = np.median(out['posterior_samples']['P_p'+str(iplanet)])
         else:
