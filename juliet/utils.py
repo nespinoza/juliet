@@ -1,28 +1,63 @@
+import numpy as np
+import pickle
+
+def reverse_ld_coeffs(ld_law, q1, q2): 
+    if ld_law == 'quadratic':
+        coeff1 = 2.*np.sqrt(q1)*q2
+        coeff2 = np.sqrt(q1)*(1.-2.*q2)
+    elif ld_law=='squareroot':
+        coeff1 = np.sqrt(q1)*(1.-2.*q2)
+        coeff2 = 2.*np.sqrt(q1)*q2
+    elif ld_law=='logarithmic':
+        coeff1 = 1.-np.sqrt(q1)*q2
+        coeff2 = 1.-np.sqrt(q1)
+    elif ld_law == 'linear':
+        return q1,q2
+    return coeff1,coeff2
+
 from scipy.stats import gamma,norm,beta,truncnorm
 import numpy as np
 
-def transform_uniform(x,a,b):
+def transform_uniform(x,hyperparameters):
+    a,b = hyperparameters
     return a + (b-a)*x
 
-def transform_loguniform(x,a,b):
+def transform_loguniform(x,hyperparameters):
+    a,b = hyperparameters
     la=np.log(a)
     lb=np.log(b)
     return np.exp(la + x*(lb-la))
 
-def transform_normal(x,mu,sigma):
+def transform_normal(x,hyperparameters):
+    mu,sigma = hyperparameters
     return norm.ppf(x,loc=mu,scale=sigma)
 
-def transform_beta(x,a,b):
+def transform_beta(x,hyperparameters):
+    a,b = hyperparameters
     return beta.ppf(x,a,b)
 
-def transform_exponential(x,a=1.):
+def transform_exponential(x,hyperparameters):
+    a = hyperparameters
     return gamma.ppf(x, a)
 
-def transform_truncated_normal(x,mu,sigma,a=0.,b=1.):
+def transform_truncated_normal(x,hyperparameters):
+    mu, sigma, a, b = hyperparameters
     ar, br = (a - mu) / sigma, (b - mu) / sigma
     return truncnorm.ppf(x,ar,br,loc=mu,scale=sigma)
 
-def readlc(fname):
+def input_error_catcher(t,y,yerr,datatype):
+    if datatype == 'lightcurve':
+        dname = 'lc'
+    else:
+        dname = 'rv'
+    if (y is None):
+        raise Exception('INPUT ERROR: No '+datatype+' data was fed to juliet. \n'+\
+                        ' Make sure to pass data (y_'+dname+') and errors (yerr_'+dname+').')
+    if (yerr is None):
+        raise Exception('INPUT ERROR: No ERRORS (yerr_'+dname+') on the '+datatype+' data were fed to juliet. \n'+\
+                        ' Make sure to pass data (y_'+dname+') and errors (yerr_'+dname+')..')
+
+def read_data(fname):
     fin = open(fname,'r')
     ts = np.array([])
     fs = np.array([])
@@ -51,11 +86,11 @@ def readlc(fname):
                     lm_arguments[instrument.split()[0]] = np.array([])
                     lm_boolean[instrument.split()[0]] = True
                 else:
-                    lm_boolean[instrument.split()[0]] = False 
+                    lm_boolean[instrument.split()[0]] = False
             if lm_boolean[instrument.split()[0]]:
                 if len(lm_arguments[instrument.split()[0]]) == 0:
                    lm_arguments[instrument.split()[0]] = np.array(lm_variables).astype(np.double)
-                else: 
+                else:
                    lm_arguments[instrument.split()[0]] = np.vstack((lm_arguments[instrument.split()[0]],\
                                                               np.array(lm_variables).astype(np.double)))
         else:
@@ -66,32 +101,58 @@ def readlc(fname):
         indexes[instrument] = np.where(instruments == instrument)[0]
     return ts,fs,ferrs,instruments,indexes,len(instrument_names),instrument_names,lm_boolean,lm_arguments
 
-def readeparams(fname,RV=False):
+def will_it_float(value):
+    """
+    Function name idea taken from https://stackoverflow.com/questions/736043/checking-if-a-string-can-be-converted-to-float-in-python.
+    """
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+        
+def readGPeparams(fname):
     fin = open(fname,'r')
     GPDictionary = {}
     ftime = True
+    global_model = False
     while True:
         line = fin.readline()
-        if line != '': 
+        if line != '':
             if line[0] != '#':
                 vector = line.split()
-                if RV:
-                    variables = vector
-                    if ftime:
-                        GPDictionary['variables'] = np.double(np.array(variables))
-                        ftime = False 
+                variables,instrument = vector[:-1],vector[-1].split()[0]
+                if ftime:
+                    if will_it_float(instrument):
+                        global_model = True
+                        appended_vector = np.append(np.double(np.array(variables)),np.double(np.array(instrument)))
                     else:
-                        GPDictionary['variables'] = np.vstack((GPDictionary['variables'],np.double(np.array(variables))))
+                        global_model = False
+                        appended_vector = np.double(np.array(variables))
                 else:
-                    variables,instrument = vector[:-1],vector[-1].split()[0]
+                    if global_model:
+                        appended_vector = np.append(np.double(np.array(variables)),np.double(np.array(instrument)))
+                    else:
+                        appended_vector = np.double(np.array(variables))
+                    
+                if global_model:
+                    if ftime:
+                        GPDictionary['global_model'] = appended_vector
+                        ftime = False
+                    else:
+                        GPDictionary['global_model'] = np.vstack((GPDictionary['global_model'],appended_vector))
+                else:
+                    #variables,instrument = vector[:-1],vector[-1].split()[0]
+                    if ftime:
+                        ftime = False
                     if instrument in GPDictionary.keys():
-                        GPDictionary[instrument]['variables'] = np.vstack((GPDictionary[instrument]['variables'],np.double(np.array(variables))))
+                        GPDictionary[instrument] = np.vstack((GPDictionary[instrument],appended_vector))
                     else:
                         GPDictionary[instrument] = {}
-                        GPDictionary[instrument]['variables'] = np.double(np.array(variables))
+                        GPDictionary[instrument] = appended_vector
         else:
             break
-    return GPDictionary
+    return GPDictionary,global_model
 
 def readpriors(priorname):
     """
@@ -128,12 +189,17 @@ def readpriors(priorname):
                     out = line.split()
                     parameter,prior_name,vals = line.split()
                     parameter = parameter.split()[0]
+                    # For retro-compatibility, if parameter is of the form sigma_w_rv_instrument change to
+                    # sigma_w_instrument:
+                    if parameter[:10] == 'sigma_w_rv':
+                        instrument = parameter.split('_')[-1]
+                        parameter = 'sigma_w_'+instrument
                     prior_name = prior_name.split()[0]
                     vals = vals.split()[0]
                     priors[parameter] = {}
                 else:
                     param = all_parameters[counter]
-                    parameter,prior_name = param,priors[param]['distribution'],
+                    parameter,prior_name = param,priors[param]['distribution']
                 pvector = parameter.split('_')
                 # Check if parameter/planet is from a transiting planet:
                 if pvector[0] == 'r1' or pvector[0] == 'p':
@@ -153,19 +219,19 @@ def readpriors(priorname):
                 #    n_rv += 1
                 if prior_name.lower() == 'fixed':
                     if not input_dict:
-                        priors[parameter]['type'] = prior_name.lower()
-                        priors[parameter]['value'] = np.double(vals)
+                        priors[parameter]['distribution'] = prior_name.lower()
+                        priors[parameter]['hyperparameters'] = np.double(vals)
                         priors[parameter]['cvalue'] = np.double(vals)
                 else:
                     n_params += 1
                     if not input_dict:
-                        priors[parameter]['type'] = prior_name.lower()
-                        if priors[parameter]['type'] != 'truncatednormal':
+                        priors[parameter]['distribution'] = prior_name.lower()
+                        if priors[parameter]['distribution'] != 'truncatednormal':
                             v1,v2 = vals.split(',')
-                            priors[parameter]['value'] = [np.double(v1),np.double(v2)]
+                            priors[parameter]['hyperparameters'] = [np.double(v1),np.double(v2)]
                         else:
                             v1,v2,v3,v4 = vals.split(',')
-                            priors[parameter]['value'] = [np.double(v1),np.double(v2),np.double(v3),np.double(v4)]
+                            priors[parameter]['hyperparameters'] = [np.double(v1),np.double(v2),np.double(v3),np.double(v4)]
                         priors[parameter]['cvalue'] = 0.
         else:
             break
@@ -233,15 +299,15 @@ def bin_data(x,y,n_bin):
     return np.array(x_bins),np.array(y_bins),np.array(y_err_bins)
 
 def writepp(fout,posteriors):
-    if 'pu' in posteriors: 
+    if 'pu' in posteriors:
         pu = posteriors['pu']
         pl = posteriors['pl']
         Ar = (pu - pl)/(2. + pl + pu)
 
     fout.write('# {0:18} \t \t {1:12} \t \t {2:12} \t \t {3:12}\n'.format('Parameter Name','Median','Upper 68 CI','Lower 68 CI'))
     for pname in posteriors['posterior_samples'].keys():
-      if pname != 'unnamed' and pname != 'loglike':
-        val,valup,valdown = get_quantiles(posteriors['posterior_samples'][pname]) 
+      if pname != 'unnamed':
+        val,valup,valdown = get_quantiles(posteriors['posterior_samples'][pname])
         usigma = valup-val
         dsigma = val - valdown
         fout.write('{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.format(pname,val,usigma,dsigma))
@@ -270,7 +336,7 @@ def writepp(fout,posteriors):
                 iplanet = planet[1:]
                 ecc = np.sqrt(posteriors['posterior_samples']['ecosomega_p'+str(iplanet)]**2+posteriors['posterior_samples']['esinomega_p'+str(iplanet)]**2)
                 omega = np.arctan2(posteriors['posterior_samples']['esinomega_p'+str(iplanet)],\
-                               posteriors['posterior_samples']['ecosomega_p'+str(iplanet)]) 
+                               posteriors['posterior_samples']['ecosomega_p'+str(iplanet)])
             elif 'secosomega_'+planet in posteriors['posterior_samples']:
                 iplanet = planet[1:]
                 ecc = posteriors['posterior_samples']['secosomega_p'+str(iplanet)]**2+posteriors['posterior_samples']['sesinomega_p'+str(iplanet)]**2
@@ -282,9 +348,9 @@ def writepp(fout,posteriors):
             else:
                  ecc = 0.
                  omega = 90.
-            ecc_factor = (1. + ecc*np.sin(omega))/(1. - ecc**2) 
+            ecc_factor = (1. + ecc*np.sin(omega))/(1. - ecc**2)
             if 'rho' in posteriors['posterior_samples']:
-                G = 6.67408e-11 
+                G = 6.67408e-11
                 a = ((posteriors['posterior_samples']['rho']*G*((posteriors['posterior_samples']['P_'+planet]*24.*3600.)**2))/(3.*np.pi))**(1./3.)
             else:
                 a = posteriors['posterior_samples']['a_'+planet]
@@ -295,11 +361,11 @@ def writepp(fout,posteriors):
             dsigma = val - valdown
             fout.write('{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.format('inc_'+planet,val,usigma,dsigma))
 
-        if pname.split('_')[0] == 'P': 
+        if pname.split('_')[0] == 'P':
             if 'rho' in posteriors['posterior_samples']:
                 par,planet = pname.split('_')
-                G = 6.67408e-11 
-                a = ((posteriors['posterior_samples']['rho']*G*((posteriors['posterior_samples']['P_'+planet]*24.*3600.)**2))/(3.*np.pi))**(1./3.) 
+                G = 6.67408e-11
+                a = ((posteriors['posterior_samples']['rho']*G*((posteriors['posterior_samples']['P_'+planet]*24.*3600.)**2))/(3.*np.pi))**(1./3.)
                 val,valup,valdown = get_quantiles(a)
                 usigma = valup-val
                 dsigma = val - valdown
@@ -322,10 +388,10 @@ def writepp(fout,posteriors):
             dsigma = val - valdown
             fout.write('{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.format('omega_'+planet,val,usigma,dsigma))
 
-        if pname.split('_')[0] == 'secosomega': 
+        if pname.split('_')[0] == 'secosomega':
             par,planet = pname.split('_')
             iplanet = planet[1:]
-            ecc = posteriors['posterior_samples']['secosomega_p'+str(iplanet)]**2+posteriors['posterior_samples']['sesinomega_p'+str(iplanet)]**2 
+            ecc = posteriors['posterior_samples']['secosomega_p'+str(iplanet)]**2+posteriors['posterior_samples']['sesinomega_p'+str(iplanet)]**2
             omega = np.arctan2(posteriors['posterior_samples']['sesinomega_p'+str(iplanet)],\
                                posteriors['posterior_samples']['secosomega_p'+str(iplanet)])*(180/np.pi)
 
@@ -355,5 +421,3 @@ def convert_time(conv_string,t):
         # return new_t
     else:
         return t
-
-
