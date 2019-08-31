@@ -154,9 +154,9 @@ dataset into `juliet` and fit it, one would do:
     # Fit and absorb results into a juliet.fit object:
     results = dataset.fit(n_live_points = 300)
 
-And that's it! Cool `juliet` fact is that, once you have defined an ``out_folder``, *all your data will be saved there --- 
-not only the prior file and the results of the fit, but also the photometry or radial-velocity you fed into `juliet` will 
-be saved*. This makes it easy to come back later to this dataset without having to download the data all over again. So, 
+And that's it! Cool `juliet` fact is that, once you have defined an ``out_folder``, **all your data will be saved there --- 
+not only the prior file and the results of the fit, but also the photometry or radial-velocity you fed into juliet will 
+be saved**. This makes it easy to come back later to this dataset without having to download the data all over again. So, 
 for example, if we ran the above defined code and we wanted to come back at this dataset again with another `python` 
 session and say, plot the data, one can simply do:
 
