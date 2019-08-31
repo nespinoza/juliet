@@ -87,8 +87,8 @@ containing the ``distribution`` and its ``hyperparameters`` (for details on what
 2.3 of the `juliet` `wiki page <https://github.com/nespinoza/juliet/wiki/Installing-and-basic-usage>`_ ). 
 
 Let us give normal priors for the period ``P_p1``, time-of-transit center ``t0_p1``, mean out-of-transit 
-flux ``mflux_TESS``, uniform distributions for the ``r1_p1`` and ``r2_p1`` of the `Espinoza (2018) <https://ui.adsabs.harvard.edu/abs/2018RNAAS...2d.209E/abstract>_` parametrization 
-for the impact parameter and planet-to-star radius ratio, same for the ``q1_p1`` and ``q2_p1`` `Kipping (2013) <https://ui.adsabs.harvard.edu/abs/2013MNRAS.435.2152K/abstract>_` 
+flux ``mflux_TESS``, uniform distributions for the ``r1_p1`` and ``r2_p1`` of the `Espinoza (2018) <https://ui.adsabs.harvard.edu/abs/2018RNAAS...2d.209E/abstract>`_ parametrization 
+for the impact parameter and planet-to-star radius ratio, same for the ``q1_p1`` and ``q2_p1`` `Kipping (2013) <https://ui.adsabs.harvard.edu/abs/2013MNRAS.435.2152K/abstract>`_ 
 limb-darkening parametrization, log-uniform distributions for the stellar density ``rho`` (in kg/m3) and 
 jitter term ``sigma_w_TESS``, and leave the rest of the parameters (eccentricity ``ecc_p1``, argument of 
 periastron ``omega_p1`` and dilution factor ``mdilution_TESS``) fixed: 
