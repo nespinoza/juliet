@@ -17,9 +17,9 @@ To use `juliet` as an *imported library*, inside any python script you can simpl
     import juliet
     dataset = juliet.load(priors,t_lc=times,y_lc=flux,yerr_lc=flux_error)
 
-In this example, `juliet` will simply load your dataset into a juliet.load object with which you can play around 
-to fit, plot or predict  a lightcurve defined by a dictionary of times `times`, of relative fluxes `flux` and errors 
-on those fluxes `flux_error` given some prior information `prior` which, as we will see below, is defined through either 
+In this example, `juliet` will simply load your dataset into a ``juliet.load`` object with which you can play around 
+to fit, plot or predict  a lightcurve defined by a dictionary of times ``times``, of relative fluxes ``flux`` and errors 
+on those fluxes ``flux_error`` given some prior information ``prior`` which, as we will see below, is defined through either 
 a dictionary or a file. 
 
 
@@ -49,18 +49,22 @@ object, which is hosted in MAST:
 
     def get_TESS_data(filename):
         """
-        Given a filename, this function returns an array of times, fluxes and errors on those fluxes.
+        Given a filename, this function returns an array of times, 
+        fluxes and errors on those fluxes.
         """
         # Manipulate the fits file:
         data = fits.getdata(filename)
+
         # Identify zero-flux values to take them out of the data arrays:
         idx = np.where(data['PDCSAP_FLUX']!=0.)[0]
+
         # Return median-normalized flux:
         return data['TIME'][idx],data['PDCSAP_FLUX'][idx]/np.median(data['PDCSAP_FLUX'][idx]), \
                data['PDCSAP_FLUX_ERR'][idx]/np.median(data['PDCSAP_FLUX'][idx])
      
     # First, get times, normalized-fluxes and errors for TOI-141 from MAST:
-    t,f,ferr  = get_TESS_data('https://archive.stsci.edu/hlsps/tess-data-alerts/hlsp_tess-data-alerts_tess_phot_00403224672-s01_tess_v1_lc.fits')
+    t,f,ferr  = get_TESS_data('https://archive.stsci.edu/hlsps/tess-data-alerts/hlsp_tess'+\
+                               '-data-alerts_tess_phot_00403224672-s01_tess_v1_lc.fits')
     
 Now, in order to load this dataset into `juliet`, we need to put the times, fluxes and errors into dictionaries. 
 This makes it extremely easy to add more instruments, as simply other instruments will be other keys of this 
@@ -78,22 +82,26 @@ dictionary. For now, let us just use this TESS data; we put them in dictionaries
 The final step to fit the data with `juliet` is to define the priors for the different parameters that we 
 are going to fit. This can be done in two ways. The longest (but more jupyter-notebook-friendly?) is to 
 create a dictionary that, on each key, has the parameter to be fitted. Each key, in turn, is a dictionary 
-containing the `distribution` and its `hyperparameters` (for details on what distributions 
+containing the ``distribution`` and its ``hyperparameters`` (for details on what distributions 
 `juliet` can handle, what are the hyperparameters and what each parameter name mean, see Sections 2.1, 2.2 and 
-2.3 of the `juliet` `wiki page <https://github.com/nespinoza/juliet/wiki/Installing-and-basic-usage>`_ ): 
+2.3 of the `juliet` `wiki page <https://github.com/nespinoza/juliet/wiki/Installing-and-basic-usage>`_ ). 
+
+Let us give normal priors for the period ``P_p1``, time-of-transit center ``t0_p1``, mean out-of-transit 
+flux ``mflux_TESS``, uniform distributions for the ``r1_p1`` and ``r2_p1`` of the Espinoza (2018) parametrization 
+for the impact parameter and planet-to-star radius ratio, same for the ``q1_p1`` and ``q2_p1`` Kipping (2014) 
+limb-darkening parametrization, log-uniform distributions for the stellar density ``rho`` (in kg/m3) and 
+jitter term ``sigma_w_TESS``, and leave the rest of the parameters (eccentricity ``ecc_p1``, argument of 
+periastron ``omega_p1`` and dilution factor ``mdilution_TESS``) fixed: 
 
 .. code-block:: python
 
     priors = {}
 
-    # Normal prior with mean 1 and standard deviation 0.1 days for the period (P_p1), 
-    # normal prior with mean 1325.55 and standard deviation 0.1 days for the time-of-transit center (t0_p1), 
-    # uniform priors for r1 and r2 Espinoza-parametrization, fixed eccentricity (ecc_p1), etc.:
     parameters = ['P_p1','t0_p1','r1_p1','r2_p1','q1_TESS','q2_TESS','ecc_p1','omega_p1',\
                   'rho', 'mdilution_TESS', 'mflux_TESS', 'sigma_w_TESS']
 
     distributions = ['normal','normal','uniform','uniform','uniform','uniform','fixed','fixed',\
-                     'loguniform', 'loguniform', 'fixed', 'normal', 'loguniform']
+                     'loguniform', 'fixed', 'normal', 'loguniform']
 
     hyperparameters = [[1.,0.1], [1325.55,0.1], [0.,1], [0.,1.], [0., 1.], [0., 1.], 0.0, 90.,\
                        [100., 10000.], 1.0, [0.,0.1], [0.1, 1000.]]
@@ -107,15 +115,17 @@ With these definitions, to fit this dataset with `juliet` one would simply do:
 .. code-block:: python
 
     # Load dataset into juliet, save results to a temporary folder called toi141_fit:
-    dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, yerr_lc = fluxes_error, out_folder = 'toi141_fit')
+    dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, \
+                          yerr_lc = fluxes_error, out_folder = 'toi141_fit')
+
     # Fit and absorb results into a juliet.fit object:
     results = dataset.fit(n_live_points = 300)
 
-This code will run `juliet` and save the results to the `toi141_fit` folder. 
+This code will run `juliet` and save the results to the ``toi141_fit`` folder. 
 
 The second way to define the priors for `juliet` (and perhaps the most simple) is to create a text file where 
-in the first column one defines the parameter name, in the second column the name of the `distribution` and 
-in the third column the `hyperparameters`. The priors defined above would look like this in a text file:
+in the first column one defines the parameter name, in the second column the name of the ``distribution`` and 
+in the third column the ``hyperparameters``. The priors defined above would look like this in a text file:
 
 .. code-block:: bash
 
@@ -132,19 +142,21 @@ in the third column the `hyperparameters`. The priors defined above would look l
     mflux_TESS           normal               0.0,0.1
     sigma_w_TESS         loguniform           0.1,1000.0
 
-To run the same fit as above, suppose this prior file is saved under `toi141_fit/priors.dat`. Then, to load this 
+To run the same fit as above, suppose this prior file is saved under ``toi141_fit/priors.dat``. Then, to load this 
 dataset into `juliet` and fit it, one would do:
 
 .. code-block:: python
 
     # Load dataset into juliet, save results to a temporary folder called toi141_fit:
-    dataset = juliet.load(priors='toi141_fit/priors.dat', t_lc = times, y_lc = fluxes, yerr_lc = fluxes_error, out_folder = 'toi141_fit')
+    dataset = juliet.load(priors='toi141_fit/priors.dat', t_lc = times, y_lc = fluxes, \
+                          yerr_lc = fluxes_error, out_folder = 'toi141_fit')
+
     # Fit and absorb results into a juliet.fit object:
     results = dataset.fit(n_live_points = 300)
 
-And that's it! Cool `juliet` fact is that, once you have defined an `out_folder`, all your data will be saved there --- 
+And that's it! Cool `juliet` fact is that, once you have defined an ``out_folder``, *all your data will be saved there --- 
 not only the prior file and the results of the fit, but also the photometry or radial-velocity you fed into `juliet` will 
-be saved. This makes it easy to come back later to this dataset without having to download the data all over again. So, 
+be saved*. This makes it easy to come back later to this dataset without having to download the data all over again. So, 
 for example, if we ran the above defined code and we wanted to come back at this dataset again with another `python` 
 session and say, plot the data, one can simply do:
 
@@ -155,6 +167,7 @@ session and say, plot the data, one can simply do:
    dataset = juliet.load(input_folder = 'toi141_fit', out_folder = 'toi141_fit')
    
    import matplotlib.pyplot as plt
-   plt.errorbar(dataset.times_lc['TESS'], dataset.data_lc['TESS'], yerr = dataset.errors_lc['TESS'], fmt = '.')
+   plt.errorbar(dataset.times_lc['TESS'], dataset.data_lc['TESS'], \
+                yerr = dataset.errors_lc['TESS'], fmt = '.')
    plt.show()
 
