@@ -43,6 +43,7 @@ by `Espinoza et al. (2019) <https://arxiv.org/abs/1903.07694>`_. Let us first lo
 object, which is hosted in MAST:
 
 .. code-block:: python
+
     import numpy as np
     from astropy.io import fits
 
@@ -66,6 +67,7 @@ This makes it extremely easy to add more instruments, as simply other instrument
 dictionary. For now, let us just use this TESS data; we put them in dictionaries that `juliet` likes as follows:
 
 .. code-block:: python
+
     # Create dictionaries:
     times, fluxes, fluxes_error = {},{},{}
     # Save data into those dictionaries:
@@ -81,6 +83,7 @@ containing the `distribution` and its `hyperparameters` (for details on what dis
 2.3 of the `juliet` `wiki page <https://github.com/nespinoza/juliet/wiki/Installing-and-basic-usage>`_ ): 
 
 .. code-block:: python
+
     priors = {}
 
     # Normal prior with mean 1 and standard deviation 0.1 days for the period (P_p1), 
@@ -102,6 +105,7 @@ containing the `distribution` and its `hyperparameters` (for details on what dis
 With these definitions, to fit this dataset with `juliet` one would simply do:
 
 .. code-block:: python
+
     # Load dataset into juliet, save results to a temporary folder called toi141_fit:
     dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, yerr_lc = fluxes_error, out_folder = 'toi141_fit')
     # Fit and absorb results into a juliet.fit object:
@@ -114,6 +118,7 @@ in the first column one defines the parameter name, in the second column the nam
 in the third column the `hyperparameters`. The priors defined above would look like this in a text file:
 
 .. code-block:: bash
+
     P_p1                 normal               1.0,0.1   
     t0_p1                normal               1325.55,0.1 
     r1_p1                uniform              0.0,1.0 
@@ -131,6 +136,7 @@ To run the same fit as above, suppose this prior file is saved under `toi141_fit
 dataset into `juliet` and fit it, one would do:
 
 .. code-block:: python
+
     # Load dataset into juliet, save results to a temporary folder called toi141_fit:
     dataset = juliet.load(priors='toi141_fit/priors.dat', t_lc = times, y_lc = fluxes, yerr_lc = fluxes_error, out_folder = 'toi141_fit')
     # Fit and absorb results into a juliet.fit object:
@@ -143,6 +149,7 @@ for example, if we ran the above defined code and we wanted to come back at this
 session and say, plot the data, one can simply do:
 
 .. code-block:: python
+
    # Load already saved dataset with juliet:
    import juliet
    dataset = juliet.load(input_folder = 'toi141_fit', out_folder = 'toi141_fit')
