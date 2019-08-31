@@ -87,8 +87,8 @@ containing the ``distribution`` and its ``hyperparameters`` (for details on what
 2.3 of the `juliet` `wiki page <https://github.com/nespinoza/juliet/wiki/Installing-and-basic-usage>`_ ). 
 
 Let us give normal priors for the period ``P_p1``, time-of-transit center ``t0_p1``, mean out-of-transit 
-flux ``mflux_TESS``, uniform distributions for the ``r1_p1`` and ``r2_p1`` of the Espinoza (2018) parametrization 
-for the impact parameter and planet-to-star radius ratio, same for the ``q1_p1`` and ``q2_p1`` Kipping (2014) 
+flux ``mflux_TESS``, uniform distributions for the ``r1_p1`` and ``r2_p1`` of the `Espinoza (2018) <https://ui.adsabs.harvard.edu/abs/2018RNAAS...2d.209E/abstract>_` parametrization 
+for the impact parameter and planet-to-star radius ratio, same for the ``q1_p1`` and ``q2_p1`` `Kipping (2013) <https://ui.adsabs.harvard.edu/abs/2013MNRAS.435.2152K/abstract>_` 
 limb-darkening parametrization, log-uniform distributions for the stellar density ``rho`` (in kg/m3) and 
 jitter term ``sigma_w_TESS``, and leave the rest of the parameters (eccentricity ``ecc_p1``, argument of 
 periastron ``omega_p1`` and dilution factor ``mdilution_TESS``) fixed: 
@@ -97,18 +97,18 @@ periastron ``omega_p1`` and dilution factor ``mdilution_TESS``) fixed:
 
     priors = {}
 
-    parameters = ['P_p1','t0_p1','r1_p1','r2_p1','q1_TESS','q2_TESS','ecc_p1','omega_p1',\
+    params = ['P_p1','t0_p1','r1_p1','r2_p1','q1_TESS','q2_TESS','ecc_p1','omega_p1',\
                   'rho', 'mdilution_TESS', 'mflux_TESS', 'sigma_w_TESS']
 
-    distributions = ['normal','normal','uniform','uniform','uniform','uniform','fixed','fixed',\
+    dists = ['normal','normal','uniform','uniform','uniform','uniform','fixed','fixed',\
                      'loguniform', 'fixed', 'normal', 'loguniform']
 
-    hyperparameters = [[1.,0.1], [1325.55,0.1], [0.,1], [0.,1.], [0., 1.], [0., 1.], 0.0, 90.,\
+    hyperps = [[1.,0.1], [1325.55,0.1], [0.,1], [0.,1.], [0., 1.], [0., 1.], 0.0, 90.,\
                        [100., 10000.], 1.0, [0.,0.1], [0.1, 1000.]]
 
-    for parameter, distribution, hyperparameter in zip(parameters, distributions, hyperparameters):
-        priors[parameter] = {}
-        priors[parameter]['distribution'], priors[parameter]['hyperparameters'] = distribution, hyperparameter
+    for param, dist, hyperp in zip(params, dists, hyperps):
+        priors[param] = {}
+        priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
 
 With these definitions, to fit this dataset with `juliet` one would simply do:
 
