@@ -12,7 +12,7 @@ Installing via pip
 
 .. code-block:: bash
 
-    pip install juliet-package
+    pip install juliet
 
 The core of `juliet` is comprised of the transit (`batman <https://www.cfa.harvard.edu/~lkreidberg/batman/>`_, 
 `starry <https://rodluger.github.io/starry/>`_), radial-velocity (`radvel <https://radvel.readthedocs.io/en/latest/>`_) 
@@ -37,6 +37,13 @@ The source code for `juliet` can be downloaded `from GitHub
 
     git clone https://github.com/nespinoza/juliet.git
 
+Once cloned, simply enter the ``juliet`` folder and do
+
+.. code-block:: bash
+
+    python setup.py install
+
+To install the latest version of the code.
 
 .. _pymultinest_install:
 
