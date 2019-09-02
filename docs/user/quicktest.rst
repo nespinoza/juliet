@@ -90,13 +90,15 @@ what each parameter name mean, see Sections 2.1, 2.2 and 2.3 of the `juliet` `wi
 <https://github.com/nespinoza/juliet/wiki/Installing-and-basic-usage>`_ ).
 
 Let us give normal priors for the period ``P_p1``, time-of-transit center ``t0_p1``, mean out-of-transit
-flux ``mflux_TESS``, uniform distributions for the ``r1_p1`` and ``r2_p1`` of the 
+flux ``mflux_TESS``, uniform distributions for the parameters ``r1_p1`` and ``r2_p1`` of the 
 `Espinoza (2018) <https://ui.adsabs.harvard.edu/abs/2018RNAAS...2d.209E/abstract>`_ parametrization
 for the impact parameter and planet-to-star radius ratio, same for the ``q1_p1`` and ``q2_p1`` 
 `Kipping (2013) <https://ui.adsabs.harvard.edu/abs/2013MNRAS.435.2152K/abstract>`_
-limb-darkening parametrization, log-uniform distributions for the stellar density ``rho`` (in kg/m3) and
-jitter term ``sigma_w_TESS``, and leave the rest of the parameters (eccentricity ``ecc_p1``, argument of
-periastron ``omega_p1`` and dilution factor ``mdilution_TESS``) fixed:
+limb-darkening parametrization (`juliet` assumes a quadratic limb-darkening by default --- other laws can 
+be easily defined, as it will be shown in the tutorials), log-uniform distributions for the stellar density 
+``rho`` (in kg/m3) and jitter term ``sigma_w_TESS`` (in parts-per-million, ppm), and leave the rest of the 
+parameters (eccentricity ``ecc_p1``, argument of periastron (in degrees) ``omega_p1`` and dilution factor 
+``mdilution_TESS``) fixed:
 
 .. code-block:: python
 
@@ -174,16 +176,18 @@ at this dataset again with another ``python`` session and say, plot the data and
 
 .. code-block:: python
 
-   # Load already saved dataset with juliet:
    import juliet
+ 
+   # Load already saved dataset with juliet:
    dataset = juliet.load(input_folder = 'toi141_fit', out_folder = 'toi141_fit')
 
-   # Load results (the data.fit call will recognize the juliet output files in the toi141_fit folder 
-   # generated when we ran the code for the first time):
+   # Load results (the data.fit call will recognize the juliet output files in 
+   # the toi141_fit folder generated when we ran the code for the first time):
    results = dataset.fit()
 
-   # Plot the data:
    import matplotlib.pyplot as plt
+
+   # Plot the data:
    plt.errorbar(dataset.times_lc['TESS'], dataset.data_lc['TESS'], \
                 yerr = dataset.errors_lc['TESS'], fmt = '.', alpha = 0.1)
 
@@ -199,7 +203,7 @@ at this dataset again with another ``python`` session and say, plot the data and
 
 Which will give us a nice plot of the data and the `juliet` fit:
 
-.. image:: juliet_transit_fit.png
+.. figure:: juliet_transit_fit.png
    :alt: Juliet fit of TOI-141b.
 
 To learn more on what `juliet` can do for your exoplanet research, check out the tutorials!
