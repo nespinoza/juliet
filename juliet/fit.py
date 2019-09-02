@@ -1121,7 +1121,13 @@ class fit(object):
                 writepp(outpp,out)
 
         # Save all results (posteriors) to the self.results object:
-        self.results = out
+        self.posteriors = out
+  
+        # Save posteriors to lc_model and rv_model:
+        if self.data.t_lc is not None:
+            self.lc_model.set_posterior_samples(out['posterior_samples'])
+        if self.data.t_rv is not None:
+            self.rv_model.set_posterior_samples(out['posterior_samples'])
 
 class model(object):
     """
@@ -1247,26 +1253,40 @@ class model(object):
                 self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
                                                                                       parameter_values['sigma_w_'+instrument]**2
         
-    def evaluate_lc_model(self, t):
+    def evaluate_lc_model(self, instrument, parameter_values = None, resampling = None, nresampling = None, etresampling = None):
         """
         This functions evaluate the current lc model into a new set of times.
         """
-        return True
-  
-    def predict_lc_model(self, t, posteriors):
+        if resampling is not None:
+             self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'],\
+                                                                                              nresampling = nresampling,\
+                                                                                              etresampling = etresampling)
+        # Check if user gave input parameter_values dictionary. If that's the case, generate again the 
+        # full lightcurve model:
+        if parameter_values is not None:
+            self.generate_lc_model(parameter_values)
+
+        if resampling is not None: 
+             # get lc, return, then turn all back to normal:
+             self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'],\
+                                                                                              nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                              etresampling = self.dictionary[instrument]['exptimeresampling'])
+        return self.model[instrument]['full']
+
+    def predict_lc_model(self, t, posteriors = None):
         """
         Using the posteriors and a set of times, this function predicts the lc model into new times with errors.
         """
         return True
      
 
-    def evaluate_rv_model(self, t):
+    def evaluate_rv_model(self, t, parameter_values = None):
         """
         This functions evaluate the current rv model into a new set of times.
         """
         return True 
   
-    def predict_rv_model(self, t, posteriors):
+    def predict_rv_model(self, t, posteriors = None):
         """
         Using the posteriors and a set of times, this function predicts the rv model into new times with errors.
         """
@@ -1416,6 +1436,20 @@ class model(object):
                     log_like += self.gaussian_log_likelihood(residuals,self.model[instrument]['full_variances'])
             return log_like 
 
+    def set_posterior_samples(self, posterior_samples):
+        self.posteriors = posterior_samples
+        self.median_posterior_samples = {}
+        for parameter in self.posteriors.keys():
+            if parameter is not 'unnamed':
+                self.median_posterior_samples[parameter] = np.median(self.posteriors[parameter])
+        for parameter in self.priors:
+            if self.priors[parameter]['distribution'] == 'fixed':
+                self.median_posterior_samples[parameter] = self.priors[parameter]['hyperparameters']
+        try:
+            self.generate_lc_model(self.median_posterior_samples)
+        except:
+            print('Warning: model evaluated at the posterior median did not compute properly.')
+
     def __init__(self, data, modeltype, pl = 0.0, pu = 1.0, ecclim = 1., ta = 2458460., log_like_calc = False):
         # Inhert the priors dictionary from data:
         self.priors = data.priors
@@ -1428,6 +1462,9 @@ class model(object):
         # Define variable that at each iteration defines if the model is OK or not (not OK means something failed in terms of the 
         # parameter space being explored):
         self.modelOK = True
+        # Define a variable that will save the posterior samples:
+        self.posteriors = None
+        self.median_posterior_samples = None
         if modeltype == 'lc':
             self.modeltype = 'lc'
             # Inhert times, fluxes, errors, indexes, etc. from data:
