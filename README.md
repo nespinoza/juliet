@@ -8,3 +8,5 @@ Authors: Néstor Espinoza (espinoza@mpia.de) & Diana Kossakowski (kossakowski@mp
 > For usage and dependencies, **check the project's [wiki](https://github.com/nespinoza/juliet/wiki).**
 > Don't forget to [check out the paper](https://arxiv.org/abs/1812.08549).
 > For citation, see [this link](https://github.com/nespinoza/juliet/wiki/Citing-the-code).
+
+Acknowledgments: We would like to thank our referee, Daniel Foreman-Mackey (https://github.com/dfm) for very useful code and paper review and suggestions. Also to Raphael Gregory (https://github.com/raphaelgyory) for helping us with releasing the pip package and readthedocs for the project.
