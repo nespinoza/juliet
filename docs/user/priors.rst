@@ -71,22 +71,11 @@ Although the above are the basic planetary parameters allowed by ``juliet``, the
 allows to perform three more advanced and efficient parametrizations for some of its 
 parameters:
 
-- **The first is the one proposed by `Espinoza (2018) <https://ui.adsabs.harvard.edu/abs/2018RNAAS...2d.209E/abstract>`_**, in which 
-instead of fitting for ``p`` and ``b``, one fits for the parameters ``r1`` and ``r2`` which, if sampled with uniform priors between 0 
-and 1, are able to allow only physically plausible values for ``p`` and ``b`` (i.e., ``b < 1 + p``). This parametrization needs one to 
-define the smallest planet-to-star radius ratio to be considered, ``pl`` and the maximum planet-to-star radius ratio to be considered, 
-``pu``. For a coarse search, one could set ``pl`` to zero and ``pu`` to 1 --- these are the default values within ``juliet``.
+- **The first** is the one proposed by `Espinoza (2018) <https://ui.adsabs.harvard.edu/abs/2018RNAAS...2d.209E/abstract>`_, in which instead of fitting for ``p`` and ``b``, one fits for the parameters ``r1`` and ``r2`` which, if sampled with uniform priors between 0 and 1, are able to allow only physically plausible values for ``p`` and ``b`` (i.e., ``b < 1 + p``). This parametrization needs one to define the smallest planet-to-star radius ratio to be considered, ``pl`` and the maximum planet-to-star radius ratio to be considered, ``pu``. For a coarse search, one could set ``pl`` to zero and ``pu`` to 1 --- these are the default values within ``juliet``.
 
-- **The second parametrization** allowed by ``juliet`` is to define a prior for the stellar density, ``rho`` (in kg/m^3) instead of the 
-scaled semi-major axis of the planets, ``a``. This is useful because setting this for a system, using Kepler's third law one can recover 
-``a`` for each planet using only the period, ``P``, which is a mandatory parameter for any ``juliet`` run. In this way, instead of fitting 
-for ``a`` for different planetary systems, a single value of ``rho`` can be defined for the system.
+- **The second parametrization** allowed by ``juliet`` is to define a prior for the stellar density, ``rho`` (in kg/m^3) instead of the scaled semi-major axis of the planets, ``a``. This is useful because setting this for a system, using Kepler's third law one can recover ``a`` for each planet using only the period, ``P``, which is a mandatory parameter for any ``juliet`` run. In this way, instead of fitting for ``a`` for different planetary systems, a single value of ``rho`` can be defined for the system.
 
-- **The third parametrization** has to do with the eccentricity and the argument of periastron. ``juliet`` allows either to (1) fit for 
-them directly (via the ``ecc`` and ``omega`` parameters), (2) to fit for the parameters ``esinomega`` = ``ecc*sin(omega*180/pi)`` and 
-``ecosomega`` = ``ecc*cos(omega*180/pi)`` or (3) to fit for the parameters ``sesinomega`` = ``sqrt(ecc)*sin(omega*180/pi)`` and 
-``secosomega`` = ``sqrt(ecc)*cos(omega*180/pi)``. The latter two are typically defined between -1 and 1, and within ``juliet`` it is always 
-ensured that the eccentricity is smaller than 1.
+- **The third parametrization** has to do with the eccentricity and the argument of periastron. ``juliet`` allows either to (1) fit for them directly (via the ``ecc`` and ``omega`` parameters), (2) to fit for the parameters ``esinomega`` = ``ecc*sin(omega*180/pi)`` and ``ecosomega`` = ``ecc*cos(omega*180/pi)`` or (3) to fit for the parameters ``sesinomega`` = ``sqrt(ecc)*sin(omega*180/pi)`` and ``secosomega`` = ``sqrt(ecc)*cos(omega*180/pi)``. The latter two are typically defined between -1 and 1, and within ``juliet`` it is always ensured that the eccentricity is smaller than 1.
 
 Finally, for RVs there are three additional "planetary parameters" that can be passed, which are helpful to model long-period planets for 
 which no full cycles have been observed in the data yet. These are the ``rv_intercept``, ``rv_slope`` and ``rv_quad``. These fit a long-term 
