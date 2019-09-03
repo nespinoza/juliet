@@ -169,7 +169,7 @@ def readpriors(priorname):
         counter = -1
         priors = priorname
         input_dict = True
-        all_parameters = priors.keys()
+        all_parameters = list(priors.keys())
         n_allkeys = len(all_parameters)
     n_transit = 0
     n_rv = 0
