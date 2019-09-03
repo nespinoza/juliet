@@ -32,7 +32,7 @@ installing juliet, you can from anywhere in your system simply do:
 In this example, ``juliet`` is performing a fit using different inputs defined by ``-flag1``, ``-flag2`` and ``--flag3``. 
 There are several flags that can be used to accomodate your ``juliet`` runs through command-line which we'll explore 
 in the tutorials. There is a third way of using ``juliet``, which is by calling the ``juliet.py`` code and applying 
-these same flags (as it is currently explained in `project's wiki page <https://github.com/nespinoza/juliet/wiki>`_. 
+these same flags (as it is currently explained in `project's wiki page <https://github.com/nespinoza/juliet/wiki>`_). 
 However, no further updates will be done for that method, and the ones defined above should be the preferred ones to 
 use.
 
@@ -86,7 +86,7 @@ are going to fit. This can be done in two ways. The longest (but more jupyter-no
 create a dictionary that, on each key, has the names of the parameter to be fitted. Each of those elements 
 will be dictionaries themselves, containing the ``distribution`` of the parameter and their corresponding 
 ``hyperparameters`` (for details on what distributions ``juliet`` can handle, what are the hyperparameters and 
-what each parameter name mean, see the next section of this document: :ref:`priorsnparameters`. 
+what each parameter name mean, see the next section of this document: :ref:`priorsnparameters`). 
 
 Let us give normal priors for the period ``P_p1``, time-of-transit center ``t0_p1``, mean out-of-transit
 flux ``mflux_TESS``, uniform distributions for the parameters ``r1_p1`` and ``r2_p1`` of the 
