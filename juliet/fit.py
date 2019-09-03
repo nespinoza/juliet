@@ -12,14 +12,12 @@ try:
     from dynesty.utils import resample_equal
     force_pymultinest = False
 except:
-    print('Dynesty installation not detected. Forcing pymultinest.')
     force_pymultinest = True
 # Import multinest for (importance) nested sampling:
 try:
     import pymultinest
     force_dynesty = False
 except:
-    print('(py)MultiNest installation (or libmultinest.dylib) not detected. Forcing sampling with dynesty.')
     force_dynesty = True
 
 # Import generic useful classes:
