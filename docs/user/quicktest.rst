@@ -86,8 +86,7 @@ are going to fit. This can be done in two ways. The longest (but more jupyter-no
 create a dictionary that, on each key, has the names of the parameter to be fitted. Each of those elements 
 will be dictionaries themselves, containing the ``distribution`` of the parameter and their corresponding 
 ``hyperparameters`` (for details on what distributions ``juliet`` can handle, what are the hyperparameters and 
-what each parameter name mean, see Sections 2.1, 2.2 and 2.3 of the ``juliet`` `wiki page 
-<https://github.com/nespinoza/juliet/wiki/Installing-and-basic-usage>`_ ).
+what each parameter name mean, see the next section of this document: :ref:`priorsnparameters`. 
 
 Let us give normal priors for the period ``P_p1``, time-of-transit center ``t0_p1``, mean out-of-transit
 flux ``mflux_TESS``, uniform distributions for the parameters ``r1_p1`` and ``r2_p1`` of the 
