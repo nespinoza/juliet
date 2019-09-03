@@ -994,6 +994,14 @@ class fit(object):
         if self.data.t_rv is not None:
             self.rv_model = model(self.data, modeltype = 'rv', ecclim = self.ecclim, ta = self.ta, log_like_calc = True)
 
+        # Before starting, check if force_dynesty or force_pymultinest is on; change options accordingly:
+        if force_dynesty and (not self.use_dynesty):
+            print('PyMultinest installation not detected. Forcing dynesty as the sampler.')
+            self.use_dynesty = True
+        if force_pymultinest and self.use_dynesty:
+            print('dynesty installation not detected. Forcing PyMultinest as the sampler.')
+            self.use_dynesty = False
+
         # If not ran and saved already, run dynesty or MultiNest, and save posterior samples and evidences to pickle file:
         out = {}
         runMultiNest = False
