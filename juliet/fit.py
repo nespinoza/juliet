@@ -599,7 +599,7 @@ class load(object):
             # Now radial-velocity data:
             if (not os.path.exists(self.out_folder+'rvs.dat')):
                 if self.rvfilename is not None:
-                    os.system('cp '+rvfilename+' '+self.out_folder+'rvs.dat')
+                    os.system('cp '+self.rvfilename+' '+self.out_folder+'rvs.dat')
                 elif self.t_rv is not None:
                     self.save_data(self.out_folder+'rvs.dat',self.t_rv,self.y_rv,self.yerr_rv,self.instruments_rv,self.lm_rv_boolean,self.lm_rv_arguments)
             # Next, save GP regressors:
@@ -875,7 +875,7 @@ class fit(object):
     """
 
     def set_prior_transform(self):
-        for pname in self.data.priors.keys():
+        for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] != 'fixed':
                 if self.data.priors[pname]['distribution'] == 'uniform':
                     self.transform_prior[pname] = transform_uniform
@@ -892,7 +892,7 @@ class fit(object):
 
     def prior(self, cube, ndim = None, nparams = None):
         pcounter = 0
-        for pname in self.data.priors.keys():
+        for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] != 'fixed':
                 if self.use_dynesty:
                     self.transformed_priors[pcounter] = self.transform_prior[pname](cube[pcounter], \
@@ -907,7 +907,7 @@ class fit(object):
     def loglike(self, cube, ndim=None, nparams=None):
         # Evaluate the joint log-likelihood. For this, first extract all inputs:
         pcounter = 0
-        for pname in self.posteriors.keys():
+        for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] != 'fixed':
                 self.posteriors[pname] = cube[pcounter]
                 pcounter += 1
@@ -961,12 +961,6 @@ class fit(object):
         #        self.Ar = (self.pu - self.pl)/(2. + self.pl + self.pu)
         # Inhert the output folder:
         self.out_folder = data.out_folder
-        # For each of the variables in the prior that is not fixed, define an internal dictionary that will save the 
-        # corresponding transformation function to the prior corresponding to that variable. Idea is that with this one 
-        # simply does self.transform_prior[variable_name](value) and you get the transformed value to the 0,1 prior. 
-        # This avoids having to keep track of the prior distribution on each of the interations:
-        self.transform_prior = {}
-        self.set_prior_transform()
         self.transformed_priors = np.zeros(self.data.nparams)
 
         # Define prefixes in case saving is turned on (i.e., user passed an out_folder):
@@ -980,11 +974,19 @@ class fit(object):
 
         # Generate a posteriors self that will save the current values of each of the parameters:
         self.posteriors = {}
-        for pname in self.data.priors.keys():
+        self.model_parameters = self.data.priors.keys()
+        for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] == 'fixed':
                 self.posteriors[pname] = self.data.priors[pname]['hyperparameters']
             else:
                 self.posteriors[pname] = 0.#self.data.priors[pname]['cvalue']
+
+        # For each of the variables in the prior that is not fixed, define an internal dictionary that will save the 
+        # corresponding transformation function to the prior corresponding to that variable. Idea is that with this one 
+        # simply does self.transform_prior[variable_name](value) and you get the transformed value to the 0,1 prior. 
+        # This avoids having to keep track of the prior distribution on each of the interations:
+        self.transform_prior = {} 
+        self.set_prior_transform()
 
         # Generate light-curve and radial-velocity models:
         if self.data.t_lc is not None:
@@ -1056,7 +1058,7 @@ class fit(object):
             out['posterior_samples']['unnamed'] = posterior_samples
             # Extract parameters:
             pcounter = 0
-            for pname in self.posteriors.keys():
+            for pname in self.model_parameters:
                 if data.priors[pname]['distribution'] != 'fixed':
                     self.posteriors[pname] = np.median(posterior_samples[:,pcounter])
                     out['posterior_samples'][pname] = posterior_samples[:,pcounter]
@@ -1228,7 +1230,7 @@ class model(object):
             self.model['radvel']['k'+str(n+1)] = radvel.Parameter(value = K)
 
         # If log_like_calc is True (by default during juliet.fit), don't bother saving the RVs of planet p_i:
-        if log_like_calc:
+        if self.log_like_calc:
             self.model['Keplerian'] = radvel.model.RVModel(self.model['radvel']).__call__(self.t)
         else:
             self.model['Keplerian'] = radvel.model.RVModel(self.model['radvel']).__call__(self.t)
@@ -1242,10 +1244,12 @@ class model(object):
         elif self.dictionary['fitrvquad']:
             self.model['Keplerian+Trend'] = self.model['Keplerian'] + parameter_values['rv_intercept'] + (self.t - self.ta)*parameter_values['rv_slope'] + \
                                                                       ((self.t - self.ta)**2)*parameter_values['rv_quad']
+        else:
+            self.model['Keplerian+Trend'] = self.model['Keplerian']
 
         # Populate the self.model[instrument]['full'] array. This hosts the full (deterministic) model for each RV instrument.
         for instrument in self.inames:
-            self.model[instrument]['full'] = self.model['Keplerian+Trend'] + parameter_values['mu_'+instrument] 
+            self.model[instrument]['full'] = self.model['Keplerian+Trend'][self.instrument_indexes[instrument]] + parameter_values['mu_'+instrument] 
             self.model[instrument]['full_variances'] = self.errors[instrument]**2 + parameter_values['sigma_w_'+instrument]**2
             # If the model under consideration is a global model, populate the global model dictionary:
             if self.global_model:
@@ -1280,11 +1284,14 @@ class model(object):
         return True
      
 
-    def evaluate_rv_model(self, t, parameter_values = None):
+    def evaluate_rv_model(self, instrument, parameter_values = None):
         """
         This functions evaluate the current rv model into a new set of times.
         """
-        return True 
+        if parameter_values is not None:
+            self.generate_rv_model(parameter_values)
+
+        return self.model[instrument]['full']
   
     def predict_rv_model(self, t, posteriors = None):
         """
@@ -1446,7 +1453,7 @@ class model(object):
             if self.priors[parameter]['distribution'] == 'fixed':
                 self.median_posterior_samples[parameter] = self.priors[parameter]['hyperparameters']
         try:
-            self.generate_lc_model(self.median_posterior_samples)
+            self.generate(self.median_posterior_samples)
         except:
             print('Warning: model evaluated at the posterior median did not compute properly.')
 
@@ -1465,6 +1472,8 @@ class model(object):
         # Define a variable that will save the posterior samples:
         self.posteriors = None
         self.median_posterior_samples = None
+        # Number of datapoints per instrument variable:
+        self.ndatapoints_per_instrument = {}
         if modeltype == 'lc':
             self.modeltype = 'lc'
             # Inhert times, fluxes, errors, indexes, etc. from data:
@@ -1476,7 +1485,6 @@ class model(object):
             self.errors = data.errors_lc
             self.instruments = data.instruments_lc
             self.ninstruments = data.ninstruments_lc
-            self.ndatapoints_per_instrument = {}
             self.inames = data.inames_lc
             self.instrument_indexes = data.instrument_indexes_lc
             self.lm_boolean = data.lm_lc_boolean
@@ -1565,6 +1573,7 @@ class model(object):
             self.instrument_indexes = data.instrument_indexes_rv
             self.lm_boolean = data.lm_rv_boolean
             self.lm_arguments = data.lm_rv_arguments
+            self.lm_n = {}
             self.global_model = data.global_rv_model
             self.dictionary = data.rv_options
             self.numbering = data.numbering_rv_planets
@@ -1576,7 +1585,7 @@ class model(object):
                 self.model['global'] = np.zeros(len(self.t))
                 self.model['global_errors'] = np.zeros(len(self.t))
             # Initialize radvel:
-            self.model['radvel'] = self.init_radvel(nplanets=len(self.nplanets))
+            self.model['radvel'] = self.init_radvel(nplanets=self.nplanets)
             # First go around all planets to compute the full RV models:
             for i in self.numbering:
                 self.model['p'+str(i)] = np.ones(len(self.t))
@@ -1586,11 +1595,12 @@ class model(object):
             self.model['Keplerian+Trend'] = np.ones(len(self.t))
             # Go around each instrument:
             for instrument in self.inames:
+                self.model[instrument] = {}
                 # Extract number of datapoints per instrument:
                 self.ndatapoints_per_instrument[instrument] = len(self.instrument_indexes[instrument])
                 # Extract number of linear model terms per instrument:
-                if lm_boolean[instrument]:
-                    lm_n[instrument] = lm_arguments[instrument].shape[1]
+                if self.lm_boolean[instrument]:
+                    self.lm_n[instrument] = self.lm_arguments[instrument].shape[1]
                 # Generate internal model variables of interest to the user. First, the RV model in the notation of juliet (Mi) 
                 # (full RV model plus offset velocity, plus trend):
                 self.model[instrument]['M'] = np.ones(len(self.instrument_indexes[instrument]))
@@ -1608,7 +1618,7 @@ class model(object):
             # Set the model-type to M(t):
             self.evaluate = self.evaluate_rv_model
             self.predict = self.predict_rv_model
-            self.set_parameters = self.set_rv_parameters
+            self.generate = self.generate_rv_model
         else:
             raise Exception('Model type "'+lc+'" not recognized. Currently it can only be "lc" for a light-curve model or "rv" for radial-velocity model.')
        
