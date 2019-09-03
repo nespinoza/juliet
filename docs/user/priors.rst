@@ -3,7 +3,7 @@
 Models, priors and outputs
 ===================
 
-As it was shown in the `Getting started` section, a typical ``juliet`` run will make use of two objects which form the core of 
+As it was shown in the :ref:`quicktest` section, a typical ``juliet`` run will make use of two objects which form the core of 
 the library: the ``load`` object and the ``fit`` object. The former is used to load a dataset, and the second is used to fit that 
 dataset using the samplers supported within ``juliet``, which in turn spits out the result of the fit including posterior 
 distributions, fits, etc. In general, a dataset can be loaded to ``juliet`` by the simple call 
@@ -41,20 +41,9 @@ multiple-planet systems!). The instrument parameters, on the other hand, are alw
 
 The (basic) **planetary parameters** currently supported by ``juliet`` are:
 
-| Parameter name | Description |
-| ------------- |------------- | 
-| ``P_p1`` | The planetary period of the planet under study (days). |
-| ``t0_p1``     | The time-of-transit center of the planet under study (days). |
-|     ``p_p1``      | Planet-to-star radius ratio (Rp/Rs).|
-|     ``b_p1``      | Impact parameter of the orbit.|
-|     ``a_p1``      | Scaled semi-major axis of the orbit (a/R*).|
-|     ``ecc_p1``    | Eccentricity of the orbit.|
-|     ``omega_p1``  | Argument of periastron passage of the orbit (in degrees).|
-|     ``K_p1``      | RV semi-amplitude of the orbit of the planet (same units as radial-velocity data).|
-
 +------------------+-----------------------------------------------------------------------+
 | Parameter name   |           Description                                                 |
-+==========================================================================================+
++==================+=======================================================================+
 | ``P_p1``         | The planetary period of the planet under study (days).                |
 +------------------+-----------------------------------------------------------------------+
 | ``t0_p1``        | The time-of-transit center of the planet under study (days).          |
@@ -99,21 +88,21 @@ Exoplanets with juliet, pt. II: instrumental parameters
 
 The **instrument parameters** currently supported by ``juliet`` are:
 
-+------------------+--------------------------------------------------------+
-| Parameter name   |           Description                                  |   
-+===========================================================================+
-| ``mdilution_instrument``         | The dilution factor for the photometric `instrument`. |
-+------------------+--------------------------------------------------------+
-| ``mflux_instrument``        | The offset relative flux for the photometric `instrument`. |
-+------------------+--------------------------------------------------------+
-| ``sigma_w_instrument``   | A jitter (in ppm or RV units) added in quadrature to the errorbars of `instrument`. |
-+------------------+--------------------------------------------------------+
-| ``q1_instrument``         | Limb-darkening parametrization for photometric `instrument`. |
-+------------------+--------------------------------------------------------+
-| ``q2_instrument``         | Limb-darkening parametrization for photometric `instrument`. |
-+------------------+--------------------------------------------------------+
-| ``mu_instrument``       | Systemic radial-velocity for a radial-velocity `instrument` (same units as data). |
-+------------------+--------------------------------------------------------+
++----------------------------+-------------------------------------------------------------------------------------+
+| Parameter name             |           Description                                                               |   
++============================+=====================================================================================+
+| ``mdilution_instrument``   | The dilution factor for the photometric `instrument`.                               |
++----------------------------+-------------------------------------------------------------------------------------+
+| ``mflux_instrument``       | The offset relative flux for the photometric `instrument`.                          |
++----------------------------+-------------------------------------------------------------------------------------+
+| ``sigma_w_instrument``     | A jitter (in ppm or RV units) added in quadrature to the errorbars of `instrument`. |
++----------------------------+-------------------------------------------------------------------------------------+
+| ``q1_instrument``          | Limb-darkening parametrization for photometric `instrument`.                        |
++----------------------------+-------------------------------------------------------------------------------------+
+| ``q2_instrument``          | Limb-darkening parametrization for photometric `instrument`.                        |
++----------------------------+-------------------------------------------------------------------------------------+
+| ``mu_instrument``          | Systemic radial-velocity for a radial-velocity `instrument` (same units as data).   |
++----------------------------+-------------------------------------------------------------------------------------+
 
 Here, ``q1`` and ``q2`` are the limb-darkening parametrizations of `Kipping (2013) <https://ui.adsabs.harvard.edu/#abs/arXiv:1308.0009>`_ 
 for two-parameter limb-darkening laws for all laws except for the logarithmic, where they correspond to the transformations in 
@@ -135,35 +124,34 @@ Check the tutorials to see how to implement those.
 Priors
 -------
 
-As introduced at the beggining, a set of priors can be defined for the parameters under consideration via the ``priors`` variable. 
-Currently, `juliet` supports the following prior distributions to be defined for the parameters:
+As introduced at the beggining, a set of priors can be defined for the parameters under consideration via the ``priors`` variable, 
+which can be either a filename containing a file with the priors as was done in the :ref:`quicktest` section, or a dictionary, as 
+was also done in that section. Currently, `juliet` supports the following prior distributions to be defined for the parameters:
 
-+----------------+----------------------------------------------------------+
-| Distribution   |           Description                                    |
-+===========================================================================+
-| ``Uniform``     | A uniform distribution defined between a lower and upper limit.|
-+------------------+--------------------------------------------------------+
-| ``Normal``      |  A normal distribution defined by its mean and standard-deviation.|
-+------------------+--------------------------------------------------------+
-| ``TruncatedNormal`` |  A normal distribution defined by its mean and standard-deviation, |
-                      |  along with a lower and upper limit defining its support.|
-+------------------+--------------------------------------------------------+
-| ``Jeffreys`` or ``Loguniform`` |  A log-uniform distribution defined between a lower and upper limit. |
-+------------------+--------------------------------------------------------+
-| ``Beta``         | A beta distribution having support between 0 and 1, defined by its alpha and beta shape parameters.|
-+------------------+--------------------------------------------------------+
++---------------------+-----------------------------------------------------+----------------------+
+|    Distribution     |     Description                                     | Hyperparameters      |
++=====================+=====================================================+======================+
+| ``Uniform``         | A uniform distribution defined                      | ``a,b``              |
+|                     | between a lower (``a``) and upper (``b``) limit.    |                      |
++---------------------+-----------------------------------------------------+----------------------+
+| ``Normal``          |  A normal distribution defined by its mean ``mu``   | ``mu,sigma``         | 
+|                     |  and standard-deviation ``sigma``.                  |                      |
++---------------------+-----------------------------------------------------+----------------------+
+| ``TruncatedNormal`` |  A normal distribution defined by its mean ``mu``   |                      |
+|                     |  and standard-deviation ``sigma``, along with a     | ``mu,sigma,a,b``     |
+|                     |  lower (``a``) and upper (``b``) limit defining     |                      |
+|                     |  its support.                                       |                      |
++---------------------+-----------------------------------------------------+----------------------+
+| ``Jeffreys`` or     |  A log-uniform distribution defined between a       |  ``a,b``             |
+| or ``Loguniform``   |  lower (``a``) and upper (``b``) limit.             |                      |
++---------------------+-----------------------------------------------------+----------------------+
+| ``Beta``            |  A beta distribution having support between 0 and 1 |  ``alpha,beta``      |
+|                     |  defined by its ``alpha`` and ``beta`` parameters.  |                      |
++---------------------+-----------------------------------------------------+----------------------+
 
+Note that the hyperparameters have to be passed on the order defined above in the prior file or dictionary. 
 Further distributions can be made available for `juliet` upon request, as they are extremely easy to implement. 
 If a parameter wants to be fixed to a known value, then the prior distribution can be set to `FIXED`. 
-
-As shown in the `Getting started` fit, priors can be either defined through a direct dictionary or through a file 
-containing the prior. This file contains in its first column the definition of the planetary and instrumental parameters 
-for each planet/instrument in the system. The second column contains the prior assumed for a given value. Finally, the third 
-column indicates the hyperparameters of the selected priors separated by commas: for ``Uniform`` and ``Jeffreys`` priors, these 
-indicate the lower and upper limits. For ``Normal`` priors, these define the mean and standard-deviation of the prior. For a 
-``TruncatedNormal`` prior, the first two parameters define the mean and standard-deviation of the normal distribution, whereas the 
-last two parameters define the support of the distribution. Finally, for a ``Beta`` distribution these define the alpha and beta 
-shape-parameters.
 
 Outputs
 -------
