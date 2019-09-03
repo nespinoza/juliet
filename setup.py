@@ -13,4 +13,8 @@ setup(name='juliet',
             'seaborn':['seaborn'],
             'pymultinest':['pymultinest'],
             'matplotlib':['matplotlib'],},
+      entry_points={
+            'console_scripts': [
+                 'juliet=juliet.__main__:main'
+            ]},
       zip_safe=False)
