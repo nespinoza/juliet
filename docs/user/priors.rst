@@ -40,6 +40,7 @@ multiple-planet systems!). The instrument parameters, on the other hand, are alw
 ``parameter_instrument``, where ``instrument`` is an instrument name.
 
 The (basic) **planetary parameters** currently supported by ``juliet`` are:
+
 +---------------------------------------------------------------------------+
 | Parameter name   |           Description                                  |
 +===========================================================================+
@@ -97,6 +98,7 @@ Exoplanets with juliet, pt. II: instrumental parameters
 --------------------------------
 
 The **instrument parameters** currently supported by ``juliet`` are:
+
 +---------------------------------------------------------------------------+
 | Parameter name   |           Description                                  |   
 +===========================================================================+
