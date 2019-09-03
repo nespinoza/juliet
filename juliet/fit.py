@@ -900,7 +900,7 @@ class fit(object):
                                                           self.data.priors[pname]['hyperparameters'])
                 pcounter += 1
         if self.use_dynesty:
-            return self.transformed_priors[pcounter]
+            return self.transformed_priors
 
     def loglike(self, cube, ndim=None, nparams=None):
         # Evaluate the joint log-likelihood. For this, first extract all inputs:
