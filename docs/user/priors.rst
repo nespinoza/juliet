@@ -61,7 +61,7 @@ The (basic) **planetary parameters** currently supported by ``juliet`` are:
 | ``K_p1``         | RV semi-amplitude of the orbit of the planet (same units as RV data). |
 +------------------+-----------------------------------------------------------------------+
 
-Within ``juliet``, it is very important that the periods of the planets are order chronologically, 
+Within ``juliet``, it is very important that the periods of the planets are in chronological order, 
 i.e., that ``P_p1 < P_p2 < ....``. This is to avoid solutions in which the periods of the planets 
 can be exchanged between the variables. When fitting for transit data, all of the above but ``K`` 
 have to be defined for each planet. When fitting radial-velocities, only ``P``, ``t0``, ``ecc``, ``omega`` 
@@ -143,7 +143,7 @@ was also done in that section. Currently, `juliet` supports the following prior 
 |                     |  its support.                                       |                      |
 +---------------------+-----------------------------------------------------+----------------------+
 | ``Jeffreys`` or     |  A log-uniform distribution defined between a       |  ``a,b``             |
-| or ``Loguniform``   |  lower (``a``) and upper (``b``) limit.             |                      |
+| ``Loguniform``      |  lower (``a``) and upper (``b``) limit.             |                      |
 +---------------------+-----------------------------------------------------+----------------------+
 | ``Beta``            |  A beta distribution having support between 0 and 1 |  ``alpha,beta``      |
 |                     |  defined by its ``alpha`` and ``beta`` parameters.  |                      |
