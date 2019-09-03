@@ -30,11 +30,11 @@ installing juliet, you can from anywhere in your system simply do:
     juliet -flag1 -flag2 --flag3
 
 In this example, ``juliet`` is performing a fit using different inputs defined by ``-flag1``, ``-flag2`` and ``--flag3``. 
-There are several flags that can be used to accomodate your ``juliet`` runs. If this mode suits your needs, 
-check out the `project's wiki page to find out more about this mode <https://github.com/nespinoza/juliet/wiki>`_. There 
-is a third way of using ``juliet``, which is by calling the ``juliet.py`` code and applying these same flags (as it 
-is currently explained in `project's wiki page <https://github.com/nespinoza/juliet/wiki>`_. However, no further updates 
-will be done for that method, and the ones defined above should be the preferred ones to use.
+There are several flags that can be used to accomodate your ``juliet`` runs through command-line which we'll explore 
+in the tutorials. There is a third way of using ``juliet``, which is by calling the ``juliet.py`` code and applying 
+these same flags (as it is currently explained in `project's wiki page <https://github.com/nespinoza/juliet/wiki>`_. 
+However, no further updates will be done for that method, and the ones defined above should be the preferred ones to 
+use.
 
 A first fit to data with juliet
 -----------------------------------------------
