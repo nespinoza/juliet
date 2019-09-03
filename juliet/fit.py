@@ -239,7 +239,7 @@ class load(object):
         This converts the input dictionaries to arrays (this is easier to handle internally within juliet; input dictionaries are just asked because 
         it is easier for the user to pass them)
         """
-        instruments = t.keys()
+        instruments = list(t.keys())
         all_times = np.array([])
         all_y = np.array([])
         all_yerr = np.array([])
@@ -758,14 +758,14 @@ class load(object):
             self.GP_lc_arguments, self.global_lc_model = readGPeparams(GPlceparamfile)
         elif GP_regressors_lc is not None:
             self.GP_lc_arguments = GP_regressors_lc
-            instruments = set(self.GP_lc_arguments.keys())
+            instruments = set(list(self.GP_lc_arguments.keys()))
 
         # Same thing for RVs:
         if GPrveparamfile is not None:
             self.GP_rv_arguments, self.global_rv_model = readGPeparams(GPrveparamfile)
         elif GP_regressors_rv is not None:
             self.GP_rv_arguments = GP_regressors_rv
-            instruments = set(self.GP_rv_arguments.keys())
+            instruments = set(list(self.GP_rv_arguments.keys()))
 
         # If data given through direct arrays (i.e., not data files), generate some useful internal lightcurve arrays: inames_lc, which have the different lightcurve instrument names, 
         # instrument_indexes_lc (dictionary that holds, for each instrument, the indexes that have the time/lightcurve data for that particular instrument), lm_lc_boolean (dictionary of 
@@ -974,7 +974,7 @@ class fit(object):
 
         # Generate a posteriors self that will save the current values of each of the parameters:
         self.posteriors = {}
-        self.model_parameters = self.data.priors.keys()
+        self.model_parameters = list(self.data.priors.keys())
         for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] == 'fixed':
                 self.posteriors[pname] = self.data.priors[pname]['hyperparameters']
