@@ -8,21 +8,21 @@ Installation
 Installing via pip
 +++++++++++
 
-`juliet` can be easily installed using `pip <https://pip.pypa.io>`_:
+``juliet`` can be easily installed using `pip <https://pip.pypa.io>`_:
 
 .. code-block:: bash
 
     pip install juliet
 
-The core of `juliet` is comprised of the transit (`batman <https://www.cfa.harvard.edu/~lkreidberg/batman/>`_, 
+The core of ``juliet`` is comprised of the transit (`batman <https://www.cfa.harvard.edu/~lkreidberg/batman/>`_, 
 `starry <https://rodluger.github.io/starry/>`_), radial-velocity (`radvel <https://radvel.readthedocs.io/en/latest/>`_) 
 and Gaussian Process (`george <https://george.readthedocs.io/en/latest/>`_, 
 `celerite <https://celerite.readthedocs.io/en/stable/>`_) modelling tools, as well as 
 of the Nested Sampling algorithms (`MultiNest` via `pymultinest <https://github.com/JohannesBuchner/PyMultiNest>`_, 
-`dynesty <https://dynesty.readthedocs.io>`_) that it uses. However, by default the `juliet` installation will 
-force `dynesty` as the main sampler to be installed, and only optionally install `pymultinest`. This is because 
-the `pymultinest` installation can involve a couple of extra steps, which we really recommend following, as 
-`pymultinest` might be faster for problems involving less than about 20 free parameters (see below).
+`dynesty <https://dynesty.readthedocs.io>`_) that it uses. However, **by default the ``juliet`` installation will 
+force `dynesty` as the main sampler to be installed, and will not install `pymultinest`**. This is because 
+the ``pymultinest`` installation can involve a couple of extra steps, which we really recommend following, as 
+``pymultinest`` might be faster for problems involving less than about 20 free parameters (see below).
 
 
 .. _source_install:
@@ -30,7 +30,7 @@ the `pymultinest` installation can involve a couple of extra steps, which we rea
 Installing from source
 +++++++++++
 
-The source code for `juliet` can be downloaded `from GitHub
+The source code for ``juliet`` can be downloaded `from GitHub
 <https://github.com/nespinoza/juliet>`_ by running
 
 .. code-block:: bash
@@ -50,9 +50,9 @@ To install the latest version of the code.
 Installing pymultinest
 +++++++++++
 
-The full instructions on how to install `pymultinest can be found in the project's documentation 
-<http://johannesbuchner.github.io/PyMultiNest/install.html>`_. We repeat here the main steps. First, 
-install it via `pip <https://pip.pypa.io>`_:
+As described above, we really recommend installyng ``pymultinest``. The full instructions on how to install 
+`pymultinest can be found in the project's documentation <http://johannesbuchner.github.io/PyMultiNest/install.html>`_. 
+We repeat here the main steps. First, install it via `pip <https://pip.pypa.io>`_:
 
 .. code-block:: bash
 
@@ -68,18 +68,26 @@ Then, you need to build and compile `MultiNest`. For this, do:
     make
 
 This will create a file `libmultinest.so` under `MultiNest/lib`, that is the one that will allow us  
-to use `pymultinest`. Include that directory then in your `LD_LIBRARY_PATH` so you can use it from any 
+to use `pymultinest`. Include that directory then in your ``LD_LIBRARY_PATH`` so you can use it from any 
 directory in your system.
 
 .. _python-deps:
 
 **Dependencies**
 
-For `juliet` to run you need a Python installation. After installation, you need to install:
+The above installation instructuins for ``juliet`` assume you have a Python installation. ``juliet``, in turn, 
+depends on the following libraries/packages, all of which will be installed automatically if you follow the instructions 
+above:
 
 1. `NumPy <http://www.numpy.org/>`_,
 2. `SciPy <http://www.numpy.org/>`_,
-3. `matplotlib <https://matplotlib.org/>`_, and
-4. `seaborn <https://seaborn.pydata.org/>`_.
+3. `batman <https://www.cfa.harvard.edu/~lkreidberg/batman/>`_,
+4. `radvel <https://radvel.readthedocs.io/en/latest/>`_,
+5. `george <https://george.readthedocs.io/en/latest/>`_,
+6. `celerite <https://celerite.readthedocs.io/en/stable/>`_,
+7. `dynesty <https://dynesty.readthedocs.io>`_,
+8. `pymultinest <https://github.com/JohannesBuchner/PyMultiNest>`_ (optional),
+9. `matplotlib <https://matplotlib.org/>`_ (optional), and
+10. `seaborn <https://seaborn.pydata.org/>`_ (optional).
 
-The last two are optional, and are only needed for certain plotting functions within `juliet`.
+The last are only needed for certain plotting functions within ``juliet``. The ``pymultinest`` installation is optional, but highly recommended. 
