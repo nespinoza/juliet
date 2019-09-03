@@ -41,25 +41,36 @@ multiple-planet systems!). The instrument parameters, on the other hand, are alw
 
 The (basic) **planetary parameters** currently supported by ``juliet`` are:
 
-+------------------+--------------------------------------------------------+
-| Parameter name   |           Description                                  |
-+===========================================================================+
-| ``P_p1``         | The planetary period of the planet under study (days). |
-+------------------+--------------------------------------------------------+
-| ``t0_p1``        | The time-of-transit center of the planet under study (days). |
-+------------------+--------------------------------------------------------+
-| ``p_p1``         | Planet-to-star radius ratio (Rp/Rs). |
-+------------------+--------------------------------------------------------+
-| ``b_p1``         | Impact parameter of the orbit. |
-+------------------+--------------------------------------------------------+
-| ``a_p1``         | Scaled semi-major axis of the orbit (a/R*). |
-+------------------+--------------------------------------------------------+
-| ``ecc_p1``       | Eccentricity of the orbit. |
-+------------------+--------------------------------------------------------+
-| ``omega_p1``     | Argument of periastron passage of the orbit (in degrees). |
-+------------------+--------------------------------------------------------+
+| Parameter name | Description |
+| ------------- |------------- | 
+| ``P_p1`` | The planetary period of the planet under study (days). |
+| ``t0_p1``     | The time-of-transit center of the planet under study (days). |
+|     ``p_p1``      | Planet-to-star radius ratio (Rp/Rs).|
+|     ``b_p1``      | Impact parameter of the orbit.|
+|     ``a_p1``      | Scaled semi-major axis of the orbit (a/R*).|
+|     ``ecc_p1``    | Eccentricity of the orbit.|
+|     ``omega_p1``  | Argument of periastron passage of the orbit (in degrees).|
+|     ``K_p1``      | RV semi-amplitude of the orbit of the planet (same units as radial-velocity data).|
+
++------------------+-----------------------------------------------------------------------+
+| Parameter name   |           Description                                                 |
++==========================================================================================+
+| ``P_p1``         | The planetary period of the planet under study (days).                |
++------------------+-----------------------------------------------------------------------+
+| ``t0_p1``        | The time-of-transit center of the planet under study (days).          |
++------------------+-----------------------------------------------------------------------+
+| ``p_p1``         | Planet-to-star radius ratio (Rp/Rs).                                  |
++------------------+-----------------------------------------------------------------------+
+| ``b_p1``         | Impact parameter of the orbit.                                        |
++------------------+-----------------------------------------------------------------------+
+| ``a_p1``         | Scaled semi-major axis of the orbit (a/R*).                           |
++------------------+-----------------------------------------------------------------------+
+| ``ecc_p1``       | Eccentricity of the orbit.                                            |
++------------------+-----------------------------------------------------------------------+
+| ``omega_p1``     | Argument of periastron passage of the orbit (in degrees).             |
++------------------+-----------------------------------------------------------------------+
 | ``K_p1``         | RV semi-amplitude of the orbit of the planet (same units as RV data). |
-+------------------+--------------------------------------------------------+
++------------------+-----------------------------------------------------------------------+
 
 Within ``juliet``, it is very important that the periods of the planets are order chronologically, 
 i.e., that ``P_p1 < P_p2 < ....``. This is to avoid solutions in which the periods of the planets 
