@@ -41,7 +41,7 @@ multiple-planet systems!). The instrument parameters, on the other hand, are alw
 
 The (basic) **planetary parameters** currently supported by ``juliet`` are:
 
-+---------------------------------------------------------------------------+
++------------------+--------------------------------------------------------+
 | Parameter name   |           Description                                  |
 +===========================================================================+
 | ``P_p1``         | The planetary period of the planet under study (days). |
@@ -99,7 +99,7 @@ Exoplanets with juliet, pt. II: instrumental parameters
 
 The **instrument parameters** currently supported by ``juliet`` are:
 
-+---------------------------------------------------------------------------+
++------------------+--------------------------------------------------------+
 | Parameter name   |           Description                                  |   
 +===========================================================================+
 | ``mdilution_instrument``         | The dilution factor for the photometric `instrument`. |
@@ -138,7 +138,7 @@ Priors
 As introduced at the beggining, a set of priors can be defined for the parameters under consideration via the ``priors`` variable. 
 Currently, `juliet` supports the following prior distributions to be defined for the parameters:
 
-+---------------------------------------------------------------------------+
++----------------+----------------------------------------------------------+
 | Distribution   |           Description                                    |
 +===========================================================================+
 | ``Uniform``     | A uniform distribution defined between a lower and upper limit.|
