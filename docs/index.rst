@@ -38,6 +38,7 @@ sending us an email or `opening an issue <https://github.com/nespinoza/juliet/is
 
    user/installation
    user/quicktest
+   user/priors
 
 .. toctree::
    :maxdepth: 1

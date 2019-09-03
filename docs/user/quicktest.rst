@@ -205,5 +205,3 @@ Which will give us a nice plot of the data and the ``juliet`` fit:
 
 .. figure:: juliet_transit_fit.png
    :alt: Juliet fit of TOI-141b.
-
-To learn more on what ``juliet`` can do for your exoplanet research, check out the tutorials!
