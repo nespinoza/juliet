@@ -270,13 +270,17 @@ class load(object):
         fout = open(fname,'w')
         for GP_instrument in GP_arguments.keys():
             GP_regressors = GP_arguments[GP_instrument]
-            for i in range(GP_regressors.shape[0]):
-                for j in range(GP_regressors.shape[1]):
-                    fout.write('{0:.10f} '.format(GP_regressors[i,j]))
-                if GP_instrument is not 'global_model':
-                    fout.write('{0:}\n'.format(GP_instrument))
-                else:
-                    fout.write('\n')
+            multi_dimensional = False
+            if len(GP_regressors.shape) == 2:
+                multi_dimensional = True
+            if multi_dimensional:
+                 for i in range(GP_regressors.shape[0]):
+                     for j in range(GP_regressors.shape[1]):
+                         fout.write('{0:.10f} '.format(GP_regressors[i,j]))
+                     fout.write('{0:}\n'.format(GP_instrument))
+            else:
+                 for i in range(GP_regressors.shape[0]):
+                     fout.write('{0:.10f} {1:}\n'.format(GP_regressors[i],GP_instrument))
         fout.close()
 
     def save_data(self,fname,t,y,yerr,instruments,lm_boolean,lm_arguments):
@@ -1268,9 +1272,12 @@ class model(object):
         This functions evaluate the current lc model into a new set of times.
         """
         if resampling is not None:
-             self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'],\
-                                                                                              nresampling = nresampling,\
-                                                                                              etresampling = etresampling)
+            if resampling:
+                self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'],\
+                                                                                                 nresampling = nresampling,\
+                                                                                                 etresampling = etresampling)
+            else:
+                self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'])
         # Check if user gave input parameter_values dictionary. If that's the case, generate again the 
         # full lightcurve model:
         if parameter_values is not None:
@@ -1278,9 +1285,12 @@ class model(object):
 
         if resampling is not None: 
              # get lc, return, then turn all back to normal:
-             self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'],\
-                                                                                              nresampling = self.dictionary[instrument]['nresampling'],\
-                                                                                              etresampling = self.dictionary[instrument]['exptimeresampling'])
+             if self.dictionary[instrument]['resampling']:
+                 self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'],\
+                                                                                                  nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                  etresampling = self.dictionary[instrument]['exptimeresampling'])
+             else:
+                 self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'])
         return self.model[instrument]['full']
 
     def predict_lc_model(self, t, posteriors = None):
@@ -1519,6 +1529,17 @@ class model(object):
                 # Extract number of linear model terms per instrument:
                 if self.lm_boolean[instrument]:
                     self.lm_n[instrument] = self.lm_arguments[instrument].shape[1]
+                # An array of ones to copy around:
+                self.model[instrument]['ones'] = np.ones(len(self.instrument_indexes[instrument]))
+                # Generate internal model variables of interest to the user. First, the lightcurve model in the notation of juliet (Mi) 
+                # (full lightcurve plus dilution factors and mflux):
+                self.model[instrument]['M'] = np.ones(len(self.instrument_indexes[instrument]))
+                # Linear model (in the notation of juliet, LM):
+                self.model[instrument]['LM'] = np.zeros(len(self.instrument_indexes[instrument]))
+                # Now, generate dictionary that will save the final full model (M + LM):
+                self.model[instrument]['full'] = np.zeros(len(self.instrument_indexes[instrument]))
+                # Same for the errors:
+                self.model[instrument]['full_errors'] = np.zeros(len(self.instrument_indexes[instrument]))
                 if self.dictionary[instrument]['TransitFit']:
                     # First, take the opportunity to initialize transit lightcurves for each instrument:
                     if self.dictionary[instrument]['resampling']:
@@ -1527,20 +1548,9 @@ class model(object):
                                                                                                          etresampling = self.dictionary[instrument]['exptimeresampling'])
                     else:
                         self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'])
-                    # Generate internal model variables of interest to the user. First, the lightcurve model in the notation of juliet (Mi) 
-                    # (full lightcurve plus dilution factors and mflux):
-                    self.model[instrument]['M'] = np.ones(len(self.instrument_indexes[instrument]))
-                    # Linear model (in the notation of juliet, LM):
-                    self.model[instrument]['LM'] = np.zeros(len(self.instrument_indexes[instrument]))
-                    # Now, generate dictionary that will save the final full model (M + LM):
-                    self.model[instrument]['full'] = np.zeros(len(self.instrument_indexes[instrument]))
-                    # Same for the errors:
-                    self.model[instrument]['full_errors'] = np.zeros(len(self.instrument_indexes[instrument]))
                     # Individual transit lightcurves for each planet:
                     for i in self.numbering:
                         self.model[instrument]['p'+str(i)] = np.ones(len(self.instrument_indexes[instrument]))
-                    # An array of ones to copy around:
-                    self.model[instrument]['ones'] = np.ones(len(self.t[self.instrument_indexes[instrument]]))
                     # Now proceed with instrument namings:
                     for pname in self.priors.keys():
                         # Check if variable name is a limb-darkening coefficient:
@@ -1559,6 +1569,17 @@ class model(object):
                                 if instrument in vec:
                                     self.mdilution_iname[instrument] = '_'.join(vec[1:])
                             else:
+                                self.mdilution_iname[instrument] = vec[1]
+                else:
+                    # Now proceed with instrument namings:
+                    for pname in self.priors.keys():
+                        # Check if it is a dilution factor:
+                        if pname[0:9] == 'mdilution':
+                            vec = pname.split('_')
+                            if len(vec)>2:
+                                if instrument in vec:
+                                    self.mdilution_iname[instrument] = '_'.join(vec[1:])
+                            else:        
                                 self.mdilution_iname[instrument] = vec[1]
             # Set the model-type to M(t):
             self.evaluate = self.evaluate_lc_model
@@ -1747,9 +1768,9 @@ class gaussian_process(object):
         elif self.kernel_name == 'CeleriteMaternExpKernel':
             self.parameter_vector[0] = np.log(parameter_values['GP_sigma_'+self.input_instrument[0]])
             self.parameter_vector[1] = np.log(parameter_values['GP_timescale_'+self.input_instrument[1]])
-            self.parameter_vector[2] = np.log(parameter_values['GP_rho_'+self.input_instrument[2]])
+            self.parameter_vector[3] = np.log(parameter_values['GP_rho_'+self.input_instrument[2]])
             if not self.global_GP:
-                self.parameter_vector[3] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
+                self.parameter_vector[4] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
         elif self.kernel_name == 'CeleriteSHOKernel':
             self.parameter_vector[0] = np.log(parameter_values['GP_S0_'+self.input_instrument[0]])
             self.parameter_vector[1] = np.log(parameter_values['GP_Q_'+self.input_instrument[1]])
@@ -1848,6 +1869,7 @@ class gaussian_process(object):
         # Initialize each kernel on the GP object. First, set the variables to the ones defined above. Then initialize the 
         # actual kernel:
         self.variables = self.all_kernel_variables[self.kernel_name]
+        phantomvariable = 0
         if self.kernel_name == 'SEKernel':
             # Generate GPExpSquared base kernel:
             self.kernel = 1.*george.kernels.ExpSquaredKernel(np.ones(self.nX),ndim = self.nX, axes = range(self.nX))
@@ -1867,7 +1889,10 @@ class gaussian_process(object):
             # Jitter term:
             kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
             # Wrap GP kernel and object:
-            self.kernel = rot_kernel + kernel_jitter
+            if self.instrument in ['rv','lc']:
+                self.kernel = rot_kernel 
+            else:
+                self.kernel = rot_kernel + kernel_jitter
             # We are using celerite:
             self.use_celerite = True
         elif self.kernel_name == 'CeleriteExpKernel':
@@ -1876,7 +1901,10 @@ class gaussian_process(object):
             # Jitter term:
             kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
             # Wrap GP kernel and object:
-            self.kernel = exp_kernel + kernel_jitter
+            if self.instrument in ['rv','lc']:
+                self.kernel = exp_kernel
+            else:
+                self.kernel = exp_kernel + kernel_jitter
             # We are using celerite:
             self.use_celerite = True
         elif self.kernel_name == 'CeleriteMaternKernel':
@@ -1885,7 +1913,10 @@ class gaussian_process(object):
             # Jitter term:
             kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
             # Wrap GP kernel and object:
-            self.kernel = matern_kernel + kernel_jitter
+            if self.instrument in ['rv','lc']:
+                 self.kernel = matern_kernel
+            else:
+                 self.kernel = matern_kernel + kernel_jitter
             # We are using celerite:
             self.use_celerite = True
         elif self.kernel_name == 'CeleriteMaternExpKernel':
@@ -1895,7 +1926,14 @@ class gaussian_process(object):
             # Jitter term:
             kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
             # Wrap GP kernel and object:
-            self.kernel = exp_kernel*matern_kernel + kernel_jitter
+            if self.instrument in ['rv','lc']:
+                self.kernel = exp_kernel*matern_kernel
+            else:
+                self.kernel = exp_kernel*matern_kernel + kernel_jitter
+            # We add a phantom variable because we want to leave index 2 without value ON PURPOSE: the idea is 
+            # that here, that is always 0 (because this defines the log(sigma) of the matern kernel in the 
+            # multiplication, which we set to 1).
+            phantomvariable = 1
             # We are using celerite:
             self.use_celerite = True
         elif self.kernel_name == 'CeleriteSHOKernel':
@@ -1904,7 +1942,10 @@ class gaussian_process(object):
             # Jitter term:
             kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
             # Wrap GP kernel and object:
-            self.kernel = sho_kernel + kernel_jitter
+            if self.instrument in ['rv','lc']:
+                self.kernel = sho_kernel
+            else:
+                self.kernel = sho_kernel + kernel_jitter
             # We are using celerite:
             self.use_celerite = True
         # Check if use_celerite is True; if True, check that the regressor is ordered. If not, don't do the self.init_GP():
@@ -1924,10 +1965,10 @@ class gaussian_process(object):
             # (e.g., global photometric signal, or global RV signal) that assumes a given 
             # GP realization for all instruments (but allows different jitters for each 
             # instrument, added in quadrature to the self.yerr):
-            self.parameter_vector = np.zeros(len(self.variables))
+            self.parameter_vector = np.zeros(len(self.variables)+panthomvariable)
             self.global_GP = True
         else:
             # If GP per instrument, then there is one jitter term per instrument directly added in the model:
-            self.parameter_vector = np.zeros(len(self.variables)+1)
+            self.parameter_vector = np.zeros(len(self.variables)+1+phantomvariable)
             self.global_GP = False
         self.set_input_instrument(data.priors)
