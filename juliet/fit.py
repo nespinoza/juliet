@@ -753,7 +753,7 @@ class load(object):
             if (lcfilename is None) and (rvfilename is None): 
                 raise Exception('INPUT ERROR: No complete dataset (photometric or radial-velocity) given.\n'+\
                       ' Make sure to feed times (t_lc and/or t_rv), values (y_lc and/or y_rv), \n'+\
-                      ' errors (yerr_lc and/or yerr_rv) and associated instruments (instruments_lc and/or instruments_rv).')
+                      ' errors (yerr_lc and/or yerr_rv).')
 
         # Read GP regressors if given through files or arrays. The former takes priority. First lightcurve:
         if GPlceparamfile is not None:
@@ -776,6 +776,7 @@ class load(object):
             # First check user gave all data:
             input_error_catcher(t_lc,y_lc,yerr_lc,'lightcurve')
             tglobal_lc, yglobal_lc, yglobalerr_lc, instruments_lc = self.convert_input_data(t_lc, y_lc, yerr_lc)
+            # Save data in a foramt useful for global modelling:
             inames_lc, instrument_indexes_lc, lm_lc_boolean, lm_lc_arguments = self.data_preparation(tglobal_lc,instruments_lc,linear_regressors_lc,linear_instruments_lc)
             ninstruments_lc = len(inames_lc)
 
@@ -1168,7 +1169,7 @@ class model(object):
         models per planet (i.e., ``self.model['p1']``, ``self.model['p2']``, etc. will not exist). Default is False.
 
     """
-    def init_batman(self, ld_law, nresampling = None, etresampling = None):
+    def init_batman(self, t, ld_law, nresampling = None, etresampling = None):
          """  
          This function initializes the batman code.
          """
@@ -1186,9 +1187,9 @@ class model(object):
              params.u = [0.1,0.3]
          params.limb_dark = ld_law
          if nresampling is None or etresampling is None:
-             m = batman.TransitModel(params, self.t)
+             m = batman.TransitModel(params, t)
          else:
-             m = batman.TransitModel(params, self.t, supersample_factor=nresampling, exp_time=etresampling)
+             m = batman.TransitModel(params, t, supersample_factor=nresampling, exp_time=etresampling)
          return params,m
 
     def init_radvel(self, nplanets=1):
@@ -1267,36 +1268,215 @@ class model(object):
                 self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
                                                                                       parameter_values['sigma_w_'+instrument]**2
         
-    def evaluate_lc_model(self, instrument, parameter_values = None, resampling = None, nresampling = None, etresampling = None):
+    def get_GP_plus_deterministic_model(self, parameter_values, instrument = None):
+        if self.global_model:
+            if self.dictionary['global_model']['GPDetrend']:
+                residuals = self.y - self.model['global']
+                self.dictionary['global_model']['noise_model'].set_parameter_vector(parameter_values)
+                self.dictionary['global_model']['noise_model'].yerr = np.sqrt(self.model['global_variances'])
+                self.dictionary['global_model']['noise_model'].compute_GP()
+                # Return mean signal plus GP model:
+                return self.model['global'] + self.dictionary['global_model']['noise_model'].GP.predict(residuals, self.dictionary['global_model']['noise_model'].X, \
+                                                                                                        return_var=False, return_cov=False)
+            else:
+                return self.model['global'] 
+        else:
+            if self.dictionary[instrument]['GPDetrend']:
+                residuals = self.residuals#self.data[instrument] - self.model[instrument]['full']
+                self.dictionary[instrument]['noise_model'].set_parameter_vector(parameter_values)
+                return self.model[instrument]['full'] + self.dictionary[instrument]['noise_model'].GP.predict(residuals,self.dictionary[instrument]['noise_model'].X, \
+                                                                                                              return_var=False, return_cov=False)
+            else:
+                return self.model[instrument]['full']
+
+    def evaluate_lc_model(self, instrument = None, parameter_values = None, resampling = None, nresampling = None, etresampling = None, \
+                          all_samples = False, nsamples = 1000, return_samples = False, t = None, GPregressors = None, LMregressors = None, \
+                          return_err = False):
         """
-        This functions evaluate the current lc model into a new set of times.
+        This function evaluates the current lc model given a set of parameter values. Resampling options can be changed if resampling is a boolean,
+        but the object is at the end rolled-back to the default resampling definitions the user defined in the juliet.load object.
         """
         if resampling is not None:
             if resampling:
-                self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'],\
+                self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
                                                                                                  nresampling = nresampling,\
                                                                                                  etresampling = etresampling)
             else:
-                self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'])
+                self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+
         # Check if user gave input parameter_values dictionary. If that's the case, generate again the 
         # full lightcurve model:
         if parameter_values is not None:
-            self.generate_lc_model(parameter_values)
+            # Now, consider two possible cases. If the user is giving a parameter_values where the dictionary contains *arrays* of values 
+            # in it, then iterate through all the values in order to calculate the median model. If the dictionary contains only individual 
+            # values, evaluate the model only at those values:
+            parameters = list(self.priors.keys())
+            input_parameters = list(parameter_values.keys())
+            if type(parameter_values[input_parameters[0]]) is np.ndarray:
+                # To generate a median model first generate an output_model_samples array that will save the model at each evaluation. This will 
+                # save nsamples samples of the posterior model. If all_samples = True, all samples from the posterior are used for the evaluated model 
+                # (this is slower, but you might not care). First create idx_samples, which will save the samples:
+                if all_samples:
+                    nsamples = len(parameter_values[input_parameters[0]])
+                    idx_samples = np.arange(nsamples)
+                else:
+                    idx_samples = np.random.choice(np.arange(len(parameter_values[input_parameters[0]])),nsamples,replace=False)
+                    idx_samples = idx_samples[np.argsort(idx_samples)]
+                
+                # Create the actual output_model:
+                if t is None:
+                    if self.global_model:
+                        output_model_samples = np.zeros([nsamples,self.ndatapoints_all_instruments])
+                    else:
+                        output_model_samples = np.zeros([nsamples,self.ndatapoints_per_instrument[instrument]])
+                else:
+                    nt = len(t)
+                    nt_original = len(self.times[instrument])
+                    output_model_samples = np.zeros([nsamples,nt])
+                    if self.dictionary[instrument]['TransitFit']:
+                        supersample_params,supersample_m = self.init_batman(t, self.dictionary[instrument]['ldlaw'])
+                        sample_params,sample_m = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+
+                # Create dictionary that saves the current parameter_values to evaluate:
+                current_parameter_values = dict.fromkeys(parameters)
+                # First go through all parameters in the prior; fix the ones which are fixed:
+                for parameter in parameters:
+                    if self.priors[parameter]['distribution'] == 'fixed': 
+                        current_parameter_values[parameter] = self.priors[parameter]['hyperparameters']
+                # Now iterate through all samples, through all the input parameters:
+                counter = 0
+                if t is not None:
+                    original_times = np.copy(self.times[instrument])
+                    if self.dictionary[instrument]['GPDetrend']:
+                        original_GPregressors = np.copy(self.dictionary[instrument]['noise_model'].X)
+                        self.dictionary[instrument]['noise_model'].X = GPregressors
+                    if self.lm_boolean[instrument]:
+                        original_lm_arguments  = np.copy(self.lm_arguments[instrument])
+                for i in idx_samples:
+                    for parameter in input_parameters:
+                        # Populate the current parameter_values
+                        current_parameter_values[parameter] = parameter_values[parameter][i]
+                    # Evaluate lightcurve at the current parameter values:
+                    self.generate_lc_model(current_parameter_values)
+                    self.residuals = self.data[instrument] - self.model[instrument]['full']
+                    if t is not None:
+                        if self.dictionary[instrument]['TransitFit']:
+                            self.model[instrument]['params'], self.model[instrument]['m'] = supersample_params,supersample_m
+                        if self.lm_boolean[instrument]:
+                            self.lm_arguments[instrument] = LMregressors
+                        self.model[instrument]['ones'] = np.ones(nt)
+                        self.ndatapoints_per_instrument[instrument] = nt 
+                        self.generate_lc_model(current_parameter_values)    
+                    output_model_samples[counter,:] = self.get_GP_plus_deterministic_model(current_parameter_values, instrument = instrument)
+                    # Rollback in case t is not None:
+                    if t is not None:
+                        if self.dictionary[instrument]['TransitFit']:
+                            self.model[instrument]['params'], self.model[instrument]['m'] = sample_params,sample_m
+                        if self.lm_boolean[instrument]:
+                            self.lm_arguments[instrument] = original_lm_arguments
+                        self.model[instrument]['ones'] = np.ones(nt_original)
+                        self.ndatapoints_per_instrument[instrument] = nt_original
+                        
+                    counter += 1
+                # If return_error is on, return upper and lower sigma (68% CI) of the model:
+                if return_err:
+                    m_output_model, u_output_model, l_output_model = np.zeros(output_model_samples.shape[1]),\
+                                                                     np.zeros(output_model_samples.shape[1]),\
+                                                                     np.zeros(output_model_samples.shape[1])
+                    for i in range(output_model_samples.shape[1]):
+                        m_output_model[i], u_output_model[i], l_output_model[i] = get_quantiles(output_model_samples[:,i])
+                else:
+                    output_model = np.median(output_model_samples,axis=0)
+            else:
+                self.generate_lc_model(parameter_values)
+                output_model = self.get_GP_plus_deterministic_model(parameter_values, instrument = instrument)
+        else:
+         
+            x = self.evaluate_lc_model(instrument = instrument, parameter_values = self.posteriors, resampling = resampling, \
+                                              nresampling = nresampling, etresampling = etresampling, all_samples = all_samples, \
+                                              nsamples = nsamples, return_samples = return_samples, t = t, GPregressors = GPregressors, \
+                                              LMregressors = LMregressors, return_err = return_err)
+            if return_samples:
+                if return_err:
+                    output_model_samples, m_output_model, u_output_model, l_output_model = x
+                else:
+                    output_model_samples,output_model = x
+            else:
+                if return_err:
+                    m_output_model, u_output_model, l_output_model = x
+                else:
+                    output_model = x
 
         if resampling is not None: 
              # get lc, return, then turn all back to normal:
              if self.dictionary[instrument]['resampling']:
-                 self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'],\
+                 self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
                                                                                                   nresampling = self.dictionary[instrument]['nresampling'],\
                                                                                                   etresampling = self.dictionary[instrument]['exptimeresampling'])
              else:
-                 self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'])
-        return self.model[instrument]['full']
+                 self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+        if return_samples:
+            if return_err:
+                return output_model_samples, m_output_model, u_output_model, l_output_model
+            else:
+                return output_model_samples,output_model
+        else:
+            if return_err:
+                return m_output_model, u_output_model, l_output_model
+            else:
+                return output_model
 
-    def predict_lc_model(self, t, posteriors = None):
+    def predict_lc_model(self, t, instrument = None, LMregressors = None, GPregressors = None, posteriors = None):
         """
-        Using the posteriors and a set of times, this function predicts the lc model into new times with errors.
+        Using the posteriors and a set of times (and optionally linear and GP regressors at those times) this function predicts the lc model into new times 
+        with errors.
         """
+        if self.global_model:
+            """
+            original_times = np.copy(self.times[instrument])
+            self.times[instrument] = t
+            if GPregressors is not None:
+                original_X = {}
+                for instrument in self.inames:
+                    if self.dictionary[instrument]['GPDetrend']:
+                        original_X[instrument] = np.copy(self.dictionary[instrument]['noise_model'].X)
+                        self.dictionary[instrument]['noise_model'].X = GPregressors[instrument]
+            if LMRegressors is not None:
+                original_lm_arguments = {}
+                for instrument in self.inames:
+                    if self.lm_boolean[instrument]:
+                         original_lm_arguments[instrument] = np.copy(self.lm_arguments[instrument])
+                         self.lm_arguments[instrument] = LMregressors[instrument]
+
+            # Evaluate model, return samples and median model:
+            self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                                 nresampling = nresampling,\
+                                                                                                 etresampling = etresampling)
+
+            model_samples, model = evaluate_lc_model(return_samples = False)
+            model_up,model_down = np.zeros(len(model)),np.zeros(len(model))
+            for i in range(model_samples.shape[1]):
+                v,model_up[i],model_down[i] = get_quantiles(model_samples[:,i])
+ 
+            # Now all back to prior values:
+            self.times[instrument] = original_times
+            self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                                 nresampling = nresampling,\
+                                                                                                 etresampling = etresampling)
+            if GPregressors is not None:
+                for instrument in self.inames:
+                    if self.dictionary[instrument]['GPDetrend']:
+                        self.dictionary[instrument]['noise_model'].X = original_X[instrument]
+            if LMRegressors is not None:
+                for instrument in self.inames:
+                    if self.lm_boolean[instrument]:
+                        self.lm_arguments[instrument] = original_lm_arguments[instrument] 
+            return model, model_up, model_down
+            """
+        else:
+            original_times = np.copy(self.times[instrument])
+            self.times[instrument] = t
+        
         return True
      
 
@@ -1423,7 +1603,7 @@ class model(object):
             if self.lm_boolean[instrument]:
                 self.model[instrument]['LM'] = np.zeros(self.ndatapoints_per_instrument[instrument])
                 for i in range(lm_n[instrument]):
-                    self.model[instrument]['LM'] += parameter_values['theta'+str(i)+'_'+instrument]*self.lm_arguments[:,0]
+                    self.model[instrument]['LM'] += parameter_values['theta'+str(i)+'_'+instrument]*self.lm_arguments[:,i]
                 self.model[instrument]['full'] = self.model[instrument]['M'] + self.model[instrument]['LM']
             else:
                 self.model[instrument]['full'] = self.model[instrument]['M']
@@ -1492,7 +1672,12 @@ class model(object):
         self.ndatapoints_per_instrument = {}
         if modeltype == 'lc':
             self.modeltype = 'lc'
-            # Inhert times, fluxes, errors, indexes, etc. from data:
+            # Inhert times, fluxes, errors, indexes, etc. from data.
+            # FYI, in case this seems confusing: self.t, self.y and self.yerr save what we internally call 
+            # "global" data-arrays. These have the data from all the instruments stacked into an array; to recover 
+            # the data for a given instrument, one uses the self.instrument_indexes dictionary. On the other hand, 
+            # self.times, self.data and self.errors are dictionaries that on each key have the data of a given instrument.      
+            # Calling dictionaries is faster than calling indexes of arrays, so we use the latter in general to evaluate models.
             self.t = data.t_lc
             self.y = data.y_lc
             self.yerr = data.yerr_lc
@@ -1522,10 +1707,12 @@ class model(object):
             # If limb-darkening or dilution factors will be shared by different instruments, set the correct variable name for each:
             self.ld_iname = {}
             self.mdilution_iname = {}
+            self.ndatapoints_all_instruments = 0.
             for instrument in self.inames:
                 self.model[instrument] = {}
                 # Extract number of datapoints per instrument:
                 self.ndatapoints_per_instrument[instrument] = len(self.instrument_indexes[instrument])
+                self.ndatapoints_all_instruments += self.ndatapoints_per_instrument[instrument]
                 # Extract number of linear model terms per instrument:
                 if self.lm_boolean[instrument]:
                     self.lm_n[instrument] = self.lm_arguments[instrument].shape[1]
@@ -1543,11 +1730,11 @@ class model(object):
                 if self.dictionary[instrument]['TransitFit']:
                     # First, take the opportunity to initialize transit lightcurves for each instrument:
                     if self.dictionary[instrument]['resampling']:
-                        self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'],\
+                        self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
                                                                                                          nresampling = self.dictionary[instrument]['nresampling'],\
                                                                                                          etresampling = self.dictionary[instrument]['exptimeresampling'])
                     else:
-                        self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.dictionary[instrument]['ldlaw'])
+                        self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
                     # Individual transit lightcurves for each planet:
                     for i in self.numbering:
                         self.model[instrument]['p'+str(i)] = np.ones(len(self.instrument_indexes[instrument]))
@@ -1607,6 +1794,7 @@ class model(object):
             self.numbering.sort()
             self.nplanets = len(self.numbering)
             self.model = {}
+            self.ndatapoints_all_instruments = 0.
             # First, if a global model, generate array that will save this:
             if self.global_model:
                 self.model['global'] = np.zeros(len(self.t))
@@ -1625,6 +1813,7 @@ class model(object):
                 self.model[instrument] = {}
                 # Extract number of datapoints per instrument:
                 self.ndatapoints_per_instrument[instrument] = len(self.instrument_indexes[instrument])
+                self.ndatapoints_all_instruments += self.ndatapoints_per_instrument[instrument]
                 # Extract number of linear model terms per instrument:
                 if self.lm_boolean[instrument]:
                     self.lm_n[instrument] = self.lm_arguments[instrument].shape[1]
