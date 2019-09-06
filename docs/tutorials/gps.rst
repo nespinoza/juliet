@@ -31,19 +31,17 @@ in this sector are much stronger than the ones of Sector 2.
 Let's start by downloading and plotting the *TESS* data for HATS-46b in Sector 1 using ``juliet``:
 
 .. code-block:: python
-    import juliet
-    import matplotlib.pyplot as plt
+   import juliet
+   import matplotlib.pyplot as plt
 
-    # First, get arrays of times, normalized-fluxes and errors for HATS-46 from Sector 1 from MAST:
-    t, f, ferr  = juliet.get_TESS_data('https://archive.stsci.edu/hlsps/tess-data-alerts/'+\
+   # First, get arrays of times, normalized-fluxes and errors for HATS-46 from Sector 1 from MAST:
+   t, f, ferr  = juliet.get_TESS_data('https://archive.stsci.edu/hlsps/tess-data-alerts/'+\
                                        'hlsp_tess-data-alerts_tess_phot_00281541555-s01_tess_v1_lc.fits')
-    # Plot the data:
-    plt.errorbar(t,f,yerr=ferr,fmt='.')
-    plt.xlim([np.min(t),np.max(t)])
-    plt.xlabel('Time (BJD - 2457000)')
-    plt.ylabel('Relative flux') 
-
-Which gives:
+   # Plot the data:
+   plt.errorbar(t,f,yerr=ferr,fmt='.')
+   plt.xlim([np.min(t),np.max(t)])
+   plt.xlabel('Time (BJD - 2457000)')
+   plt.ylabel('Relative flux') 
 
 .. image:: hats-46_plot.png
 
