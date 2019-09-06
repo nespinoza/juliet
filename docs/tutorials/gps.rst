@@ -35,9 +35,12 @@ Let's start by downloading and plotting the *TESS* data for HATS-46b in Sector 1
    import juliet
    import matplotlib.pyplot as plt
 
-   # First, get arrays of times, normalized-fluxes and errors for HATS-46 from Sector 1 from MAST:
-   t, f, ferr  = juliet.get_TESS_data('https://archive.stsci.edu/hlsps/tess-data-alerts/'+\
-                                       'hlsp_tess-data-alerts_tess_phot_00281541555-s01_tess_v1_lc.fits')
+   # First, get arrays of times, normalized-fluxes and errors for HATS-46 
+   #from Sector 1 from MAST:
+   t, f, ferr  = juliet.get_TESS_data('https://archive.stsci.edu/hlsps/'+\
+                                      'tess-data-alerts/hlsp_tess-data-'+\
+                                      'alerts_tess_phot_00281541555-s01_'+\
+                                      'tess_v1_lc.fits')
    # Plot the data:
    plt.errorbar(t,f,yerr=ferr,fmt='.')
    plt.xlim([np.min(t),np.max(t)])
@@ -58,8 +61,8 @@ points at absolute phases above 0.02). Let us save this out-of-transit data in d
 
    # Period and t0 from Anderson et al. (201X):
    P,t0 =  4.7423729 ,  2457376.68539 - 2457000
-   # Get phases --- identify out-of-transit (oot) times by phasing the data and selecting all points 
-   # at absolute phases larger than 0.02:
+   # Get phases --- identify out-of-transit (oot) times by phasing the data 
+   # and selecting all points at absolute phases larger than 0.02:
    phases = juliet.utils.get_phases(t, P, t0)
    idx_oot = np.where(np.abs(phases)>0.02)[0]   
    # Save the out-of-transit data into dictionaries so we can feed them to juliet:
@@ -90,6 +93,7 @@ these priors --- for now, let us set the dilution factor ``mdilution`` to 1, giv
 wide log-uniform priors for all the other parameters:
 
 .. code-block:: python
+    :emphasize-lines: 16
 
     # Set the priors:
     params =  ['mdilution_TESS', 'mflux_TESS', 'sigma_w_TESS', 'GP_sigma_TESS', \
@@ -106,14 +110,16 @@ wide log-uniform priors for all the other parameters:
 
     # Perform the juliet fit. Load dataset first (note the GP regressor will be the times):
     dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, \
-                          yerr_lc = fluxes_error, GP_regressors_lc = times, out_folder = 'hats46_detrending')
+                          yerr_lc = fluxes_error, GP_regressors_lc = times, \
+                          out_folder = 'hats46_detrending')
     # Fit:
     results = dataset.fit()
 
 Note that the only new part in terms of loading the dataset is that one has to now add a new piece of data, the ``GP_regressors_lc``, 
-in order for the GP to run. This is also a dictionary, which specifies the GP regressors for each instrument. For ``celerite`` kernels, 
-in theory the regressors have to be one-dimensional and ordered in ascending or descending order --- however, internally ``juliet`` performs 
-this ordering so the user doesn't have to worry about this last part. Let us now plot the GP fit and some residuals below to see how we did:
+in order for the GP to run (ephasized in the code above). This is also a dictionary, which specifies the GP regressors for each instrument. 
+For ``celerite`` kernels, in theory the regressors have to be one-dimensional and ordered in ascending or descending order --- however, 
+internally ``juliet`` performs this ordering so the user doesn't have to worry about this last part. Let us now plot the GP fit and some 
+residuals below to see how we did:
 
 .. code-block:: python
 
@@ -136,7 +142,8 @@ this ordering so the user doesn't have to worry about this last part. Let us now
 
     # Now the residuals:
     ax2 = plt.subplot(gs[1])
-    ax2.errorbar(times['TESS'], (fluxes['TESS']-model_fit)*1e6, fluxes_error['TESS']*1e6,fmt='.',alpha=0.1)
+    ax2.errorbar(times['TESS'], (fluxes['TESS']-model_fit)*1e6, \
+                 fluxes_error['TESS']*1e6,fmt='.',alpha=0.1)
     ax2.set_ylabel('Residuals (ppm)')
     ax2.set_xlabel('Time (BJD - 2457000)')
     ax2.set_xlim(np.min(times['TESS']),np.max(times['TESS']))    
@@ -156,7 +163,8 @@ this section), and fit a transit to it to see how we do:
     model_prediction = results.lc_model.evaluate('TESS', t = t, GPregressors = t)
 
     # Repopulate dictionaries with new detrended flux:
-    times['TESS'], fluxes['TESS'], fluxes_error['TESS'] = t,f/model_prediction,ferr/model_prediction
+    times['TESS'], fluxes['TESS'], fluxes_error['TESS'] = t, f/model_prediction, \
+                                                          ferr/model_prediction
 
     # Set transit fit priors:
     priors = {}
@@ -177,7 +185,7 @@ this section), and fit a transit to it to see how we do:
 
     # Perform juliet fit:
     dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, \
-                      yerr_lc = fluxes_error, out_folder = 'hats46_detrended_transitfit', verbose = True)
+                      yerr_lc = fluxes_error, out_folder = 'hats46_detrended_transitfit')
 
     results = dataset.fit()
 
