@@ -43,9 +43,6 @@ Let's start by downloading and plotting the *TESS* data for HATS-46b in Sector 1
    plt.xlabel('Time (BJD - 2457000)')
    plt.ylabel('Relative flux') 
 
-.. figure:: hats-46_plot.png
-   :alt: Sector 1 data for HATS-46b.
-
 As can be seen, the data has a fairly strong long-term trend going around. In fact, the trend is so strong that you cannot 
 see the transit by eye! Let us try to get rid of this trend by fitting a GP to the out-of-transit data, and then *predicting* 
 the in-transit flux to remove it. Let us first isolate the out-of-transit data from the in-transit data using the ephemerides 
