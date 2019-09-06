@@ -43,6 +43,8 @@ Let's start by downloading and plotting the *TESS* data for HATS-46b in Sector 1
     plt.xlabel('Time (BJD - 2457000)')
     plt.ylabel('Relative flux')   
 
+
+
 .. figure:: hats-46_plot.png
    :alt: Sector 1 data for HATS-46b 
 
@@ -76,7 +78,7 @@ with the :math:`t_i` and :math:`t_j` being the :math:`i` and :math:`j` GP regres
 :math:`\sigma_i` the errorbar of the :math:`i`-th datapoint, :math:`\sigma_{GP}` sets the amplitude of the GP, :math:`\sigma_w` (in ppm) is an added 
 (unknown) _jitter_ term, :math:`\delta_{i,j}` a Kronecker's delta (i.e., zero when :math:`i \neq j`, one otherwise) and where
 
-:math:`M(\tau_{i,j},\rho) = [(1+1/\epsilon)exp(-(1-\epsilon)\sqrt{3}\tau/\rho) + (1- 1/\epsilon)\exp(-(1+\epsilon)\sqrt{3}\tau/\rho)]`
+:math:`M(\tau_{i,j},\rho) = [(1+1/\epsilon)\exp(-[1-\epsilon]\sqrt{3}\tau/\rho) + (1- 1/\epsilon)\exp(-[1+\epsilon]\sqrt{3}\tau/\rho)]`
 
 is the (approximate) Matern part of the kernel, which has a characteristic length-scale :math:``rho``.
 
