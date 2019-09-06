@@ -1316,11 +1316,12 @@ class model(object):
                 # To generate a median model first generate an output_model_samples array that will save the model at each evaluation. This will 
                 # save nsamples samples of the posterior model. If all_samples = True, all samples from the posterior are used for the evaluated model 
                 # (this is slower, but you might not care). First create idx_samples, which will save the samples:
+                nsampled = len(parameter_values[input_parameters[0]])
                 if all_samples:
-                    nsamples = len(parameter_values[input_parameters[0]])
+                    nsamples = nsampled
                     idx_samples = np.arange(nsamples)
                 else:
-                    idx_samples = np.random.choice(np.arange(len(parameter_values[input_parameters[0]])),nsamples,replace=False)
+                    idx_samples = np.random.choice(np.arange(nsampled),np.min([nsamples,nsampled]),replace=False)
                     idx_samples = idx_samples[np.argsort(idx_samples)]
                 
                 # Create the actual output_model:
