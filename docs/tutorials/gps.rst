@@ -41,7 +41,7 @@ Let's start by downloading and plotting the *TESS* data for HATS-46b in Sector 1
     plt.errorbar(t,f,yerr=ferr,fmt='.')
     plt.xlim([np.min(t),np.max(t)])
     plt.xlabel('Time (BJD - 2457000)')
-    plt.ylabel('Relative flux')   
+    plt.ylabel('Relative flux');   
 
 
 
@@ -75,7 +75,7 @@ log-likelihood blazing fast --- this in turn speeds up the posterior sampling wi
 
 where :math:`k(\tau_{i,j})` gives the element :math:`i,j` of the covariance matrix :math:`\mathbf{\Sigma}`, :math:`\tau_{i,j} = |t_i - t_j|` 
 with the :math:`t_i` and :math:`t_j` being the :math:`i` and :math:`j` GP regressors (typically --- as in this case --- the times), 
-:math:`\sigma_i` the errorbar of the :math:`i`-th datapoint, :math:`\sigma_{GP}` sets the amplitude of the GP, :math:`\sigma_w` (in ppm) is an added 
+:math:`\sigma_i` the errorbar of the :math:`i`-th datapoint, :math:`\sigma_{GP}` sets the amplitude (in ppm) of the GP, :math:`\sigma_w` (in ppm) is an added 
 (unknown) _jitter_ term, :math:`\delta_{i,j}` a Kronecker's delta (i.e., zero when :math:`i \neq j`, one otherwise) and where
 
 :math:`M(\tau_{i,j},\rho) = [(1+1/\epsilon)\exp(-[1-\epsilon]\sqrt{3}\tau/\rho) + (1- 1/\epsilon)\exp(-[1+\epsilon]\sqrt{3}\tau/\rho)]`
