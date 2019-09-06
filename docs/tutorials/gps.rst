@@ -24,11 +24,11 @@ Detrending lightcurves with GPs
 A very popular use of GPs is to use them for "detrending" lightcurves. This means using the data outside of the feature 
 of interest (e.g., a transit) in order to predict the behaviour of the lightcurve inside the feature and remove it, in 
 order to facilitate or simplify the lightcurve fitting. To highlight the capabilities of ``juliet``, here we will play around 
-with _TESS_ data obtained in Sector 1 for the HATS-46b system (`Brahm et al., 2017 <https://arxiv.org/abs/1707.07093>`_). We already 
+with *TESS* data obtained in Sector 1 for the HATS-46b system (`Brahm et al., 2017 <https://arxiv.org/abs/1707.07093>`_). We already 
 analyzed transits in Sector 2 for this system in the :ref:`transitfit` tutorial, but here we will tackle Sector 1 data as the systematics 
 in this sector are much stronger than the ones of Sector 2.
 
-Let's start by downloading and plotting the _TESS_ data for HATS-46b in Sector 1 using ``juliet``:
+Let's start by downloading and plotting the *TESS* data for HATS-46b in Sector 1 using ``juliet``:
 
 .. code-block:: python
     import juliet
@@ -47,7 +47,7 @@ Let's start by downloading and plotting the _TESS_ data for HATS-46b in Sector 1
    :alt: Sector 1 data for HATS-46b 
 
 As can be seen, the data has a fairly strong long-term trend going around. In fact, the trend is so strong that you cannot 
-see the transit by eye! Let us try to get rid of this trend by fitting a GP to the out-of-transit data, and then _predicting_ 
+see the transit by eye! Let us try to get rid of this trend by fitting a GP to the out-of-transit data, and then *predicting* 
 the in-transit flux to remove it. Let us first isolate the out-of-transit data from the in-transit data using the ephemerides 
 published in `Brahm et al., 2017 <https://arxiv.org/abs/1707.07093>`_ --- we know where the transits should be, so we will 
 simply phase-fold the data and remove all datapoints out-of-transit (which judging from the plots in that paper, should be all 
@@ -141,7 +141,7 @@ this ordering so the user doesn't have to worry about this last part. Let us now
    :alt: Sector 1 data for HATS-46b with an approximate Matern kernel on top
 
 Seems we did pretty good! By default, the ``results.lc_model.evaluate`` function evaluates the model on the input dataset (i.e., on the 
-input GP regressors and input times). In our case, this was the out-of-transit data. To detrend the lightcurve, however, we have to _predict_ 
+input GP regressors and input times). In our case, this was the out-of-transit data. To detrend the lightcurve, however, we have to *predict* 
 the model on the full time-series. This is easily done using the same function but giving the times and GP regressors we want to predict the 
 data on. So let us detrend the original lightcurve (stored in the arrays ``t``, ``f`` and ``ferr`` that we extracted at the beggining of 
 this section), and plot the phased transit to see how it looks:
