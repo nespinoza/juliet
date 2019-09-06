@@ -31,6 +31,7 @@ in this sector are much stronger than the ones of Sector 2.
 Let's start by downloading and plotting the *TESS* data for HATS-46b in Sector 1 using ``juliet``:
 
 .. code-block:: python
+
    import juliet
    import matplotlib.pyplot as plt
 
@@ -43,6 +44,9 @@ Let's start by downloading and plotting the *TESS* data for HATS-46b in Sector 1
    plt.xlabel('Time (BJD - 2457000)')
    plt.ylabel('Relative flux') 
 
+.. figure:: hats-46_plot.png
+   :alt: Sector 1 data for HATS-46b.
+
 As can be seen, the data has a fairly strong long-term trend going around. In fact, the trend is so strong that you cannot 
 see the transit by eye! Let us try to get rid of this trend by fitting a GP to the out-of-transit data, and then *predicting* 
 the in-transit flux to remove it. Let us first isolate the out-of-transit data from the in-transit data using the ephemerides 
@@ -51,6 +55,7 @@ simply phase-fold the data and remove all datapoints out-of-transit (which judgi
 points at absolute phases above 0.02). Let us save this out-of-transit data in dictionaries so we can feed them to ``juliet``:
 
 .. code-block:: python
+
    # Period and t0 from Anderson et al. (201X):
    P,t0 =  4.7423729 ,  2457376.68539 - 2457000
    # Get phases --- identify out-of-transit (oot) times by phasing the data and selecting all points 
@@ -85,6 +90,7 @@ these priors --- for now, let us set the dilution factor ``mdilution`` to 1, giv
 wide log-uniform priors for all the other parameters:
 
 .. code-block:: python
+
     # Set the priors:
     params =  ['mdilution_TESS', 'mflux_TESS', 'sigma_w_TESS', 'GP_sigma_TESS', \
                'GP_rho_TESS']
@@ -110,6 +116,7 @@ in theory the regressors have to be one-dimensional and ordered in ascending or 
 this ordering so the user doesn't have to worry about this last part. Let us now plot the GP fit and some residuals below to see how we did:
 
 .. code-block:: python
+
     # Import gridspec:
     import matplotlib.gridspec as gridspec
     # Get juliet model prediction for the full lightcurve:
@@ -141,18 +148,13 @@ Seems we did pretty good! By default, the ``results.lc_model.evaluate`` function
 input GP regressors and input times). In our case, this was the out-of-transit data. To detrend the lightcurve, however, we have to *predict* 
 the model on the full time-series. This is easily done using the same function but giving the times and GP regressors we want to predict the 
 data on. So let us detrend the original lightcurve (stored in the arrays ``t``, ``f`` and ``ferr`` that we extracted at the beggining of 
-this section), and plot the phased transit to see how it looks:
+this section), and fit a transit to it to see how we do:
 
 .. code-block:: python
+
+    # Get model prediction from juliet:
     model_prediction = results.lc_model.evaluate('TESS', t = t, GPregressors = t)
-    plt.errorbar(phases,f/model_prediction,yerr=ferr/model_prediction,fmt='.')
-.. figure:: hats-46_detrended.png
-   :alt: Sector 1 phased lightcurve for HATS-46b after detrending. The transit is clearly visible.
 
-
-That's pretty good! The transit is clearly visible here. Let us now perform a transit fit on this detrended data:
-
-.. code-block:: python
     # Repopulate dictionaries with new detrended flux:
     times['TESS'], fluxes['TESS'], fluxes_error['TESS'] = t,f/model_prediction,ferr/model_prediction
 
@@ -208,5 +210,8 @@ That's pretty good! The transit is clearly visible here. Let us now perform a tr
     ax2.set_xlim([-0.03,0.03])
     ax2.set_ylim([0.96,1.04])
     ax2.set_xlabel('Phases')
+
 .. figure:: juliet_h46_transit_fit.png
    :alt: juliet fit to Sector 1 detrended data for HATS-46b. 
+
+Pretty good!
