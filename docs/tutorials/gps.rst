@@ -43,7 +43,8 @@ Let's start by downloading and plotting the *TESS* data for HATS-46b in Sector 1
    plt.xlabel('Time (BJD - 2457000)')
    plt.ylabel('Relative flux') 
 
-.. image:: hats-46_plot.png
+.. figure:: hats-46_plot.png
+   :alt: Sector 1 data for HATS-46b.
 
 As can be seen, the data has a fairly strong long-term trend going around. In fact, the trend is so strong that you cannot 
 see the transit by eye! Let us try to get rid of this trend by fitting a GP to the out-of-transit data, and then *predicting* 
@@ -53,15 +54,15 @@ simply phase-fold the data and remove all datapoints out-of-transit (which judgi
 points at absolute phases above 0.02). Let us save this out-of-transit data in dictionaries so we can feed them to ``juliet``:
 
 .. code-block:: python
-    # Period and t0 from Anderson et al. (201X):
-    P,t0 =  4.7423729 ,  2457376.68539 - 2457000
-    # Get phases --- identify out-of-transit (oot) times by phasing the data and selecting all points 
-    # at absolute phases larger than 0.02:
-    phases = juliet.utils.get_phases(t, P, t0)
-    idx_oot = np.where(np.abs(phases)>0.02)[0]   
-    # Save the out-of-transit data into dictionaries so we can feed them to juliet:
-    times, fluxes, fluxes_error = {},{},{}
-    times['TESS'], fluxes['TESS'], fluxes_error['TESS'] = t[idx_oot],f[idx_oot],ferr[idx_oot]
+   # Period and t0 from Anderson et al. (201X):
+   P,t0 =  4.7423729 ,  2457376.68539 - 2457000
+   # Get phases --- identify out-of-transit (oot) times by phasing the data and selecting all points 
+   # at absolute phases larger than 0.02:
+   phases = juliet.utils.get_phases(t, P, t0)
+   idx_oot = np.where(np.abs(phases)>0.02)[0]   
+   # Save the out-of-transit data into dictionaries so we can feed them to juliet:
+   times, fluxes, fluxes_error = {},{},{}
+   times['TESS'], fluxes['TESS'], fluxes_error['TESS'] = t[idx_oot],f[idx_oot],ferr[idx_oot]
 
 Now, let us fit a GP to this data. To do this, we will use a simple (approximate) Matern kernel, which was implemented via 
 `celerite <https://celerite.readthedocs.io/en/stable/>`_ and which can accomodate itself to both rough and smooth signals. On top of this, 
