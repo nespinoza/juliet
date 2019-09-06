@@ -43,6 +43,8 @@ Let's start by downloading and plotting the *TESS* data for HATS-46b in Sector 1
     plt.xlabel('Time (BJD - 2457000)')
     plt.ylabel('Relative flux') 
 
+Which gives:
+
 .. image:: hats-46_plot.png
 
 As can be seen, the data has a fairly strong long-term trend going around. In fact, the trend is so strong that you cannot 
