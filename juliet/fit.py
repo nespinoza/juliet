@@ -595,7 +595,7 @@ class load(object):
                 os.mkdir(self.out_folder)
             if (not os.path.exists(self.out_folder+'lc.dat')):
                 if self.lcfilename is not None:
-                    os.system('cp '+lcfilename+' '+self.out_folder+'lc.dat')
+                    os.system('cp '+self.lcfilename+' '+self.out_folder+'lc.dat')
                 elif self.t_lc is not None:
                     self.save_data(self.out_folder+'lc.dat',self.t_lc,self.y_lc,self.yerr_lc,self.instruments_lc,self.lm_lc_boolean,self.lm_lc_arguments)
             # Now radial-velocity data:
