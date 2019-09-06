@@ -235,7 +235,7 @@ class load(object):
     def convert_input_data(self, t, y, yerr):
         """
         This converts the input dictionaries to arrays (this is easier to handle internally within juliet; input dictionaries are just asked because 
-        it is easier for the user to pass them)
+        it is easier for the user to pass them). 
         """
         instruments = list(t.keys())
         all_times = np.array([])
@@ -775,8 +775,12 @@ class load(object):
         if (lcfilename is None) and (t_lc is not None):
             # First check user gave all data:
             input_error_catcher(t_lc,y_lc,yerr_lc,'lightcurve')
+            # Convert times to float64 (batman really hates non-float64 inputs):
+            for instrument in t_lc.keys():
+                t_lc[instrument] = t_lc[instrument].astype('float64') 
+            # Create global arrays:
             tglobal_lc, yglobal_lc, yglobalerr_lc, instruments_lc = self.convert_input_data(t_lc, y_lc, yerr_lc)
-            # Save data in a foramt useful for global modelling:
+            # Save data in a format useful for global modelling:
             inames_lc, instrument_indexes_lc, lm_lc_boolean, lm_lc_arguments = self.data_preparation(tglobal_lc,instruments_lc,linear_regressors_lc,linear_instruments_lc)
             ninstruments_lc = len(inames_lc)
 
