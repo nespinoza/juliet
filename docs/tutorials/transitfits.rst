@@ -160,8 +160,8 @@ this function. We will create two plots: one of time versus flux, and another on
     ax2.set_xlim([-0.015,0.015])
     ax2.set_ylim([0.98,1.02])
 
- .. figure:: juliet_h46_s2_transit_fit.png
-    :alt: Sector 2 data for HATS-46b along with the best-fit juliet model.
+.. figure:: juliet_h46_s2_transit_fit.png
+   :alt: Sector 2 data for HATS-46b along with the best-fit juliet model.
 
 As can be seen, the lightcurve model is quite precise! In the code above we also made use of a function and a dictionary which we have not introduced in 
 their entirety yet. The first is the ``juliet.get_phases(t, P, t0)`` function --- this gives you back the phases at the times ``t`` given a period ``P`` and 
@@ -189,41 +189,41 @@ and compare with the results obtained in `Brahm et al., 2017 <https://arxiv.org/
 
  .. code-block:: python
 
- # Store posterior samples for r1 and r2:
- r1, r2 = results.posteriors['posterior_samples']['r1_p1'],\
-          results.posteriors['posterior_samples']['r2_p1'] 
+    # Store posterior samples for r1 and r2:
+    r1, r2 = results.posteriors['posterior_samples']['r1_p1'],\
+             results.posteriors['posterior_samples']['r2_p1'] 
 
- # Transform back to (b,p):
- b,p = juliet.utils.reverse_bp(r1, r2, 0., 1.)
+    # Transform back to (b,p):
+    b,p = juliet.utils.reverse_bp(r1, r2, 0., 1.)
 
- # Plot posterior distribution:
- plt.plot(b,p,'.',alpha=0.5)
+    # Plot posterior distribution:
+    plt.plot(b,p,'.',alpha=0.5)
 
- # Extract median and 1-sigma errors for b and p from 
- # the posterior distribution:
- bm,bu,bl = juliet.utils.get_quantiles(b)
- pm,pu,pl = juliet.utils.get_quantiles(p)
+    # Extract median and 1-sigma errors for b and p from 
+    # the posterior distribution:
+    bm,bu,bl = juliet.utils.get_quantiles(b)
+    pm,pu,pl = juliet.utils.get_quantiles(p)
 
- # Plot them:
- plt.errorbar(np.array([bm]),np.array([pm]),\
-              xerr = np.array([[bu-bm,bm-bl]]),\
-              yerr = np.array([[pu-pm,pm-pl]]),\
-              fmt = 'o', mfc = 'white', mec = 'black',\
-              ecolor='black', ms = 15, elinewidth = 3, \
-              zorder = 5, label = 'This work')
+    # Plot them:
+    plt.errorbar(np.array([bm]),np.array([pm]),\
+                 xerr = np.array([[bu-bm,bm-bl]]),\
+                 yerr = np.array([[pu-pm,pm-pl]]),\
+                 fmt = 'o', mfc = 'white', mec = 'black',\
+                 ecolor='black', ms = 15, elinewidth = 3, \
+                 zorder = 5, label = 'This work')
 
- # Plot values in Brahm et al. (2017):
- plt.errorbar(np.array([0.634]),np.array([0.1088]),\
-              xerr = np.array([[0.042,0.034]]), \
-              yerr = np.array([0.0027]),zorder = 5,\ 
-              label = 'Brahm et al. (2017)', fmt='o', \
-              mfc = 'white', elinewidth = 3, ms = 15) 
+    # Plot values in Brahm et al. (2017):
+    plt.errorbar(np.array([0.634]),np.array([0.1088]),\
+                 xerr = np.array([[0.042,0.034]]), \
+                 yerr = np.array([0.0027]),zorder = 5,\ 
+                 label = 'Brahm et al. (2017)', fmt='o', \
+                 mfc = 'white', elinewidth = 3, ms = 15) 
 
- plt.legend()
- plt.xlim([0.,0.8])
- plt.ylim([0.1,0.125])
- plt.xlabel('$b$')
- plt.ylabel('$p = R_p/R_*$')
+    plt.legend()
+    plt.xlim([0.,0.8])
+    plt.ylim([0.1,0.125])
+    plt.xlabel('$b$')
+    plt.ylabel('$p = R_p/R_*$')
 
 .. figure:: posterior_bp.png
    :alt: Posterior distribution of the impact parameter and planet-to-star radius ratio.
