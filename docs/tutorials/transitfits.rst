@@ -154,7 +154,8 @@ this function. We will create two plots: one of time versus flux, and another on
                  yerr = dataset.errors_lc['TESS'], fmt = '.', alpha = 0.3)
     idx = np.argsort(phases)
     ax2.plot(phases[idx],transit_model[idx], color='black',zorder=10)
-    ax2.fill_between(phases[idx],transit_up68[idx],transit_low68[idx],color='white',alpha=0.5,zorder=5)
+    ax2.fill_between(phases[idx],transit_up68[idx],transit_low68[idx],\
+                     color='white',alpha=0.5,zorder=5)
     ax2.set_xlabel('Phases')
     ax2.set_xlim([-0.015,0.015])
     ax2.set_ylim([0.98,1.02])
@@ -173,7 +174,7 @@ Transit parameter transformations
 
 In the fit done in the previous section we fitted the Sector 2 *TESS* lightcurve of HATS-46b. There, however, we fitted for the transformed parameters 
 ``r1_p1`` and ``r2_p1`` which parametrize the planet-to-star radius ratio, :math:`p = R_p/R_*`, and the impact parameter, in our case given by 
-`b = (a/R_*)\cos i`, and the limb-darkening parametrization ``q1_TESS`` and ``q2_TESS``, which in our case parametrize the coefficients :math:`u_1` and 
+:math:`b = (a/R_*)\cos i`, and the limb-darkening parametrization ``q1_TESS`` and ``q2_TESS``, which in our case parametrize the coefficients :math:`u_1` and 
 :math:`u_2` of the quadratic limb-darkening law. How do we transform the posterior distributions of those parametrizations, stored in the 
 ``results.posteriors['posterior_samples']`` dictionary back to their physical parameters? ``juliet`` has built-in functions to do just this. 
 
