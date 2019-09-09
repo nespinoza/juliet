@@ -43,15 +43,28 @@ A first fit to data with juliet
 To showcase how ``juliet`` works, let us first perform an extremely simple fit to data using ``juliet`` as an *imported library*. 
 We will fit the TESS data of TOI-141 b, which was shown to host a 1-day transiting exoplanet by 
 `Espinoza et al. (2019) <https://arxiv.org/abs/1903.07694>`_. Let us first load the data corresponding to this 
-object, which is hosted in MAST --- for TESS data, ``juliet`` has already built-in functions to load the data arrays 
-directly given a web link to the data:
+object, which is hosted in MAST. For TESS data, ``juliet`` has already built-in functions to load the data arrays 
+directly given a web link to the data --- let's load it and plot the data to see how it looks:
 
 .. code-block:: python
 
     import juliet 
     # First, get times, normalized-fluxes and errors for TOI-141 from MAST:
-    t,f,ferr  = juliet.get_TESS_data('https://archive.stsci.edu/hlsps/tess-data-alerts/hlsp_tess'+\
-                                     '-data-alerts_tess_phot_00403224672-s01_tess_v1_lc.fits')
+    t,f,ferr  = juliet.get_TESS_data('https://archive.stsci.edu/hlsps/tess-data-alerts/'+\
+                                     'hlsp_tess-data-alerts_tess_phot_00403224672-'+\
+                                     's01_tess_v1_lc.fits')
+
+    # Plot the data!
+    import matplotlib.pyplot as plt
+    plt.errorbar(t,f,yerr=ferr,fmt='.')
+
+    plt.xlim([np.min(t),np.max(t)])
+    plt.ylim([0.999,1.001])
+    plt.xlabel('Time (BJD - 2457000)')
+    plt.ylabel('Relative flux')
+
+.. figure:: toi-141_data.png
+   :alt: TESS data for TOI-141 taken from MAST.
     
 This will save arrays of times, fluxes (``PDCSAP_FLUX`` fluxes, in particular) and errors on the ``t``, ``f`` and ``ferr`` arrays. Now, 
 in order to load this dataset into a format that ``juliet`` likes, we need to put these into dictionaries. This, as we will 
