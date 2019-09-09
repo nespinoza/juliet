@@ -90,12 +90,19 @@ in the :ref:`quicktest` tutorial:
     # Name of the parameters to be fit:
     params = ['P_p1','t0_p1','r1_p1','r2_p1','q1_TESS','q2_TESS','ecc_p1','omega_p1',\
                   'rho', 'mdilution_TESS', 'mflux_TESS', 'sigma_w_TESS']
-
+ 
+    # Distributions:
     dists = ['normal','normal','uniform','uniform','uniform','uniform','fixed','fixed',\
                      'loguniform', 'fixed', 'normal', 'loguniform']
 
+    # Hyperparameters
     hyperps = [[4.7,0.1], [1358.4,0.1], [0.,1], [0.,1.], [0., 1.], [0., 1.], 0.0, 90.,\
                        [100., 10000.], 1.0, [0.,0.1], [0.1, 1000.]]   
+
+    # Populate the priors dictionary:
+    for param, dist, hyperp in zip(params, dists, hyperps):
+        priors[param] = {}
+        priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
 
 Now let's fit the dataset with ``juliet``, saving the results to a folder called ``hats46``:
 
