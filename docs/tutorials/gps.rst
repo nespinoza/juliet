@@ -272,10 +272,12 @@ of the `juliet paper <https://arxiv.org/abs/1812.08549>`_, i.e., a model of the 
 
 where 
 
-:math:`\mathcal{M}_{\textrm{TESS}}(t) = [T(t)D_{\textrm{TESS}} + (1-D_{\textrm{TESS}})]\left(\frac{1}{1+D_{\textrm{TESS}}M_{\textrm{TESS}}}\right)`
+:math:`\mathcal{M}_{\textrm{TESS}}(t) = [\mathcal{T}_{\textrm{TESS}}(t)D_{\textrm{TESS}} + (1-D_{\textrm{TESS}})]\left(\frac{1}{1+D_{\textrm{TESS}}M_{\textrm{TESS}}}\right)`
 
-is the photometric model composed of the dilution factor :math:`D_{\textrm{TESS}}` (``mdilution_TESS``) and the mean out-of-transit 
-flux :math:`M_{\textrm{TESS}}` (``mflux_TESS``). This is the *deterministic* part of the model, as 
+is the photometric model composed of the dilution factor :math:`D_{\textrm{TESS}}` (``mdilution_TESS``), the mean out-of-transit 
+flux :math:`M_{\textrm{TESS}}` (``mflux_TESS``) and the transit model for the instrument :math:`\mathcal{T}_{\textrm{TESS}}(t)` 
+(defined by the transit parameters and by the instrument-dependant limb-darkening parametrization given by ``q1_TESS`` and ``q2_TESS``). 
+This is the *deterministic* part of the model, as 
 :math:`\mathcal{M}_{\textrm{TESS}}(t)` is a process that, given a time and a set of parameters, will always be the same: you can easily 
 evaluate the model from the above definition. :math:`\epsilon(t)`, on the other hand, is the *stochastic* part of our model: a noise model which 
 in our case is being modelled as a GP. Given a set of parameters and times for the GP model, the process *cannot* directly be evaluated because 
