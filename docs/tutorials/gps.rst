@@ -50,9 +50,10 @@ Let's start by downloading and plotting the *TESS* data for HATS-46b in Sector 1
 .. figure:: hats-46_plot.png
    :alt: Sector 1 data for HATS-46b.
 
-As can be seen, the data has a fairly strong long-term trend going around. In fact, the trend is so strong that you cannot 
-see the transit by eye! Let us try to get rid of this trend by fitting a GP to the out-of-transit data, and then *predicting* 
-the in-transit flux to remove it. Let us first isolate the out-of-transit data from the in-transit data using the ephemerides 
+As can be seen, the data has a fairly strong long-term trend going around. In fact, the trend is so strong that it is quite hard 
+to see the transits by eye! Let us try to get rid of this trend by fitting a GP to the out-of-transit data, and then *predict* 
+the in-transit flux with this model to remove these systematics in the data. Let us first isolate the out-of-transit data from 
+the in-transit data using the ephemerides 
 published in `Brahm et al., 2017 <https://arxiv.org/abs/1707.07093>`_ --- we know where the transits should be, so we will 
 simply phase-fold the data and remove all datapoints out-of-transit (which judging from the plots in that paper, should be all 
 points at absolute phases above 0.02). Let us save this out-of-transit data in dictionaries so we can feed them to ``juliet``:
