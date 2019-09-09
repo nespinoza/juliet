@@ -1,5 +1,21 @@
 import numpy as np
+from astropy.io import fits
 import pickle
+
+def get_TESS_data(filename):
+    """
+    Given a filename, this function returns an array of times,
+    fluxes and errors on those fluxes.
+    """
+    # Manipulate the fits file:
+    data = fits.getdata(filename)
+
+    # Identify zero-flux values to take them out of the data arrays:
+    idx = np.where((data['PDCSAP_FLUX']!=0.)&(~np.isnan(data['PDCSAP_FLUX'])))[0]
+
+    # Return median-normalized flux:
+    return data['TIME'][idx],data['PDCSAP_FLUX'][idx]/np.median(data['PDCSAP_FLUX'][idx]), \
+           data['PDCSAP_FLUX_ERR'][idx]/np.median(data['PDCSAP_FLUX'][idx])
 
 def reverse_ld_coeffs(ld_law, q1, q2): 
     if ld_law == 'quadratic':
@@ -14,6 +30,32 @@ def reverse_ld_coeffs(ld_law, q1, q2):
     elif ld_law == 'linear':
         return q1,q2
     return coeff1,coeff2
+
+def convert_ld_coeffs(ld_law, coeff1, coeff2):
+    if ld_law == 'quadratic':
+        q1 = (coeff1 + coeff2)**2
+        q2 = coeff1/(2.*(coeff1+coeff2))
+    elif ld_law=='squareroot':
+        q1 = (coeff1 + coeff2)**2
+        q2 = coeff2/(2.*(coeff1+coeff2))
+    elif ld_law=='logarithmic':
+        q1 = (1-coeff2)**2
+        q2 = (1.-coeff1)/(1.-coeff2)
+    return q1,q2
+
+def reverse_bp(r1,r2,pl,pu):
+    Ar = (pu - pl)/(2. + pl + pu)
+    nsamples = len(r1)
+    p = np.zeros(nsamples)
+    b = np.zeros(nsamples)
+    for i in range(nsamples):
+        if r1[i] > Ar:
+            b[i],p[i] = (1+pl)*(1. + (r1[i]-1.)/(1.-Ar)),\
+                        (1-r2[i])*pl + r2[i]*pu
+        else:
+            b[i],p[i] = (1. + pl) + np.sqrt(r1[i]/Ar)*r2[i]*(pu-pl),\
+                        pu + (pl-pu)*np.sqrt(r1[i]/Ar)*(1.-r2[i])
+    return b,p
 
 from scipy.stats import gamma,norm,beta,truncnorm
 import numpy as np
