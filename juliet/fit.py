@@ -918,7 +918,6 @@ class fit(object):
             if self.data.priors[pname]['distribution'] != 'fixed':
                 self.posteriors[pname] = cube[pcounter]
                 pcounter += 1
-
         # Initialize log-likelihood:
         log_likelihood = 0.0
 
@@ -929,7 +928,6 @@ class fit(object):
                  log_likelihood += self.lc.get_log_likelihood(self.posteriors)
              else:
                  return -1e101
-
         # Now RV model:
         if self.data.t_rv is not None:
              self.rv.generate(self.posteriors)
@@ -1135,7 +1133,7 @@ class fit(object):
         if self.out_folder is not None:
             if not os.path.exists(self.out_folder+'posteriors.dat'):
                 outpp = open(self.out_folder+'posteriors.dat','w')
-                writepp(outpp,out)
+                writepp(outpp,out, self.priors)
 
         # Save all results (posteriors) to the self.results object:
         self.posteriors = out
@@ -1638,7 +1636,7 @@ class model(object):
             # convert the lightcurve so it complies with the juliet model accounting for the dilution and the mean out-of-transit flux:
             D, M = parameter_values['mdilution_'+self.mdilution_iname[instrument]], parameter_values['mflux_'+instrument]
             self.model[instrument]['M'] = (self.model[instrument]['M']*D + (1. - D))*(1./(1. + D*M))
- 
+
             # Now, if a linear model was defined, generate it and add it to the full model:
             if self.lm_boolean[instrument]:
                 self.model[instrument]['LM'] = np.zeros(self.ndatapoints_per_instrument[instrument])
