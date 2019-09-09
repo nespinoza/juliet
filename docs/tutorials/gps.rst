@@ -74,14 +74,14 @@ Now, let us fit a GP to this data. To do this, we will use a simple (approximate
 the selection was also made because this is implemented in ``celerite``, which makes the computation of the 
 log-likelihood blazing fast --- this in turn speeds up the posterior sampling within ``juliet``. The kernel is given by
 
-:math:`k(\tau_{i,j}) = \sigma^2_{GP}M(\tau_{i,j},\rho) + (\sigma^2_{i} + \sigma^2_{w})\delta_{i,j}`,
+:math:`k(\tau_{i,j}) = \sigma^2_{GP}\tilde{M}(\tau_{i,j},\rho) + (\sigma^2_{i} + \sigma^2_{w})\delta_{i,j}`,
 
 where :math:`k(\tau_{i,j})` gives the element :math:`i,j` of the covariance matrix :math:`\mathbf{\Sigma}`, :math:`\tau_{i,j} = |t_i - t_j|` 
 with the :math:`t_i` and :math:`t_j` being the :math:`i` and :math:`j` GP regressors (typically --- as in this case --- the times), 
 :math:`\sigma_i` the errorbar of the :math:`i`-th datapoint, :math:`\sigma_{GP}` sets the amplitude (in ppm) of the GP, :math:`\sigma_w` (in ppm) is an added 
 (unknown) *jitter* term, :math:`\delta_{i,j}` a Kronecker's delta (i.e., zero when :math:`i \neq j`, one otherwise) and where
 
-:math:`M(\tau_{i,j},\rho) = [(1+1/\epsilon)\exp(-[1-\epsilon]\sqrt{3}\tau/\rho) + (1- 1/\epsilon)\exp(-[1+\epsilon]\sqrt{3}\tau/\rho)]`
+:math:`\tilde{M}(\tau_{i,j},\rho) = [(1+1/\epsilon)\exp(-[1-\epsilon]\sqrt{3}\tau/\rho) + (1- 1/\epsilon)\exp(-[1+\epsilon]\sqrt{3}\tau/\rho)]`
 
 is the (approximate) Matern part of the kernel, which has a characteristic length-scale :math:`\rho`.
 
@@ -230,10 +230,9 @@ Joint GP and lightcurve fits
 One might wonder what the impact of doing the two-stage process mentioned above is when compared with fitting *jointly* 
 the GP process and the transit model. This latter method, in general, seems more appealing because it can take into 
 account in-transit non-white noise features, which in turn might give rise to more realistic errorbars on the retrieved 
-planetary parameters. Within ``juliet`` performing this kind of model fit is fairly 
-easy to do: one just has to add the priors for the GP process to the transit paramenters, and feed the GP regressors. 
-Let us use the same GP kernel as in the previous section then to model the underlying process for HATS-46b *jointly* 
-with the transit parameters:
+planetary parameters. Within ``juliet`` performing this kind of model fit is fairly easy to do: one just has to add the 
+priors for the GP process to the transit paramenters, and feed the GP regressors. Let us use the same GP kernel as in the 
+previous section then to model the underlying process for HATS-46b *jointly* with the transit parameters:
 
 .. code-block:: python
     :emphasize-lines: 7,11,15
@@ -266,12 +265,31 @@ with the transit parameters:
     results = dataset.fit()
 
 Note that in comparison with the transit-only fit, we have just added the priors for the GP parameters 
-(highlighted lines above). Interestingly, once the fit is done, ``juliet`` allows to retrieve (1) the 
-full median posterior model (i.e., the deterministic part of the model **plus** the median GP process) via 
-the ``results.lc.evaluate()`` function already used in the previous section and (2) all parts of the model 
-separately via the ``results.lc.model`` dictionary. To show how this works, let us extract these components 
-below in order to plot the full model, and remove the median GP process from the data in order to plot the 
-("systematics-corrected") phase-folded lightcurve:
+(highlighted lines above). The model being fit in this case by ``juliet`` is the one given in Section 2 
+of the `juliet paper <https://arxiv.org/abs/1812.08549>`_, i.e., a model of the form
+
+:math:`\mathcal{M}_{\textnormal{TESS}}(t) + \epsilon(t)`,
+
+where 
+
+:math:`\mathcal{M}_{\textnormal{TESS}}(t) = [T(t)D_{\textnormal{TESS}} + (1-{\textnormal{TESS}})]\left(\frac{1}{1+D_{\textnormal{TESS}}}M_{\textnormal{TESS}}\right)`
+
+is the photometric model composed of the dilution factor :math:`D_{\textnormal{TESS}}` (``mdilution_TESS``) and the mean out-of-transit 
+flux :math:`M_{\textnormal{TESS}}` (``mflux_TESS``). This is the *deterministic* part of the model, as 
+:math:`\mathcal{M}_{\textnormal{TESS}}(t)` is a process that, given a time and a set of parameters, will always be the same: you can easily 
+evaluate the model from the above definition. :math:`\epsilon(t)`, on the other hand, is the *stochastic* part of our model: a noise model which 
+in our case is being modelled as a GP. Given a set of parameters and times for the GP model, the process *cannot* directly be evaluated because 
+it defines a probability distribution, not a deterministic function like :math:`\mathcal{M}_{\textnormal{TESS}}(t)`. This means that every time 
+you sample from this GP, you would get a different curve --- ours was just *one realization* of many possible ones. However, we do have a 
+(noisy) realization (our data) and so our process can be constrained by it. This is what we plotted in the previous section of this tutorial 
+(which in strict rigor is a filter). Also note that in this model the GP is an additive process.
+
+Once the fit is done, ``juliet`` allows to retrieve (1) the full median posterior model (i.e., the deterministic part of the model **plus** the 
+median GP process) via the ``results.lc.evaluate()`` function already used in the previous section and (2) all parts of the model 
+separately via the ``results.lc.model`` dictionary, which holds the ``deterministic`` key which hosts the deterministic part of the model 
+(:math:`\mathcal{M}_{\textnormal{TESS}}(t)`) and the ``GP`` key which holds the stochastic part of the model (:math:`\epsilon(t)`, constrained 
+on the data). To show how this works, let us extract these components below in order to plot the full model, and remove the median GP process 
+from the data in order to plot the ("systematics-corrected") phase-folded lightcurve:
 
 .. code-block:: python
 
@@ -314,3 +332,13 @@ below in order to plot the full model, and remove the median GP process from the
     ax2.set_xlabel('Phases')
     ax2.set_xlim([-0.03,0.03])
     ax2.set_ylim([0.96,1.04])
+
+.. figure:: gp_joint_fit.png
+   :alt: Simultaneous GP and transit juliet fit to Sector 1 data for HATS-46b.
+
+Looks pretty good! As can be seen, the ``results.lc.model['TESS']['deterministic']`` dictionary holds the deterministic 
+part of the model. This includes the transit model which is distorted by the dilution factor (set to 1 in our case) and the 
+mean out-of-transit flux, which we fit together with the other parameters in our joint fit --- this deterministic model is the one 
+that is plotted in the right panel in the above presented figure. The ``results.lc.model['TESS']['GP']`` dictionary, on the other 
+hand, holds the GP part of the model --- because this is an additive process in this case, we can just substract it from the data 
+in order to get the "systematic-corrected" data that we plot in the right panel in the figure above.
