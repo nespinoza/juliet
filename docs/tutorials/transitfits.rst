@@ -155,7 +155,6 @@ this function. We will create two plots: one of time versus flux, and another on
     idx = np.argsort(phases)
     ax2.plot(phases[idx],transit_model[idx], color='black',zorder=10)
     ax2.fill_between(phases[idx],transit_up68[idx],transit_low68[idx],color='white',alpha=0.5,zorder=5)
-    #ax2.yaxis.set_major_formatter(plt.NullFormatter())
     ax2.set_xlabel('Phases')
     ax2.set_xlim([-0.015,0.015])
     ax2.set_ylim([0.98,1.02])
