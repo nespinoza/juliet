@@ -924,17 +924,17 @@ class fit(object):
 
         # Evaluate photometric model first:
         if self.data.t_lc is not None:
-             self.lc_model.generate(self.posteriors)
-             if self.lc_model.modelOK:
-                 log_likelihood += self.lc_model.get_log_likelihood(self.posteriors)
+             self.lc.generate(self.posteriors)
+             if self.lc.modelOK:
+                 log_likelihood += self.lc.get_log_likelihood(self.posteriors)
              else:
                  return -1e101
 
         # Now RV model:
         if self.data.t_rv is not None:
-             self.rv_model.generate(self.posteriors)
-             if self.rv_model.modelOK:
-                 log_likelihood += self.rv_model.get_log_likelihood(self.posteriors)
+             self.rv.generate(self.posteriors)
+             if self.rv.modelOK:
+                 log_likelihood += self.rv.get_log_likelihood(self.posteriors)
              else:
                  return -1e101
       
@@ -997,9 +997,9 @@ class fit(object):
 
         # Generate light-curve and radial-velocity models:
         if self.data.t_lc is not None:
-            self.lc_model = model(self.data, modeltype = 'lc', pl = self.pl, pu = self.pu, ecclim = self.ecclim, log_like_calc = True)
+            self.lc = model(self.data, modeltype = 'lc', pl = self.pl, pu = self.pu, ecclim = self.ecclim, log_like_calc = True)
         if self.data.t_rv is not None:
-            self.rv_model = model(self.data, modeltype = 'rv', ecclim = self.ecclim, ta = self.ta, log_like_calc = True)
+            self.rv = model(self.data, modeltype = 'rv', ecclim = self.ecclim, ta = self.ta, log_like_calc = True)
 
         # Before starting, check if force_dynesty or force_pymultinest is on; change options accordingly:
         if force_dynesty and (not self.use_dynesty):
@@ -1140,11 +1140,11 @@ class fit(object):
         # Save all results (posteriors) to the self.results object:
         self.posteriors = out
   
-        # Save posteriors to lc_model and rv_model:
+        # Save posteriors to lc and rv:
         if self.data.t_lc is not None:
-            self.lc_model.set_posterior_samples(out['posterior_samples'])
+            self.lc.set_posterior_samples(out['posterior_samples'])
         if self.data.t_rv is not None:
-            self.rv_model.set_posterior_samples(out['posterior_samples'])
+            self.rv.set_posterior_samples(out['posterior_samples'])
 
 class model(object):
     """
@@ -1262,13 +1262,13 @@ class model(object):
         else:
             self.model['Keplerian+Trend'] = self.model['Keplerian']
 
-        # Populate the self.model[instrument]['full'] array. This hosts the full (deterministic) model for each RV instrument.
+        # Populate the self.model[instrument]['deterministic'] array. This hosts the full (deterministic) model for each RV instrument.
         for instrument in self.inames:
-            self.model[instrument]['full'] = self.model['Keplerian+Trend'][self.instrument_indexes[instrument]] + parameter_values['mu_'+instrument] 
-            self.model[instrument]['full_variances'] = self.errors[instrument]**2 + parameter_values['sigma_w_'+instrument]**2
+            self.model[instrument]['deterministic'] = self.model['Keplerian+Trend'][self.instrument_indexes[instrument]] + parameter_values['mu_'+instrument] 
+            self.model[instrument]['deterministic_variances'] = self.errors[instrument]**2 + parameter_values['sigma_w_'+instrument]**2
             # If the model under consideration is a global model, populate the global model dictionary:
             if self.global_model:
-                self.model['global'][self.instrument_indexes[instrument]] = self.model[instrument]['full']
+                self.model['global'][self.instrument_indexes[instrument]] = self.model[instrument]['deterministic']
                 self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
                                                                                       parameter_values['sigma_w_'+instrument]**2
         
@@ -1280,22 +1280,24 @@ class model(object):
                 self.dictionary['global_model']['noise_model'].yerr = np.sqrt(self.model['global_variances'])
                 self.dictionary['global_model']['noise_model'].compute_GP()
                 # Return mean signal plus GP model:
-                return self.model['global'] + self.dictionary['global_model']['noise_model'].GP.predict(residuals, self.dictionary['global_model']['noise_model'].X, \
-                                                                                                        return_var=False, return_cov=False)
+                self.model['GP'] = self.dictionary['global_model']['noise_model'].GP.predict(residuals, self.dictionary['global_model']['noise_model'].X, \
+                                                                                                   return_var=False, return_cov=False)
+                return self.model['global'], self.model['GP'], elf.model['global'] + self.model['GP']
             else:
                 return self.model['global'] 
         else:
             if self.dictionary[instrument]['GPDetrend']:
-                residuals = self.residuals#self.data[instrument] - self.model[instrument]['full']
+                residuals = self.residuals#self.data[instrument] - self.model[instrument]['deterministic']
                 self.dictionary[instrument]['noise_model'].set_parameter_vector(parameter_values)
-                return self.model[instrument]['full'] + self.dictionary[instrument]['noise_model'].GP.predict(residuals,self.dictionary[instrument]['noise_model'].X, \
-                                                                                                              return_var=False, return_cov=False)
+                self.model[instrument]['GP'] = self.dictionary[instrument]['noise_model'].GP.predict(residuals,self.dictionary[instrument]['noise_model'].X, \
+                                               return_var=False, return_cov=False)
+                return self.model[instrument]['deterministic'], self.model[instrument]['GP'], self.model[instrument]['deterministic'] + self.model[instrument]['GP']
             else:
-                return self.model[instrument]['full']
+                return self.model[instrument]['deterministic']
 
     def evaluate_lc_model(self, instrument = None, parameter_values = None, resampling = None, nresampling = None, etresampling = None, \
                           all_samples = False, nsamples = 1000, return_samples = False, t = None, GPregressors = None, LMregressors = None, \
-                          return_err = False):
+                          return_err = False, alpha = 0.68):
         """
         This function evaluates the current lc model given a set of parameter values. Resampling options can be changed if resampling is a boolean,
         but the object is at the end rolled-back to the default resampling definitions the user defined in the juliet.load object.
@@ -1328,7 +1330,9 @@ class model(object):
                     idx_samples = np.random.choice(np.arange(nsampled),np.min([nsamples,nsampled]),replace=False)
                     idx_samples = idx_samples[np.argsort(idx_samples)]
                 
-                # Create the actual output_model:
+                # Create the output_model arrays: these will save on each iteration the full model (lc + GP, output_model_samples), 
+                # the GP-only model (GP, output_modelGP_samples) and the lc-only model (lc, output_modelLC_samples) --- the latter ones 
+                # will make sense only if there is a GP model:
                 if t is None:
                     if self.global_model:
                         output_model_samples = np.zeros([nsamples,self.ndatapoints_all_instruments])
@@ -1341,6 +1345,10 @@ class model(object):
                     if self.dictionary[instrument]['TransitFit']:
                         supersample_params,supersample_m = self.init_batman(t, self.dictionary[instrument]['ldlaw'])
                         sample_params,sample_m = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+              
+                if self.dictionary[instrument]['GPDetrend']:
+                    output_modelGP_samples = np.copy(output_model_samples)
+                    output_modelLC_samples = np.copy(output_model_samples)
 
                 # Create dictionary that saves the current parameter_values to evaluate:
                 current_parameter_values = dict.fromkeys(parameters)
@@ -1348,8 +1356,8 @@ class model(object):
                 for parameter in parameters:
                     if self.priors[parameter]['distribution'] == 'fixed': 
                         current_parameter_values[parameter] = self.priors[parameter]['hyperparameters']
-                # Now iterate through all samples, through all the input parameters:
-                counter = 0
+                # If extrapolating the model, save the current times, current GPregressors and current linear 
+                # regressors: 
                 if t is not None:
                     original_times = np.copy(self.times[instrument])
                     if self.dictionary[instrument]['GPDetrend']:
@@ -1357,13 +1365,17 @@ class model(object):
                         self.dictionary[instrument]['noise_model'].X = GPregressors
                     if self.lm_boolean[instrument]:
                         original_lm_arguments  = np.copy(self.lm_arguments[instrument])
+                # Now iterate through all samples, through all the input parameters:
+                counter = 0
                 for i in idx_samples:
                     for parameter in input_parameters:
                         # Populate the current parameter_values
                         current_parameter_values[parameter] = parameter_values[parameter][i]
-                    # Evaluate lightcurve at the current parameter values:
+                    # Evaluate lightcurve at the current parameter values, calculate residuals, save them:
                     self.generate_lc_model(current_parameter_values)
-                    self.residuals = self.data[instrument] - self.model[instrument]['full']
+                    self.residuals = self.data[instrument] - self.model[instrument]['deterministic']
+                    # If extrapolating (t is not None), evaluate the extrapolated model with a lightcurve model 
+                    # considering the input times and not the current dataset times:
                     if t is not None:
                         if self.dictionary[instrument]['TransitFit']:
                             self.model[instrument]['params'], self.model[instrument]['m'] = supersample_params,supersample_m
@@ -1372,7 +1384,13 @@ class model(object):
                         self.model[instrument]['ones'] = np.ones(nt)
                         self.ndatapoints_per_instrument[instrument] = nt 
                         self.generate_lc_model(current_parameter_values)    
-                    output_model_samples[counter,:] = self.get_GP_plus_deterministic_model(current_parameter_values, instrument = instrument)
+                    if self.dictionary[instrument]['GPDetrend']:
+                        output_modelLC_samples[counter,:], output_modelGP_samples[counter,:], output_model_samples[counter,:] = \
+                                                                 self.get_GP_plus_deterministic_model(current_parameter_values, \
+                                                                                                         instrument = instrument)
+                    else:
+                        output_model_samples[counter,:] = self.get_GP_plus_deterministic_model(current_parameter_values, \
+                                                                                                  instrument = instrument)
                     # Rollback in case t is not None:
                     if t is not None:
                         if self.dictionary[instrument]['TransitFit']:
@@ -1383,15 +1401,32 @@ class model(object):
                         self.ndatapoints_per_instrument[instrument] = nt_original
                         
                     counter += 1
-                # If return_error is on, return upper and lower sigma (68% CI) of the model:
+                # If return_error is on, return upper and lower sigma (68% CI) of the model(s):
                 if return_err:
                     m_output_model, u_output_model, l_output_model = np.zeros(output_model_samples.shape[1]),\
                                                                      np.zeros(output_model_samples.shape[1]),\
                                                                      np.zeros(output_model_samples.shape[1])
+
+                    if self.dictionary[instrument]['GPDetrend']:
+                        LCm_output_model, LCu_output_model, LCl_output_model = np.copy(m_output_model), np.copy(u_output_model), \
+                                                                               np.copy(l_output_model) 
+
+                        GPm_output_model, GPu_output_model, GPl_output_model = np.copy(m_output_model), np.copy(u_output_model), \
+                                                                               np.copy(l_output_model)
                     for i in range(output_model_samples.shape[1]):
-                        m_output_model[i], u_output_model[i], l_output_model[i] = get_quantiles(output_model_samples[:,i])
+                        m_output_model[i], u_output_model[i], l_output_model[i] = get_quantiles(output_model_samples[:,i], alpha = alpha)
+                        if self.dictionary[instrument]['GPDetrend']:
+                            mLC_output_model[i], uLC_output_model[i], lLC_output_model[i] = get_quantiles(output_modelLC_samples[:,i], alpha = alpha)
+                            mGP_output_model[i], uGP_output_model[i], lGP_output_model[i] = get_quantiles(output_modelGP_samples[:,i], alpha = alpha)
+                    if self.dictionary[instrument]['GPDetrend']: 
+                        self.model[instrument]['deterministic'], self.model[instrument]['GP'] = mLC_output_model, mGP_output_model
+                        self.model[instrument]['deterministic_uerror'], self.model[instrument]['GP_uerror'] = uLC_output_model, uGP_output_model
+                        self.model[instrument]['deterministic_lerror'], self.model[instrument]['GP_lerror'] = lLC_output_model, lGP_output_model
                 else:
                     output_model = np.median(output_model_samples,axis=0)
+                    if self.dictionary[instrument]['GPDetrend']:
+                        self.model[instrument]['deterministic'], self.model[instrument]['GP'] = np.median(output_modelLC_samples,axis=0), \
+                                                                                       np.median(output_modelGP_samples,axis=0)
             else:
                 self.generate_lc_model(parameter_values)
                 output_model = self.get_GP_plus_deterministic_model(parameter_values, instrument = instrument)
@@ -1492,7 +1527,7 @@ class model(object):
         if parameter_values is not None:
             self.generate_rv_model(parameter_values)
 
-        return self.model[instrument]['full']
+        return self.model[instrument]['deterministic']
   
     def predict_rv_model(self, t, posteriors = None):
         """
@@ -1516,7 +1551,7 @@ class model(object):
                     self.modelOK = False
                     return False
 
-        # Start loop to populate the self.model[instrument]['full_model'] array, which will host the complete lightcurve for a given 
+        # Start loop to populate the self.model[instrument]['deterministic_model'] array, which will host the complete lightcurve for a given 
         # instrument (including flux from all the planets). Do the for loop per instrument for the parameter extraction, so in the 
         # future we can do, e.g., wavelength-dependant rp/rs.
         for instrument in self.inames:
@@ -1609,13 +1644,13 @@ class model(object):
                 self.model[instrument]['LM'] = np.zeros(self.ndatapoints_per_instrument[instrument])
                 for i in range(lm_n[instrument]):
                     self.model[instrument]['LM'] += parameter_values['theta'+str(i)+'_'+instrument]*self.lm_arguments[:,i]
-                self.model[instrument]['full'] = self.model[instrument]['M'] + self.model[instrument]['LM']
+                self.model[instrument]['deterministic'] = self.model[instrument]['M'] + self.model[instrument]['LM']
             else:
-                self.model[instrument]['full'] = self.model[instrument]['M']
-            self.model[instrument]['full_variances'] = self.errors[instrument]**2 + (parameter_values['sigma_w_'+instrument]*1e-6)**2
+                self.model[instrument]['deterministic'] = self.model[instrument]['M']
+            self.model[instrument]['deterministic_variances'] = self.errors[instrument]**2 + (parameter_values['sigma_w_'+instrument]*1e-6)**2
             # Finally, if the model under consideration is a global model, populate the global model dictionary:
             if self.global_model:
-                self.model['global'][self.instrument_indexes[instrument]] = self.model[instrument]['full']
+                self.model['global'][self.instrument_indexes[instrument]] = self.model[instrument]['deterministic']
                 self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
                                                                                       (parameter_values['sigma_w_'+instrument]*1e-6)**2
 
@@ -1636,12 +1671,12 @@ class model(object):
         else:
             log_like = 0.0
             for instrument in self.inames:
-                residuals = self.data[instrument] - self.model[instrument]['full']
+                residuals = self.data[instrument] - self.model[instrument]['deterministic']
                 if self.dictionary[instrument]['GPDetrend']:
                     self.dictionary[instrument]['noise_model'].set_parameter_vector(parameter_values)
                     log_like += self.dictionary[instrument]['noise_model'].GP.log_likelihood(residuals)
                 else:
-                    log_like += self.gaussian_log_likelihood(residuals,self.model[instrument]['full_variances'])
+                    log_like += self.gaussian_log_likelihood(residuals,self.model[instrument]['deterministic_variances'])
             return log_like 
 
     def set_posterior_samples(self, posterior_samples):
@@ -1728,10 +1763,10 @@ class model(object):
                 self.model[instrument]['M'] = np.ones(len(self.instrument_indexes[instrument]))
                 # Linear model (in the notation of juliet, LM):
                 self.model[instrument]['LM'] = np.zeros(len(self.instrument_indexes[instrument]))
-                # Now, generate dictionary that will save the final full model (M + LM):
-                self.model[instrument]['full'] = np.zeros(len(self.instrument_indexes[instrument]))
+                # Now, generate dictionary that will save the final full, deterministic model (M + LM):
+                self.model[instrument]['deterministic'] = np.zeros(len(self.instrument_indexes[instrument]))
                 # Same for the errors:
-                self.model[instrument]['full_errors'] = np.zeros(len(self.instrument_indexes[instrument]))
+                self.model[instrument]['deterministic_errors'] = np.zeros(len(self.instrument_indexes[instrument]))
                 if self.dictionary[instrument]['TransitFit']:
                     # First, take the opportunity to initialize transit lightcurves for each instrument:
                     if self.dictionary[instrument]['resampling']:
@@ -1828,9 +1863,9 @@ class model(object):
                 # Linear model (in the notation of juliet, LM):
                 self.model[instrument]['LM'] = np.zeros(len(self.instrument_indexes[instrument]))
                 # Now, generate dictionary that will save the final full model (M + LM):
-                self.model[instrument]['full'] = np.zeros(len(self.instrument_indexes[instrument]))
+                self.model[instrument]['deterministic'] = np.zeros(len(self.instrument_indexes[instrument]))
                 # Same for the errors:
-                self.model[instrument]['full_errors'] = np.zeros(len(self.instrument_indexes[instrument]))
+                self.model[instrument]['deterministic_errors'] = np.zeros(len(self.instrument_indexes[instrument]))
                 # Individual keplerians for each planet:
                 for i in self.numbering:
                     self.model[instrument]['p'+str(i)] = np.ones(len(self.instrument_indexes[instrument]))

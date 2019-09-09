@@ -1,11 +1,11 @@
-.. _quicktest:
+.. _gps:
 
 Incorporating Gaussian Processes
 ===================
 
 So far in the tutorials we have dealt with gaussian white-noise as a good approximation to the underlying 
 signals present behind our transits and radial-velocities. However, this kind of process is very unrealistic 
-for real transit lightcurves. Within ``juliet``, we allow to model non-white noise models using Gaussian Proccesses (GPs), 
+for real data. Within ``juliet``, we allow to model non-white noise models using Gaussian Proccesses (GPs), 
 which are not only good for underlying stochastic processes that might be present in the data, but are also very 
 good for modelling underlying deterministic processes for which we do not have a good model at hand. GPs attempt to model 
 the likelihood, :math:`\mathcal{L}`, as coming from a multi-variate gaussian distribution, i.e., 
@@ -79,16 +79,16 @@ log-likelihood blazing fast --- this in turn speeds up the posterior sampling wi
 where :math:`k(\tau_{i,j})` gives the element :math:`i,j` of the covariance matrix :math:`\mathbf{\Sigma}`, :math:`\tau_{i,j} = |t_i - t_j|` 
 with the :math:`t_i` and :math:`t_j` being the :math:`i` and :math:`j` GP regressors (typically --- as in this case --- the times), 
 :math:`\sigma_i` the errorbar of the :math:`i`-th datapoint, :math:`\sigma_{GP}` sets the amplitude (in ppm) of the GP, :math:`\sigma_w` (in ppm) is an added 
-(unknown) _jitter_ term, :math:`\delta_{i,j}` a Kronecker's delta (i.e., zero when :math:`i \neq j`, one otherwise) and where
+(unknown) *jitter* term, :math:`\delta_{i,j}` a Kronecker's delta (i.e., zero when :math:`i \neq j`, one otherwise) and where
 
 :math:`M(\tau_{i,j},\rho) = [(1+1/\epsilon)\exp(-[1-\epsilon]\sqrt{3}\tau/\rho) + (1- 1/\epsilon)\exp(-[1+\epsilon]\sqrt{3}\tau/\rho)]`
 
-is the (approximate) Matern part of the kernel, which has a characteristic length-scale :math:``rho``.
+is the (approximate) Matern part of the kernel, which has a characteristic length-scale :math:`\rho`.
 
 To use this kernel within ``juliet`` you just have to give the priors for these parameters in the prior dictionary or file (see below for 
 a full list of all the available kernels). ``juliet`` will automatically recognize which kernel you want based on the priors selected for 
 each instrument. In this case, if you define a parameter ``GP_sigma`` (for :math:`\sigma_{GP}`) and ``rho`` (for the 
-Matern time-scale, :math:``rho``), ``juliet`` will automatically recognize you want to use this (approximate) Matern kernel. Let's thus give 
+Matern time-scale, :math:`\rho`), ``juliet`` will automatically recognize you want to use this (approximate) Matern kernel. Let's thus give 
 these priors --- for now, let us set the dilution factor ``mdilution`` to 1, give a normal prior for the mean out-of-transit flux ``mflux`` and 
 wide log-uniform priors for all the other parameters:
 
@@ -116,7 +116,7 @@ wide log-uniform priors for all the other parameters:
     results = dataset.fit()
 
 Note that the only new part in terms of loading the dataset is that one has to now add a new piece of data, the ``GP_regressors_lc``, 
-in order for the GP to run (ephasized in the code above). This is also a dictionary, which specifies the GP regressors for each instrument. 
+in order for the GP to run (emphasized in the code above). This is also a dictionary, which specifies the GP regressors for each instrument. 
 For ``celerite`` kernels, in theory the regressors have to be one-dimensional and ordered in ascending or descending order --- however, 
 internally ``juliet`` performs this ordering so the user doesn't have to worry about this last part. Let us now plot the GP fit and some 
 residuals below to see how we did:
@@ -126,7 +126,7 @@ residuals below to see how we did:
     # Import gridspec:
     import matplotlib.gridspec as gridspec
     # Get juliet model prediction for the full lightcurve:
-    model_fit = results.lc_model.evaluate('TESS')
+    model_fit = results.lc.evaluate('TESS')
 
     # Plot:
     fig = plt.figure(figsize=(10,4))
@@ -151,7 +151,7 @@ residuals below to see how we did:
 .. figure:: hats-46_GPfitmatern.png
    :alt: Sector 1 data for HATS-46b with an approximate Matern kernel on top
 
-Seems we did pretty good! By default, the ``results.lc_model.evaluate`` function evaluates the model on the input dataset (i.e., on the 
+Seems we did pretty good! By default, the ``results.lc.evaluate`` function evaluates the model on the input dataset (i.e., on the 
 input GP regressors and input times). In our case, this was the out-of-transit data. To detrend the lightcurve, however, we have to *predict* 
 the model on the full time-series. This is easily done using the same function but giving the times and GP regressors we want to predict the 
 data on. So let us detrend the original lightcurve (stored in the arrays ``t``, ``f`` and ``ferr`` that we extracted at the beggining of 
@@ -160,7 +160,7 @@ this section), and fit a transit to it to see how we do:
 .. code-block:: python
 
     # Get model prediction from juliet:
-    model_prediction = results.lc_model.evaluate('TESS', t = t, GPregressors = t)
+    model_prediction = results.lc.evaluate('TESS', t = t, GPregressors = t)
 
     # Repopulate dictionaries with new detrended flux:
     times['TESS'], fluxes['TESS'], fluxes_error['TESS'] = t, f/model_prediction, \
@@ -189,8 +189,8 @@ this section), and fit a transit to it to see how we do:
 
     results = dataset.fit()
 
-    # Extra transit model prediction given the data:
-    transit_model = results.lc_model.evaluate('TESS')
+    # Extract transit model prediction given the data:
+    transit_model = results.lc.evaluate('TESS')
 
     # Plot results:
     fig = plt.figure(figsize=(10,4))
@@ -222,4 +222,95 @@ this section), and fit a transit to it to see how we do:
 .. figure:: juliet_h46_transit_fit.png
    :alt: juliet fit to Sector 1 detrended data for HATS-46b. 
 
-Pretty good!
+Pretty good! In the next section, we explore *joint* fitting for the transit model and the GP process.
+
+Joint GP and lightcurve fits
+-----------------------------
+
+One might wonder what the impact of doing the two-stage process mentioned above is when compared with fitting *jointly* 
+the GP process and the transit model. This latter method, in general, seems more appealing because it can take into 
+account in-transit non-white noise features, which in turn might give rise to more realistic errorbars on the retrieved 
+planetary parameters. Within ``juliet`` performing this kind of model fit is fairly 
+easy to do: one just has to add the priors for the GP process to the transit paramenters, and feed the GP regressors. 
+Let us use the same GP kernel as in the previous section then to model the underlying process for HATS-46b *jointly* 
+with the transit parameters:
+
+.. code-block:: python
+    :emphasize-lines: 7,11,15
+
+    # First define the priors:
+    priors = {}
+
+    # Same priors as for the transit-only fit, but we now add the GP priors:
+    params = ['P_p1','t0_p1','r1_p1','r2_p1','q1_TESS','q2_TESS','ecc_p1','omega_p1',\
+              'rho', 'mdilution_TESS', 'mflux_TESS', 'sigma_w_TESS', \
+              'GP_sigma_TESS', 'GP_rho_TESS']
+
+    dists = ['normal','normal','uniform','uniform','uniform','uniform','fixed','fixed',\
+             'loguniform', 'fixed', 'normal', 'loguniform', \
+             'loguniform', 'loguniform']
+
+    hyperps = [[4.7,0.1], [1329.9,0.1], [0.,1], [0.,1.], [0., 1.], [0., 1.], 0.0, 90.,\
+               [100., 10000.], 1.0, [0.,0.1], [0.1, 1000.], \
+               [1e-6, 1e6], [1e-3, 1e3]]
+
+    # Populate the priors dictionary:
+    for param, dist, hyperp in zip(params, dists, hyperps):
+        priors[param] = {}
+        priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
+
+    times['TESS'], fluxes['TESS'], fluxes_error['TESS'] = t,f,ferr
+    dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, \
+                          yerr_lc = fluxes_error, GP_regressors_lc = times, out_folder = 'hats46_transitGP', verbose = True)
+
+    results = dataset.fit()
+
+Note that in comparison with the transit-only fit, we have just added the priors for the GP parameters 
+(highlighted lines above). Interestingly, once the fit is done, ``juliet`` allows to retrieve (1) the 
+full median posterior model (i.e., the deterministic part of the model **plus** the median GP process) via 
+the ``results.lc.evaluate()`` function already used in the previous section and (2) all parts of the model 
+separately via the ``results.lc.model`` dictionary. To show how this works, let us extract these components 
+below in order to plot the full model, and remove the median GP process from the data in order to plot the 
+("systematics-corrected") phase-folded lightcurve:
+
+.. code-block:: python
+
+    # Extract full model:
+    transit_plus_GP_model = results.lc.evaluate('TESS')
+
+    # Deterministic part of the model (in our case transit divided by mflux):
+    transit_model = results.lc.model['TESS']['deterministic']
+
+    # GP part of the model:
+    gp_model = results.lc.model['TESS']['GP']
+
+    # Now plot. First preambles:
+    fig = plt.figure(figsize=(12,4))
+    gs = gridspec.GridSpec(1, 2, width_ratios=[2,1])
+    ax1 = plt.subplot(gs[0])
+
+    # Plot data
+    ax1.errorbar(dataset.times_lc['TESS'], dataset.data_lc['TESS'], \
+                 yerr = dataset.errors_lc['TESS'], fmt = '.', alpha = 0.1)
+
+    # Plot the (full, transit + GP) model:
+    ax1.plot(dataset.times_lc['TESS'], transit_plus_GP_model, color='black',zorder=10)
+
+    ax1.set_xlim([1328,1350])
+    ax1.set_ylim([0.96,1.04])
+    ax1.set_xlabel('Time (BJD - 2457000)')
+    ax1.set_ylabel('Relative flux')
+
+    ax2 = plt.subplot(gs[1])
+
+    # Now plot phase-folded lightcurve but with the GP part removed:
+    ax2.errorbar(phases, dataset.data_lc['TESS'] - gp_model, \
+                 yerr = dataset.errors_lc['TESS'], fmt = '.', alpha = 0.3)
+
+    # Plot transit-only (divided by mflux) model:
+    idx = np.argsort(phases)
+    ax2.plot(phases[idx],transit_model[idx], color='black',zorder=10)
+    ax2.yaxis.set_major_formatter(plt.NullFormatter())
+    ax2.set_xlabel('Phases')
+    ax2.set_xlim([-0.03,0.03])
+    ax2.set_ylim([0.96,1.04])

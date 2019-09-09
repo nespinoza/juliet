@@ -15,10 +15,11 @@ To use ``juliet`` as an **imported library**, inside any python script you can s
 .. code-block:: python
 
     import juliet
-    out = juliet.fit(priors,t_lc=times,y_lc=flux,yerr_lc=flux_error)
+    dataset = juliet.load(priors = priors, t_lc=times, y_lc=flux, yerr_lc=flux_error)
+    results = dataset.fit()
 
-In this example, ``juliet`` will perform a fit on a lightcurve defined by a dictionary of times ``times``, 
-relative fluxes ``flux`` and error on those fluxes ``flux_error`` given some prior information ``prior`` which, 
+In this example, ``juliet`` will perform a fit on a lightcurve dataset defined by a dictionary of times ``times``, 
+relative fluxes ``flux`` and error on those fluxes ``flux_error`` given some prior information ``priors`` which, 
 as we will see below, is also defined through a dictionary. 
 
 
@@ -42,35 +43,21 @@ A first fit to data with juliet
 To showcase how ``juliet`` works, let us first perform an extremely simple fit to data using ``juliet`` as an *imported library*. 
 We will fit the TESS data of TOI-141 b, which was shown to host a 1-day transiting exoplanet by 
 `Espinoza et al. (2019) <https://arxiv.org/abs/1903.07694>`_. Let us first load the data corresponding to this 
-object, which is hosted in MAST:
+object, which is hosted in MAST --- for TESS data, ``juliet`` has already built-in functions to load the data arrays 
+directly given a web link to the data:
 
 .. code-block:: python
 
-    import numpy as np
-    from astropy.io import fits
-
-    def get_TESS_data(filename):
-        """ 
-        Given a filename, this function returns an array of times, 
-        fluxes and errors on those fluxes.
-        """
-        # Manipulate the fits file:
-        data = fits.getdata(filename)
-
-        # Identify zero-flux values to take them out of the data arrays:
-        idx = np.where(data['PDCSAP_FLUX']!=0.)[0]
-
-        # Return median-normalized flux:
-        return data['TIME'][idx],data['PDCSAP_FLUX'][idx]/np.median(data['PDCSAP_FLUX'][idx]), \
-               data['PDCSAP_FLUX_ERR'][idx]/np.median(data['PDCSAP_FLUX'][idx])
-    
+    import juliet 
     # First, get times, normalized-fluxes and errors for TOI-141 from MAST:
-    t,f,ferr  = get_TESS_data('https://archive.stsci.edu/hlsps/tess-data-alerts/hlsp_tess'+\
-                               '-data-alerts_tess_phot_00403224672-s01_tess_v1_lc.fits')
+    t,f,ferr  = juliet.get_TESS_data('https://archive.stsci.edu/hlsps/tess-data-alerts/hlsp_tess'+\
+                                     '-data-alerts_tess_phot_00403224672-s01_tess_v1_lc.fits')
     
-Now, in order to load this dataset into ``juliet``, we need to put the times, fluxes and errors into dictionaries. 
-This makes it extremely easy to add more instruments, as simply other instruments will be other keys of this 
-dictionary. For now, let us just use this TESS data; we put them in dictionaries that ``juliet`` likes as follows:
+This will save arrays of times, fluxes (``PDCSAP_FLUX`` fluxex) and errors on the ``t``, ``f`` and ``ferr`` arrays. Now, 
+in order to load this dataset into a format that ``juliet`` likes, we need to put these into dictionaries. This, as we will 
+see, will make it extremely easy to add more instruments, as data for other instruments will simply be stored in different 
+keys of the same dictionary. For now, let us just use this TESS data; we put them in dictionaries that ``juliet`` likes as 
+follows:
 
 .. code-block:: python
 
@@ -78,7 +65,7 @@ dictionary. For now, let us just use this TESS data; we put them in dictionaries
     times, fluxes, fluxes_error = {},{},{}
     # Save data into those dictionaries:
     times['TESS'], fluxes['TESS'], fluxes_error['TESS'] = t,f,ferr
-    # If you had data from other instruments you would simplt do, e.g.,
+    # If you had data from other instruments you would simply do, e.g.,
     # times['K2'], fluxes['K2'], fluxes_error['K2'] = t_k2,f_k2,ferr_k2
 
 The final step to fit the data with ``juliet`` is to define the priors for the different parameters that we
@@ -191,7 +178,7 @@ at this dataset again with another ``python`` session and say, plot the data and
                 yerr = dataset.errors_lc['TESS'], fmt = '.', alpha = 0.1)
 
    # Plot the model:
-   plt.plot(dataset.times_lc['TESS'], results.lc_model.evaluate('TESS')) 
+   plt.plot(dataset.times_lc['TESS'], results.lc.evaluate('TESS')) 
 
    # Plot portion of the lightcurve, axes, etc.:
    plt.xlim([1326,1332])
