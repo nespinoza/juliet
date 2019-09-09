@@ -340,7 +340,7 @@ def bin_data(x,y,n_bin):
         y_err_bins.append(np.sqrt(np.var(y[i:i+n_bin-1]))/np.sqrt(len(y[i:i+n_bin-1])))
     return np.array(x_bins),np.array(y_bins),np.array(y_err_bins)
 
-def writepp(fout,posteriors, prior):
+def writepp(fout,posteriors, priors):
     if 'pu' in posteriors:
         pu = posteriors['pu']
         pl = posteriors['pl']
