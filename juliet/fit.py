@@ -1133,7 +1133,7 @@ class fit(object):
         if self.out_folder is not None:
             if not os.path.exists(self.out_folder+'posteriors.dat'):
                 outpp = open(self.out_folder+'posteriors.dat','w')
-                writepp(outpp,out, self.priors)
+                writepp(outpp,out, data.priors)
 
         # Save all results (posteriors) to the self.results object:
         self.posteriors = out
