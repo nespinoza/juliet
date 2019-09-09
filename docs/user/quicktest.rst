@@ -53,9 +53,9 @@ directly given a web link to the data:
     t,f,ferr  = juliet.get_TESS_data('https://archive.stsci.edu/hlsps/tess-data-alerts/hlsp_tess'+\
                                      '-data-alerts_tess_phot_00403224672-s01_tess_v1_lc.fits')
     
-This will save arrays of times, fluxes (``PDCSAP_FLUX`` fluxex) and errors on the ``t``, ``f`` and ``ferr`` arrays. Now, 
+This will save arrays of times, fluxes (``PDCSAP_FLUX`` fluxes, in particular) and errors on the ``t``, ``f`` and ``ferr`` arrays. Now, 
 in order to load this dataset into a format that ``juliet`` likes, we need to put these into dictionaries. This, as we will 
-see, will make it extremely easy to add more instruments, as data for other instruments will simply be stored in different 
+see, will make it extremely easy to add data from more instruments, as these will be simply stored in different 
 keys of the same dictionary. For now, let us just use this TESS data; we put them in dictionaries that ``juliet`` likes as 
 follows:
 
