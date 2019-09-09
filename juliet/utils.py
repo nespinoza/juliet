@@ -340,7 +340,7 @@ def bin_data(x,y,n_bin):
         y_err_bins.append(np.sqrt(np.var(y[i:i+n_bin-1]))/np.sqrt(len(y[i:i+n_bin-1])))
     return np.array(x_bins),np.array(y_bins),np.array(y_err_bins)
 
-def writepp(fout,posteriors):
+def writepp(fout,posteriors, prior):
     if 'pu' in posteriors:
         pu = posteriors['pu']
         pl = posteriors['pl']
@@ -393,7 +393,10 @@ def writepp(fout,posteriors):
             ecc_factor = (1. + ecc*np.sin(omega))/(1. - ecc**2)
             if 'rho' in posteriors['posterior_samples']:
                 G = 6.67408e-11
-                a = ((posteriors['posterior_samples']['rho']*G*((posteriors['posterior_samples']['P_'+planet]*24.*3600.)**2))/(3.*np.pi))**(1./3.)
+                if 'P_'+planet in posteriors['posterior_samples']:
+                    a = ((posteriors['posterior_samples']['rho']*G*((posteriors['posterior_samples']['P_'+planet]*24.*3600.)**2))/(3.*np.pi))**(1./3.)
+                else:
+                    a = ((posteriors['posterior_samples']['rho']*G*((priors['P_'+planet]['hyperparameters']*24.*3600.)**2))/(3.*np.pi))**(1./3.)
             else:
                 a = posteriors['posterior_samples']['a_'+planet]
             inc_inv_factor = (b/a)*ecc_factor
@@ -407,7 +410,10 @@ def writepp(fout,posteriors):
             if 'rho' in posteriors['posterior_samples']:
                 par,planet = pname.split('_')
                 G = 6.67408e-11
-                a = ((posteriors['posterior_samples']['rho']*G*((posteriors['posterior_samples']['P_'+planet]*24.*3600.)**2))/(3.*np.pi))**(1./3.)
+                if 'P_'+planet in posteriors['posterior_samples']:
+                    a = ((posteriors['posterior_samples']['rho']*G*((posteriors['posterior_samples']['P_'+planet]*24.*3600.)**2))/(3.*np.pi))**(1./3.)
+                else:
+                    a = ((posteriors['posterior_samples']['rho']*G*((priors['P_'+planet]['hyperparameters']*24.*3600.)**2))/(3.*np.pi))**(1./3.)
                 val,valup,valdown = get_quantiles(a)
                 usigma = valup-val
                 dsigma = val - valdown
