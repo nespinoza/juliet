@@ -272,7 +272,7 @@ of the `juliet paper <https://arxiv.org/abs/1812.08549>`_, i.e., a model of the 
 
 where 
 
-:math:`\mathcal{M}_{\textrm{TESS}}(t) = [T(t)D_{\textrm{TESS}} + (1-{\textrm{TESS}})]\left(\frac{1}{1+D_{\textrm{TESS}}}M_{\textrm{TESS}}\right)`
+:math:`\mathcal{M}_{\textrm{TESS}}(t) = [T(t)D_{\textrm{TESS}} + (1-D_{\textrm{TESS}})]\left(\frac{1}{1+D_{\textrm{TESS}}}M_{\textrm{TESS}}\right)`
 
 is the photometric model composed of the dilution factor :math:`D_{\textrm{TESS}}` (``mdilution_TESS``) and the mean out-of-transit 
 flux :math:`M_{\textrm{TESS}}` (``mflux_TESS``). This is the *deterministic* part of the model, as 
