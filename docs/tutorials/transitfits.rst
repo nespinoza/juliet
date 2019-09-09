@@ -189,13 +189,14 @@ To transform from the :math:`(r_1,r_2)` plane to the :math:`(b,p)` plane, we hav
 `Espinoza (2018) <https://ui.adsabs.harvard.edu/abs/2018RNAAS...2d.209E/abstract>`_. These require one defines the minimum and maximum allowed 
 planet-to-star radius ratio --- by default, within ``juliet`` the parametrization allows to 
 search for all planet-to-star radius ratios from :math:`p_l = 0` to :math:`p_u = 1` (and these can be modified in the ``fit`` object --- e.g., 
-``dataset.fit(...,pl= 0.0, pu = 0.2)``). The values used for each fit are always stored in ``results.posteriors['pl']`` and ``results.posteriors['pl']``. 
+``dataset.fit(...,pl= 0.0, pu = 0.2)``). The values used for each fit are always stored in ``results.posteriors['pl']`` and ``results.posteriors['pu']``. 
 In our case, then, to obtain the posterior distribution of :math:`b` and :math:`p`, we can use the ``juliet.utils.reverse_bp(r1,r2,pl,pu)`` function which 
 takes samples from the :math:`(r_1,r_2)` plane and converts them back to the :math:`(b,p)` plane. Let us do this transformation for the HATS-46b fit done above 
 and compare with the results obtained in `Brahm et al., 2017 <https://arxiv.org/abs/1707.07093>`_:
 
- .. code-block:: python
+.. code-block:: python
 
+    fig = plt.figure(figsize=(5,5))
     # Store posterior samples for r1 and r2:
     r1, r2 = results.posteriors['posterior_samples']['r1_p1'],\
              results.posteriors['posterior_samples']['r2_p1'] 
@@ -238,3 +239,61 @@ and compare with the results obtained in `Brahm et al., 2017 <https://arxiv.org/
 The agreement with `Brahm et al., 2017 <https://arxiv.org/abs/1707.07093>`_ is pretty good! The planet-to-star 
 radius ratios are consistent within one-sigma, and the (uncertain for *TESS*) impact parameter is consistent at 
 less thant 2-sigma with the one published in that work. 
+
+What about the limb-darkening coefficients? ``juliet`` also has a built-in function to perform the inverse 
+transformation in order to obtain them --- this is the ``juliet.utils.reverse_ld_coeffs()`` function --- given 
+a limb-darkening law and the parameters :math:`q_1` and :math:`q_2`, this function gives back the limb-darkening 
+coefficients :math:`u_1` and :math:`u_2`. Let us plot the posterior distribution of the limb-darkening coefficients; 
+let's compare them to theoretical limb-darkening coefficients using `limb-darkening <https://github.com/nespinoza/limb-darkening>`_ (`Espinoza & Jordan, 2015 <http://adsabs.harvard.edu/abs/2015MNRAS.450.1879E>`_):
+
+.. code-block:: python
+
+    fig = plt.figure(figsize=(5,5))
+    # Store posterior samples for q1 and q2:
+    q1, q2 = results.posteriors['posterior_samples']['q1_TESS'],\
+              results.posteriors['posterior_samples']['q2_TESS']
+
+    # Transform back to (u1,u2):
+    u1, u2 = juliet.utils.reverse_ld_coeffs('quadratic', q1, q2)
+
+    # Plot posterior distribution:
+    plt.plot(u1,u2,'.',alpha=0.5)
+
+    # Plot medians and errors implied by the posterior:
+    u1m,u1u,u1l = juliet.utils.get_quantiles(u1)
+    u2m,u2u,u2l = juliet.utils.get_quantiles(u2)
+    plt.errorbar(np.array([u1m]),np.array([u2m]),\
+                 xerr = np.array([[u1u-u1m,u1m-u1l]]),\
+                 yerr = np.array([[u2u-u2m,u2m-u2l]]),\
+                 fmt = 'o', mfc = 'white', mec = 'black',\
+                 ecolor='black', ms = 13, elinewidth = 3, \
+                 zorder = 5, label = 'This work')
+
+    plt.plot(np.array([0.346,0.346]),np.array([-1,1]),'--',color='cornflowerblue')
+    plt.plot(np.array([-1,1]),np.array([0.251,0.251]),'--',color='cornflowerblue',label='ATLAS')
+
+    plt.plot(np.array([0.377,0.377]),np.array([-1,1]),'--',color='red')
+    plt.plot(np.array([-1,1]),np.array([0.214,0.214]),'--',color='red',label='PHOENIX')
+    plt.legend()
+
+    plt.xlabel('$u_1$')
+    plt.ylabel('$u_2$')
+    plt.xlim([0.0,1.0])
+    plt.ylim([-0.5,1.0])
+
+.. figure:: posterior_ld.png
+   :alt: Posterior distribution of the limb-darkening coefficients for HATS-46.
+
+The agreement with the theory is pretty good in this case! It was kind of expected --- HATS-46 is a solar-type 
+star after all. Note the triangular shape of the parameter spaced explored? This is what the :math:`(q_1,q_2)` 
+sampling is expected to sample --- the triangle englobes all the physically plausible parameter space for the 
+limb-darkening coefficients (positive, decreasing-to-the-limb limb-darkening profile). For details, 
+see `Kipping (2013) <https://ui.adsabs.harvard.edu/abs/2013MNRAS.435.2152K/abstract>`_.
+
+Fitting multiple datasets
+-------------------------
+
+In the previous sections we have been fitting the *TESS* data only. What if we want to add extra datasets 
+and fit all of them *jointly* in order to extract the posterior distribution of the transit parameters? As 
+it was already mentioned, this is very easy to do with ``juliet``: you simply add new elements/keys to the 
+dictionary one gives as inputs to ``juliet``. 
