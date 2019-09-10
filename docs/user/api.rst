@@ -1,3 +1,4 @@
+.. module:: juliet
 .. _api:
 
 API
