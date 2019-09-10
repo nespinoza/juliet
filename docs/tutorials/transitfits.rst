@@ -285,9 +285,9 @@ let's compare them to theoretical limb-darkening coefficients using `limb-darken
    :alt: Posterior distribution of the limb-darkening coefficients for HATS-46.
 
 The agreement with the theory is pretty good in this case! It was kind of expected --- HATS-46 is a solar-type 
-star after all. Note the triangular shape of the parameter spaced explored? This is what the :math:`(q_1,q_2)` 
+star after all. Notice the triangular shape of the parameter spaced explored? This is what the :math:`(q_1,q_2)` 
 sampling is expected to sample --- the triangle englobes all the physically plausible parameter space for the 
-limb-darkening coefficients (positive, decreasing-to-the-limb limb-darkening profile). For details, 
+limb-darkening coefficients (positive, decreasing-to-the-limb limb-darkening profiles). For details, 
 see `Kipping (2013) <https://ui.adsabs.harvard.edu/abs/2013MNRAS.435.2152K/abstract>`_.
 
 Fitting multiple datasets
@@ -296,4 +296,80 @@ Fitting multiple datasets
 In the previous sections we have been fitting the *TESS* data only. What if we want to add extra datasets 
 and fit all of them *jointly* in order to extract the posterior distribution of the transit parameters? As 
 it was already mentioned, this is very easy to do with ``juliet``: you simply add new elements/keys to the 
-dictionary one gives as inputs to ``juliet``. 
+dictionary one gives as inputs to ``juliet``. Of course, you also have to add some extra priors for the extra 
+instruments: in particular, one has to define a jitter (:math:`sigma_{w,i}`), dilution factor (:math:`D_i`), 
+mean out-of-transit flux (:math:`M_i`) and limb-darkening parametrization (:math:`q_1` if a linear law wants to be 
+assumed, or also give `q_2` if a quadratic law wants to be used). Let us fit the *TESS* data together with the follow-up 
+lightcurves obtained by `Brahm et al., 2017 <https://arxiv.org/abs/1707.07093>`_ from the Las Cumbres Observatory Global 
+Telescope Network (LCOGT) and the 1m Swope Telescope. These can be obtained from CDS following the paper link, but we have 
+uploaded them `here <https://github.com/nespinoza/juliet/blob/master/docs/tutorials/hats-46_data_LCOGT.txt>`_ and 
+`here <https://github.com/nespinoza/juliet/blob/master/docs/tutorials/hats-46_data_SWOPE.txt>`_ so it is easier to follow this 
+tutorial. Once that data is downloaded, we can load this data in ``juliet`` as follows:
+
+.. code-block:: python
+
+    # Add LCOGT and SWOPE data to the times, fluxes and fluxes_error dictionary. 
+    # Fill also the priors for these instruments:
+    for instrument in ['LCOGT','SWOPE']:
+        # Open dataset files, extract times, fluxes and errors to arrays:
+        t2,f2,ferr2 = np.loadtxt('hats-46_data_'+instrument+'.txt',unpack=True,usecols=(0,1,2))
+        # Add them to the data dictionaries which already contain the TESS data (see above):
+        times[instrument], fluxes[instrument], fluxes_error[instrument] = t2-2457000,f2,ferr2
+
+        # Add priors to the already defined ones above for TESS, but for the other instruments:
+        params = ['sigma_w_','mflux_','mdilution_','q1_','q2_']
+        dists = ['loguniform', 'normal', 'fixed', 'uniform', 'uniform']
+        hyperps = [[0.1,1e5], [0.0,0.1], 1.0, [0.0,1.0], [0.0,1.0]]
+
+        for param, dist, hyperp in zip(params, dists, hyperps):
+            priors[param+instrument] = {}
+            priors[param+instrument]['distribution'], priors[param+instrument]['hyperparameters'] = dist, hyperp
+
+And with this one can simply run a ``juliet`` fit again:
+
+.. code-block:: python
+
+    dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, \
+                          yerr_lc = fluxes_error, out_folder = 'hats46-extra', verbose = True)
+
+    results = dataset.fit(n_live_points=300)
+
+This can actually take a little bit longer than just fitting the *TESS* data (a couple of extra minutes) --- 
+it is a 17-dimensional problem after all. Let us plot the results of the joint instrument fit:
+
+.. code-block:: python
+
+   # Extract new period and time-of-transit center:
+   P,t0 =  np.median(results.posteriors['posterior_samples']['P_p1']),\
+           np.median(results.posteriors['posterior_samples']['t0_p1'])
+   
+   # Generate arrays to super-sample the models:
+   model_phases = np.linspace(-0.04,0.04,1000)
+   model_times = model_phases*P + t0
+   
+   # Plot figure:
+   fig = plt.figure(figsize=(10,3))
+   instruments = ['TESS','LCOGT','SWOPE']
+   alphas = [0.1, 0.5, 0.5]
+   for i in range(3):
+       instrument = instruments[i]
+       plt.subplot('13'+str(i+1))
+       # Plot phase-folded data:
+       phases = juliet.utils.get_phases(dataset.times_lc[instrument], P, t0)
+       plt.errorbar(phases, dataset.data_lc[instrument], \
+                    yerr = dataset.errors_lc[instrument], fmt = '.' , alpha = alphas[i])
+       # Evaluate model in the supersampled times, plot on top of data:
+       model_lc = results.lc.evaluate(instrument, t = model_times)
+       plt.plot(model_phases,model_lc,color='black')
+       plt.title(instrument)
+       plt.xlabel('Phase')
+       if i == 0:
+           plt.ylabel('Relative flux')
+       plt.xlim([-0.025,0.025])
+       plt.ylim([0.975,1.02])
+
+.. figure:: lc_final_joint_model.png
+   :alt: Final fit involving TESS, Swope and LCOGT data.
+
+Pretty nice fit! The Swope data actually shows a little bit more scatter --- indeed, the :math:`\sigma_{w,SWOPE} = 1269^{+185}_{-155}` ppm, which indicates that there seems to be some extra 
+process happening in the lightcurve (e.g., systematics), which are being modelled in our fit with a simple jitter term.
