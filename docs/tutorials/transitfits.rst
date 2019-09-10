@@ -296,10 +296,10 @@ Fitting multiple datasets
 In the previous sections we have been fitting the *TESS* data only. What if we want to add extra datasets 
 and fit all of them *jointly* in order to extract the posterior distribution of the transit parameters? As 
 it was already mentioned, this is very easy to do with ``juliet``: you simply add new elements/keys to the 
-dictionary one gives as inputs to ``juliet``. Of course, you also have to add some extra priors for the extra 
-instruments: in particular, one has to define a jitter (:math:`sigma_{w,i}`), dilution factor (:math:`D_i`), 
+dictionary one gives as inputs to it. Of course, you also have to add some extra priors for the extra 
+instruments: in particular, one has to define a jitter (:math:`\sigma_{w,i}`), dilution factor (:math:`D_i`), 
 mean out-of-transit flux (:math:`M_i`) and limb-darkening parametrization (:math:`q_1` if a linear law wants to be 
-assumed, or also give `q_2` if a quadratic law wants to be used). Let us fit the *TESS* data together with the follow-up 
+assumed, or also give :math:`q_2` if a quadratic law wants to be used). Let us fit the *TESS* data together with the follow-up 
 lightcurves obtained by `Brahm et al., 2017 <https://arxiv.org/abs/1707.07093>`_ from the Las Cumbres Observatory Global 
 Telescope Network (LCOGT) and the 1m Swope Telescope. These can be obtained from CDS following the paper link, but we have 
 uploaded them `here <https://github.com/nespinoza/juliet/blob/master/docs/tutorials/hats-46_data_LCOGT.txt>`_ and 
@@ -312,9 +312,11 @@ tutorial. Once that data is downloaded, we can load this data in ``juliet`` as f
     # Fill also the priors for these instruments:
     for instrument in ['LCOGT','SWOPE']:
         # Open dataset files, extract times, fluxes and errors to arrays:
-        t2,f2,ferr2 = np.loadtxt('hats-46_data_'+instrument+'.txt',unpack=True,usecols=(0,1,2))
+        t2,f2,ferr2 = np.loadtxt('hats-46_data_'+instrument+'.txt',\
+                                  unpack=True,usecols=(0,1,2))
         # Add them to the data dictionaries which already contain the TESS data (see above):
-        times[instrument], fluxes[instrument], fluxes_error[instrument] = t2-2457000,f2,ferr2
+        times[instrument], fluxes[instrument], fluxes_error[instrument] = \
+                                                    t2-2457000, f2, ferr2
 
         # Add priors to the already defined ones above for TESS, but for the other instruments:
         params = ['sigma_w_','mflux_','mdilution_','q1_','q2_']
@@ -323,14 +325,15 @@ tutorial. Once that data is downloaded, we can load this data in ``juliet`` as f
 
         for param, dist, hyperp in zip(params, dists, hyperps):
             priors[param+instrument] = {}
-            priors[param+instrument]['distribution'], priors[param+instrument]['hyperparameters'] = dist, hyperp
+            priors[param+instrument]['distribution'], \
+            priors[param+instrument]['hyperparameters'] = dist, hyperp
 
 And with this one can simply run a ``juliet`` fit again:
 
 .. code-block:: python
 
     dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, \
-                          yerr_lc = fluxes_error, out_folder = 'hats46-extra', verbose = True)
+                          yerr_lc = fluxes_error, out_folder = 'hats46-extra')
 
     results = dataset.fit(n_live_points=300)
 
@@ -371,5 +374,110 @@ it is a 17-dimensional problem after all. Let us plot the results of the joint i
 .. figure:: lc_final_joint_model.png
    :alt: Final fit involving TESS, Swope and LCOGT data.
 
-Pretty nice fit! The Swope data actually shows a little bit more scatter --- indeed, the :math:`\sigma_{w,SWOPE} = 1269^{+185}_{-155}` ppm, which indicates that there seems to be some extra 
-process happening in the lightcurve (e.g., systematics), which are being modelled in our fit with a simple jitter term.
+Pretty nice fit! The Swope data actually shows a little bit more scatter --- indeed, the :math:`\sigma_{w,SWOPE} = 1269^{+185}_{-155}` ppm, which 
+indicates that there seems to be some extra process happening in the lightcurve (e.g., systematics), which are being modelled in our fit with a 
+simple jitter term. So, how does the posteriors of our parameters compare with that of the *TESS*-only fit. We can repeat the plot made above for 
+the planet-to-star radius ratio and impact parameter to check:
+
+.. figure:: posterior_bp_joint.png
+   :alt: Posterior distribution of a TESS-only fit and a TESS+LCOGT+Swope fit; compared with Brahm et al. (2017)
+
+Interesting! The transit depth is consistent between fits and with the work of `Brahm et al., 2017 <https://arxiv.org/abs/1707.07093>`_. Interestingly, 
+the impact parameter is practically the same as the *TESS*-only fit, and just shrinked a little bit. It is still consistent at 2-sigma with the 
+work of `Brahm et al., 2017 <https://arxiv.org/abs/1707.07093>`_, however.
+
+A word on limb-darkening and model selection
+--------------------------------------------
+
+Throughout the tutorial, we have not explicitly defined what limb-darkening laws we wanted to use for each dataset. By default, ``juliet`` assumes that if the 
+user defines :math:`q_1` and :math:`q_2`, then a quadratic law wants to be used, whereas if the user only gives :math:`q_1`, a linear-law is assumed. 
+In general, the limb-darkening law to use depends on the system under study (see, e.g., 
+`Espinoza & Jordan, 2016 <http://adsabs.harvard.edu/abs/2016MNRAS.457.3573E>`_.), and thus the user might want to use laws  *other* than the ones that 
+are pre-defined by ``juliet``. This can be easily done when loading a dataset via ``juliet.load`` using the ``ld_laws`` flag. This flag receives a 
+string with the name of the law to use --- currently supported laws are the ``linear``, the ``quadratic``, the ``logarithmic`` and the ``squareroot`` laws. 
+We don't include the exponential law in this list as it has been shown to be a non-physical law in `Espinoza & Jordan, 2016 <http://adsabs.harvard.edu/abs/2016MNRAS.457.3573E>`_.
+
+Let us test how the different laws do on the *TESS* dataset of HATS-46b. For this, let us fit the dataset with all the available limb-darkening laws and check the 
+log-evidences, :math:`\ln \mathcal{Z}` each model gives. Assuming all the models are equally likely, the different log-evidences can be transformed to *odds ratios* 
+(i.e., the ratio of the probabilities of the models given the data, :math:`\mathcal{P}(M_i|D)/\mathcal{P}(M_j|D)`) by simply substracting the log-evidences of the different models, i.e.,
+
+:math:`\ln \frac{\mathcal{P}(\textrm{Model}_i|D)}{\mathcal{P}(\textrm{Model}_j|D)} = \ln \frac{\mathcal{P}(D | \textrm{Model}_i)}{\mathcal{P}(D|\textrm{Model}_j)} = \ln \frac{Z_i}{Z_j}`,
+
+if :math:`P(\textrm{Model}_i)/P(\textrm{Model}_j) = 1`. ``juliet`` also extracts the model evidences in the ``results.posteriors`` dictionary under the ``lnZ`` key; errors on this 
+log-evidence calculation are under ``lnZerr``. Let us compute the log-evidences for each limb-darkening law and compare them to see which one is the "best" in terms of this 
+model comparison tool:
+
+.. code-block:: python 
+
+   # Load Sector 1 data for HATS-46b again:
+   t, f, ferr  = juliet.get_TESS_data('https://archive.stsci.edu/hlsps/'+\
+                                      'tess-data-alerts/hlsp_tess-data-'+\
+                                      'alerts_tess_phot_00281541555-s02_'+\
+                                      'tess_v1_lc.fits')
+
+   # Put data arrays into dictionaries so we can fit it with juliet:
+   times, fluxes, fluxes_error = {},{},{}
+   times['TESS'], fluxes['TESS'], fluxes_error['TESS'] = t,f,ferr    
+
+   # Define limb-darkening laws to test:
+   ld_laws = ['linear','quadratic','logarithmic','squareroot']
+  
+   for ld_law in ld_laws:
+        priors = {}
+        # If law is not the linear, set priors for q1 and q2. If linear, set only for q1:
+        if ld_law != 'linear':
+            params = ['P_p1','t0_p1','r1_p1','r2_p1','q1_TESS','q2_TESS','ecc_p1','omega_p1',\
+                      'rho', 'mdilution_TESS', 'mflux_TESS', 'sigma_w_TESS']
+
+            dists = ['normal','normal','uniform','uniform','uniform','uniform','fixed','fixed',\
+                         'loguniform', 'fixed', 'normal', 'loguniform']
+
+            hyperps = [[4.7,0.1], [1358.4,0.1], [0.,1], [0.,1.], [0., 1.], [0., 1.], 0.0, 90.,\
+                           [100., 10000.], 1.0, [0.,0.1], [0.1, 1000.]]
+        else:
+            params = ['P_p1','t0_p1','r1_p1','r2_p1','q1_TESS','ecc_p1','omega_p1',\
+                      'rho', 'mdilution_TESS', 'mflux_TESS', 'sigma_w_TESS']
+
+            dists = ['normal','normal','uniform','uniform','uniform','fixed','fixed',\
+                         'loguniform', 'fixed', 'normal', 'loguniform']
+
+            hyperps = [[4.7,0.1], [1358.4,0.1], [0.,1], [0.,1.], [0., 1.], 0.0, 90.,\
+                           [100., 10000.], 1.0, [0.,0.1], [0.1, 1000.]]
+
+        for param, dist, hyperp in zip(params, dists, hyperps):
+            priors[param] = {}
+            priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
+
+        dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, \
+                              yerr_lc = fluxes_error, out_folder = 'hats46-'+ld_law, \
+                              ld_laws = ld_law)
+
+        results = dataset.fit()
+        print("lnZ for "+ld_law+" limb-darkening law is: ",results.posteriors['lnZ']\
+                                                  ,"+-",results.posteriors['lnZerr'])
+
+In our runs this gave:
+
+.. code-block:: bash 
+
+    lnZ for linear limb-darkening law is:      64202.653 +- 0.040
+    lnZ for quadratic limb-darkening law is:   64202.182 +- 0.018
+    lnZ for logarithmic limb-darkening law is: 64202.652 +- 0.077
+    lnZ for squareroot limb-darkening law is:  64202.786 +- 0.041
+
+At face value, the model with the largest log-evidence is the square-root law, whereas the one with the lowest log-evidence is the quadratic law. However, the difference between those two log-evidences 
+is very small: only :math:`\Delta \ln Z = 0.60` in favor of the square-root law, or an odds ratio between those laws of :math:`\exp\left(\Delta \ln Z\right) \approx 2` --- given the data, the square-root 
+law model is only about two times more likely than the quadratic law. Not much, to be honest --- I wouldn't bet my money on the quadratic law being wrong, so our assumption of a quadratic limb-darkening law 
+in our analyses above seems to be very good. It is unlikely more complex limb-darkening laws would have given better results, by the way: note how the simpler linear law is basically equally likely to the 
+square-root law (:math:`\exp\left(\Delta \ln Z\right) \approx 1`).
+
+What if more than one instrument is being fit; how do we define limb-darkening laws for each instrument? The ``ld_laws`` flag can also take as input a comma-separated string where one indicates the law to be 
+used for each instrument in the form ``instrument-ldlaw``. For example, if we wanted to fit the TESS, LCOGT and Swope data and define a square-root law for the former and logarithmic law for the other instruments, 
+we would do (assuming we have already loaded the data and priors to the ``priors``, ``times``, ``fluxes`` and ``fluxes_error`` dictionaries):
+
+.. code-block:: python 
+    dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, \
+                          yerr_lc = fluxes_error,\
+                          ld_laws = 'TESS-squareroot,LCOGT-logarithmic,SWOPE-logarithmic')
+
+    results = dataset.fit()
