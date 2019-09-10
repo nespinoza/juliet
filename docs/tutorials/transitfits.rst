@@ -476,6 +476,7 @@ used for each instrument in the form ``instrument-ldlaw``. For example, if we wa
 we would do (assuming we have already loaded the data and priors to the ``priors``, ``times``, ``fluxes`` and ``fluxes_error`` dictionaries):
 
 .. code-block:: python 
+
     dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, \
                           yerr_lc = fluxes_error,\
                           ld_laws = 'TESS-squareroot,LCOGT-logarithmic,SWOPE-logarithmic')
