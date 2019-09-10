@@ -398,7 +398,7 @@ string with the name of the law to use --- currently supported laws are the ``li
 We don't include the exponential law in this list as it has been shown to be a non-physical law in `Espinoza & Jordan, 2016 <http://adsabs.harvard.edu/abs/2016MNRAS.457.3573E>`_.
 
 Let us test how the different laws do on the *TESS* dataset of HATS-46b. For this, let us fit the dataset with all the available limb-darkening laws and check the 
-log-evidences, :math:`\ln \mathcal{Z}` each model gives. Assuming all the models are equally likely, the different log-evidences can be transformed to *odds ratios* 
+log-evidences, :math:`\ln \mathcal{Z} = \ln \mathcal{P}(D | \textrm{Model})` each model gives. Assuming all the models are equally likely, the different log-evidences can be transformed to *odds ratios* 
 (i.e., the ratio of the probabilities of the models given the data, :math:`\mathcal{P}(\textrm{Model}_i|D)/\mathcal{P}(\textrm{Model}_j|D)`) by simply substracting the log-evidences of the different models, i.e.,
 
 :math:`\ln \frac{\mathcal{P}(\textrm{Model}_i|D)}{\mathcal{P}(\textrm{Model}_j|D)} = \ln \frac{\mathcal{P}(D | \textrm{Model}_i)}{\mathcal{P}(D|\textrm{Model}_j)} = \ln \frac{Z_i}{Z_j}`,
