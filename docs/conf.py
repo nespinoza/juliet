@@ -12,6 +12,7 @@
 #
 import os
 import sys
+import juliet
 sys.path.insert(0, os.path.abspath('../juliet'))
 
 
@@ -43,7 +44,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 
 # -- Options for HTML output -------------------------------------------------
-
+html_logo = "../juliet.png"
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
