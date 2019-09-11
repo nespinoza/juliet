@@ -67,9 +67,9 @@ Then, you need to build and compile `MultiNest`. For this, do:
     cmake ..
     make
 
-This will create a file `libmultinest.so` under `MultiNest/lib`, that is the one that will allow us  
-to use `pymultinest`. Include that directory then in your ``LD_LIBRARY_PATH`` so you can use it from any 
-directory in your system.
+This will create a file ``libmultinest.so`` or ``libmultinest.dylib`` under ``MultiNest/lib``: that is the one that will allow us  
+to use ``pymultinest``. To not move that file around in your system, you can include the ``MultiNest/lib`` folder in your 
+``LD_LIBRARY_PATH`` (e.g., in your ``~/.bash_profile`` or ``~/.bashrc`` file).
 
 .. _python-deps:
 
