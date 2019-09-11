@@ -1464,60 +1464,6 @@ class model(object):
             else:
                 return output_model
 
-    def predict_lc_model(self, t, instrument = None, LMregressors = None, GPregressors = None, posteriors = None):
-        """
-        Using the posteriors and a set of times (and optionally linear and GP regressors at those times) this function predicts the lc model into new times 
-        with errors.
-        """
-        if self.global_model:
-            """
-            original_times = np.copy(self.times[instrument])
-            self.times[instrument] = t
-            if GPregressors is not None:
-                original_X = {}
-                for instrument in self.inames:
-                    if self.dictionary[instrument]['GPDetrend']:
-                        original_X[instrument] = np.copy(self.dictionary[instrument]['noise_model'].X)
-                        self.dictionary[instrument]['noise_model'].X = GPregressors[instrument]
-            if LMRegressors is not None:
-                original_lm_arguments = {}
-                for instrument in self.inames:
-                    if self.lm_boolean[instrument]:
-                         original_lm_arguments[instrument] = np.copy(self.lm_arguments[instrument])
-                         self.lm_arguments[instrument] = LMregressors[instrument]
-
-            # Evaluate model, return samples and median model:
-            self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                 nresampling = nresampling,\
-                                                                                                 etresampling = etresampling)
-
-            model_samples, model = evaluate_lc_model(return_samples = False)
-            model_up,model_down = np.zeros(len(model)),np.zeros(len(model))
-            for i in range(model_samples.shape[1]):
-                v,model_up[i],model_down[i] = get_quantiles(model_samples[:,i])
- 
-            # Now all back to prior values:
-            self.times[instrument] = original_times
-            self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                 nresampling = nresampling,\
-                                                                                                 etresampling = etresampling)
-            if GPregressors is not None:
-                for instrument in self.inames:
-                    if self.dictionary[instrument]['GPDetrend']:
-                        self.dictionary[instrument]['noise_model'].X = original_X[instrument]
-            if LMRegressors is not None:
-                for instrument in self.inames:
-                    if self.lm_boolean[instrument]:
-                        self.lm_arguments[instrument] = original_lm_arguments[instrument] 
-            return model, model_up, model_down
-            """
-        else:
-            original_times = np.copy(self.times[instrument])
-            self.times[instrument] = t
-        
-        return True
-     
-
     def evaluate_rv_model(self, instrument, parameter_values = None):
         """
         This functions evaluate the current rv model into a new set of times.
@@ -1527,12 +1473,6 @@ class model(object):
 
         return self.model[instrument]['deterministic']
   
-    def predict_rv_model(self, t, posteriors = None):
-        """
-        Using the posteriors and a set of times, this function predicts the rv model into new times with errors.
-        """
-        return True 
- 
     def generate_lc_model(self, parameter_values):
         self.modelOK = True
         # Before anything continues, check the periods are chronologically ordered (this is to avoid multiple modes due to 
@@ -1808,7 +1748,6 @@ class model(object):
                                 self.mdilution_iname[instrument] = vec[1]
             # Set the model-type to M(t):
             self.evaluate = self.evaluate_lc_model
-            self.predict = self.predict_lc_model
             self.generate = self.generate_lc_model
         elif modeltype == 'rv':
             self.modeltype = 'rv'
@@ -1871,7 +1810,6 @@ class model(object):
                 self.model[instrument]['ones'] = np.ones(len(self.t[self.instrument_indexes[instrument]]))
             # Set the model-type to M(t):
             self.evaluate = self.evaluate_rv_model
-            self.predict = self.predict_rv_model
             self.generate = self.generate_rv_model
         else:
             raise Exception('Model type "'+lc+'" not recognized. Currently it can only be "lc" for a light-curve model or "rv" for radial-velocity model.')
