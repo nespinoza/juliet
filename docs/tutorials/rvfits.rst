@@ -34,7 +34,7 @@ object in the :ref:`quicktest` tutorial; here we use the radial-velocities (RVs)
 only the signal of the transiting planet was present in the RVs, but there is also evidence for _another_ planet in the system. 
 We have uploaded the dataset in a ``juliet``-friendly format [`here <https://github.com/nespinoza/juliet/blob/master/docs/tutorials/rvs_toi141.dat>`_].
 
-Let us first try to find the RV signature of the transiting planet analyzed in the :ref:`transitfit` tutorial in this dataset. 
+Let us first try to find the RV signature of the transiting planet analyzed in the :ref:`quicktest` tutorial in this dataset. 
 From that analysis, the period is :math:`P = 1.007917 \pm 0.000073` days and the time-of-transit center is 
 :math:`t0 = 2458325.5386 \pm 0.0011`. Let us use these as priors for a first fit to the data --- let us in turn assume uniform wide 
 priors for the systemic velocities for each instrument :math:`\mu_i`, jitter terms and RV semi-amplitude; let us also fix the eccentricity 
