@@ -1293,14 +1293,15 @@ class model(object):
             else:
                 return self.model[instrument]['deterministic']
 
-    def evaluate_lc_model(self, instrument = None, parameter_values = None, resampling = None, nresampling = None, etresampling = None, \
+    def evaluate_model(self, instrument = None, parameter_values = None, resampling = None, nresampling = None, etresampling = None, \
                           all_samples = False, nsamples = 1000, return_samples = False, t = None, GPregressors = None, LMregressors = None, \
                           return_err = False, alpha = 0.68):
         """
-        This function evaluates the current lc model given a set of parameter values. Resampling options can be changed if resampling is a boolean,
-        but the object is at the end rolled-back to the default resampling definitions the user defined in the juliet.load object.
+        This function evaluates the current lc or rv  model given a set of parameter values. Resampling options can be changed if resampling is a boolean,
+        but the object is at the end rolled-back to the default resampling definitions the user defined in the juliet.load object. For now, resampling only is 
+        available for lightcurve models. TODO: add resampling for RVs.
         """
-        if resampling is not None:
+        if resampling is not None and self.modeltype == 'lc':
             if resampling:
                 self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
                                                                                                  nresampling = nresampling,\
@@ -1309,7 +1310,7 @@ class model(object):
                 self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
 
         # Check if user gave input parameter_values dictionary. If that's the case, generate again the 
-        # full lightcurve model:
+        # full lightcurve/rv model:
         if parameter_values is not None:
             # Now, consider two possible cases. If the user is giving a parameter_values where the dictionary contains *arrays* of values 
             # in it, then iterate through all the values in order to calculate the median model. If the dictionary contains only individual 
@@ -1328,8 +1329,8 @@ class model(object):
                     idx_samples = np.random.choice(np.arange(nsampled),np.min([nsamples,nsampled]),replace=False)
                     idx_samples = idx_samples[np.argsort(idx_samples)]
                 
-                # Create the output_model arrays: these will save on each iteration the full model (lc + GP, output_model_samples), 
-                # the GP-only model (GP, output_modelGP_samples) and the lc-only model (lc, output_modelLC_samples) --- the latter ones 
+                # Create the output_model arrays: these will save on each iteration the full model (lc/rv + GP, output_model_samples), 
+                # the GP-only model (GP, output_modelGP_samples) and the lc/rv-only model (lc/rv, output_modelDET_samples) --- the latter ones 
                 # will make sense only if there is a GP model:
                 if t is None:
                     if self.global_model:
@@ -1340,13 +1341,30 @@ class model(object):
                     nt = len(t)
                     nt_original = len(self.times[instrument])
                     output_model_samples = np.zeros([nsamples,nt])
-                    if self.dictionary[instrument]['TransitFit']:
-                        supersample_params,supersample_m = self.init_batman(t, self.dictionary[instrument]['ldlaw'])
-                        sample_params,sample_m = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
-              
+                    original_instrument_times = np.copy(self.times[instrument])
+                    if self.modeltype == 'lc':
+                        if self.dictionary[instrument]['TransitFit']:
+                            supersample_params,supersample_m = self.init_batman(t, self.dictionary[instrument]['ldlaw'])
+                            sample_params,sample_m = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                    else:
+                        original_t = np.copy(self.t)
+                        original_instrument_indexes = np.copy(self.instrument_indexes)
+                        # If not global, assume indexes for selected instrument are all the user-inputted t's
+                        if not self.global_model:
+                            dummy_indexes = np.arange(len(t))
+                            # Set inames to just the name of the instrument under consideration:
+                            self.iname = [instrument]
+                            original_instrument_index = self.instrument_indexes[instrument]
+
+                # Save the original inames. If not global model, we won't care about generating the models for the other instruments:
+                if not self.global_model:
+                    original_inames = np.copy(self.inames)
+                    # Set inames to just the name of the instrument under consideration:
+                    self.inames = [instrument]
+
                 if self.dictionary[instrument]['GPDetrend']:
                     output_modelGP_samples = np.copy(output_model_samples)
-                    output_modelLC_samples = np.copy(output_model_samples)
+                    output_modelDET_samples = np.copy(output_model_samples)
 
                 # Create dictionary that saves the current parameter_values to evaluate:
                 current_parameter_values = dict.fromkeys(parameters)
@@ -1357,7 +1375,6 @@ class model(object):
                 # If extrapolating the model, save the current times, current GPregressors and current linear 
                 # regressors: 
                 if t is not None:
-                    original_times = np.copy(self.times[instrument])
                     if self.dictionary[instrument]['GPDetrend']:
                         original_GPregressors = np.copy(self.dictionary[instrument]['noise_model'].X)
                         self.dictionary[instrument]['noise_model'].X = GPregressors
@@ -1369,21 +1386,32 @@ class model(object):
                     for parameter in input_parameters:
                         # Populate the current parameter_values
                         current_parameter_values[parameter] = parameter_values[parameter][i]
-                    # Evaluate lightcurve at the current parameter values, calculate residuals, save them:
-                    self.generate_lc_model(current_parameter_values)
+                    # Evaluate rv/lightcurve at the current parameter values, calculate residuals, save them:
+                    if self.modeltype == 'lc':
+                        self.generate_lc_model(current_parameter_values)
+                    else:
+                        self.generate_rv_model(current_parameter_values)
                     self.residuals = self.data[instrument] - self.model[instrument]['deterministic']
-                    # If extrapolating (t is not None), evaluate the extrapolated model with a lightcurve model 
+                    # If extrapolating (t is not None), evaluate the extrapolated model with a lightcurve/rv model 
                     # considering the input times and not the current dataset times:
                     if t is not None:
-                        if self.dictionary[instrument]['TransitFit']:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = supersample_params,supersample_m
-                        if self.lm_boolean[instrument]:
-                            self.lm_arguments[instrument] = LMregressors
-                        self.model[instrument]['ones'] = np.ones(nt)
-                        self.ndatapoints_per_instrument[instrument] = nt 
-                        self.generate_lc_model(current_parameter_values)    
+                        if self.modeltype == 'lc':
+                            if self.dictionary[instrument]['TransitFit']:
+                                self.model[instrument]['params'], self.model[instrument]['m'] = supersample_params,supersample_m
+                            if self.lm_boolean[instrument]:
+                                self.lm_arguments[instrument] = LMregressors
+                            self.model[instrument]['ones'] = np.ones(nt)
+                            self.ndatapoints_per_instrument[instrument] = nt 
+                            self.generate_lc_model(current_parameter_values)    
+                        else:
+                            self.t = t
+                            if not self.global_model:
+                                self.times[instrument] = t
+                                self.instrument_indexes[instrument] = dummy_indexes
+                            self.generate_rv_model(current_parameter_values)
+
                     if self.dictionary[instrument]['GPDetrend']:
-                        output_modelLC_samples[counter,:], output_modelGP_samples[counter,:], output_model_samples[counter,:] = \
+                        output_modelDET_samples[counter,:], output_modelGP_samples[counter,:], output_model_samples[counter,:] = \
                                                                  self.get_GP_plus_deterministic_model(current_parameter_values, \
                                                                                                          instrument = instrument)
                     else:
@@ -1391,11 +1419,17 @@ class model(object):
                                                                                                   instrument = instrument)
                     # Rollback in case t is not None:
                     if t is not None:
-                        if self.dictionary[instrument]['TransitFit']:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = sample_params,sample_m
-                        if self.lm_boolean[instrument]:
-                            self.lm_arguments[instrument] = original_lm_arguments
-                        self.model[instrument]['ones'] = np.ones(nt_original)
+                        self.times[instrument] = original_instrument_times
+                        if self.modeltype == 'lc':
+                            if self.dictionary[instrument]['TransitFit']:
+                                self.model[instrument]['params'], self.model[instrument]['m'] = sample_params,sample_m
+                            if self.lm_boolean[instrument]:
+                                self.lm_arguments[instrument] = original_lm_arguments
+                            self.model[instrument]['ones'] = np.ones(nt_original)
+                        else:
+                            self.t = original_t
+                            if not self.global_model:
+                                self.instrument_indexes[instrument] = original_instrument_index 
                         self.ndatapoints_per_instrument[instrument] = nt_original
                         
                     counter += 1
@@ -1414,7 +1448,7 @@ class model(object):
                     for i in range(output_model_samples.shape[1]):
                         m_output_model[i], u_output_model[i], l_output_model[i] = get_quantiles(output_model_samples[:,i], alpha = alpha)
                         if self.dictionary[instrument]['GPDetrend']:
-                            mLC_output_model[i], uLC_output_model[i], lLC_output_model[i] = get_quantiles(output_modelLC_samples[:,i], alpha = alpha)
+                            mLC_output_model[i], uLC_output_model[i], lLC_output_model[i] = get_quantiles(output_modelDET_samples[:,i], alpha = alpha)
                             mGP_output_model[i], uGP_output_model[i], lGP_output_model[i] = get_quantiles(output_modelGP_samples[:,i], alpha = alpha)
                     if self.dictionary[instrument]['GPDetrend']: 
                         self.model[instrument]['deterministic'], self.model[instrument]['GP'] = mLC_output_model, mGP_output_model
@@ -1423,14 +1457,14 @@ class model(object):
                 else:
                     output_model = np.median(output_model_samples,axis=0)
                     if self.dictionary[instrument]['GPDetrend']:
-                        self.model[instrument]['deterministic'], self.model[instrument]['GP'] = np.median(output_modelLC_samples,axis=0), \
+                        self.model[instrument]['deterministic'], self.model[instrument]['GP'] = np.median(output_modelDET_samples,axis=0), \
                                                                                        np.median(output_modelGP_samples,axis=0)
             else:
                 self.generate_lc_model(parameter_values)
                 output_model = self.get_GP_plus_deterministic_model(parameter_values, instrument = instrument)
         else:
          
-            x = self.evaluate_lc_model(instrument = instrument, parameter_values = self.posteriors, resampling = resampling, \
+            x = self.evaluate_model(instrument = instrument, parameter_values = self.posteriors, resampling = resampling, \
                                               nresampling = nresampling, etresampling = etresampling, all_samples = all_samples, \
                                               nsamples = nsamples, return_samples = return_samples, t = t, GPregressors = GPregressors, \
                                               LMregressors = LMregressors, return_err = return_err)
@@ -1464,15 +1498,6 @@ class model(object):
             else:
                 return output_model
 
-    def evaluate_rv_model(self, instrument, parameter_values = None):
-        """
-        This functions evaluate the current rv model into a new set of times.
-        """
-        if parameter_values is not None:
-            self.generate_rv_model(parameter_values)
-
-        return self.model[instrument]['deterministic']
-  
     def generate_lc_model(self, parameter_values):
         self.modelOK = True
         # Before anything continues, check the periods are chronologically ordered (this is to avoid multiple modes due to 
@@ -1747,7 +1772,7 @@ class model(object):
                             else:        
                                 self.mdilution_iname[instrument] = vec[1]
             # Set the model-type to M(t):
-            self.evaluate = self.evaluate_lc_model
+            self.evaluate = self.evaluate_model
             self.generate = self.generate_lc_model
         elif modeltype == 'rv':
             self.modeltype = 'rv'
@@ -1809,7 +1834,7 @@ class model(object):
                 # An array of ones to copy around:
                 self.model[instrument]['ones'] = np.ones(len(self.t[self.instrument_indexes[instrument]]))
             # Set the model-type to M(t):
-            self.evaluate = self.evaluate_rv_model
+            self.evaluate = self.evaluate_model
             self.generate = self.generate_rv_model
         else:
             raise Exception('Model type "'+lc+'" not recognized. Currently it can only be "lc" for a light-curve model or "rv" for radial-velocity model.')
