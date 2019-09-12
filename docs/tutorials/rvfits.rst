@@ -1,4 +1,4 @@
-.. _quicktest:
+.. _rvfits:
 
 Fitting radial-velocities
 ===================
