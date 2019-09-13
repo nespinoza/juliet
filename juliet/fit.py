@@ -3,9 +3,15 @@ import batman
 # Import radvel, for RV models:
 import radvel
 # Import george for detrending:
-import george
+try:
+    import george
+except:
+    print('Warning: no george installation found. No non-celerite GPs will be able to be used')
 # Import celerite for detrending:
-import celerite
+try:
+    import celerite
+except:
+    print('Warning: no celerite installation found. No celerite GPs will be able to be used')
 # Import dynesty for dynamic nested sampling:
 try:
     import dynesty

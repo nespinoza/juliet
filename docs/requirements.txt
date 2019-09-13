@@ -2,6 +2,4 @@ batman-package
 radvel
 dynesty
 pybind11
-george
-celerite
 astropy
