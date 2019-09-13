@@ -12,7 +12,9 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../juliet'))
+sys.path.insert(0, os.path.abspath('../'))
+
+import juliet
 
 
 # -- Project information -----------------------------------------------------
