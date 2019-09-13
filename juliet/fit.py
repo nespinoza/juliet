@@ -10,6 +10,7 @@ except:
 # Import celerite for detrending:
 try:
     import celerite
+    from celerite import terms
 except:
     print('Warning: no celerite installation found. No celerite GPs will be able to be used')
 # Import dynesty for dynamic nested sampling:
@@ -30,10 +31,6 @@ except:
 import os
 import sys
 import numpy as np
-
-# Prepare the celerite term:
-import celerite
-from celerite import terms
 
 # Define constants on the code:
 G = 6.67408e-11 # Gravitational constant, mks
