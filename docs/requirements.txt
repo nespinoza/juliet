@@ -1,0 +1,8 @@
+batman-package
+radvel
+dynesty
+george
+celerite
+astropy
+numpy
+scipy
