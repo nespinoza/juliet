@@ -11,6 +11,28 @@ except:
 try:
     import celerite
     from celerite import terms
+
+    # This class was written by Daniel Foreman-Mackey for his paper: 
+    # https://github.com/dfm/celerite/blob/master/paper/figures/rotation/rotation.ipynb
+    class RotationTerm(terms.Term):
+        parameter_names = ("log_amp", "log_timescale", "log_period", "log_factor")
+        def get_real_coefficients(self, params):
+            log_amp, log_timescale, log_period, log_factor = params
+            f = np.exp(log_factor)
+            return (
+                np.exp(log_amp) * (1.0 + f) / (2.0 + f),
+                np.exp(-log_timescale),
+            )    
+
+        def get_complex_coefficients(self, params):
+            log_amp, log_timescale, log_period, log_factor = params
+            f = np.exp(log_factor)
+            return (
+                np.exp(log_amp) / (2.0 + f),
+                0.0, 
+                np.exp(-log_timescale),
+                2*np.pi*np.exp(-log_period),
+            )    
 except:
     print('Warning: no celerite installation found. No celerite GPs will be able to be used')
 # Import dynesty for dynamic nested sampling:
@@ -38,28 +60,6 @@ log2pi = np.log(2.*np.pi) # ln(2*pi)
 
 # Import all the utils functions:
 from .utils import *
-
-# This class was written by Daniel Foreman-Mackey for his paper: 
-# https://github.com/dfm/celerite/blob/master/paper/figures/rotation/rotation.ipynb
-class RotationTerm(terms.Term):
-    parameter_names = ("log_amp", "log_timescale", "log_period", "log_factor")
-    def get_real_coefficients(self, params):
-        log_amp, log_timescale, log_period, log_factor = params
-        f = np.exp(log_factor)
-        return (
-            np.exp(log_amp) * (1.0 + f) / (2.0 + f),
-            np.exp(-log_timescale),
-        )
-
-    def get_complex_coefficients(self, params):
-        log_amp, log_timescale, log_period, log_factor = params
-        f = np.exp(log_factor)
-        return (
-            np.exp(log_amp) / (2.0 + f),
-            0.0,
-            np.exp(-log_timescale),
-            2*np.pi*np.exp(-log_period),
-        ) 
 
 __all__ = ['load','fit','gaussian_process','model'] 
 
