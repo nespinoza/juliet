@@ -1,5 +1,3 @@
-numpy
-scipy
 batman-package
 radvel
 dynesty
