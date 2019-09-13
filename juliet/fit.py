@@ -1166,10 +1166,10 @@ class model(object):
     :param pu: (optional, float)                    
         Same as ``pl``, but for the upper limit. Default is ``1``.
 
-    :param ecclim (optional, float)
+    :param ecclim: (optional, float)
         This parameter sets the maximum eccentricity allowed such that a model is actually evaluated. Default is ``1``.
 
-    :param log_like_calc (optional, boolean)
+    :param log_like_calc: (optional, boolean)
         If True, it is assumed the model is generated to generate likelihoods values, and thus this skips the saving/calculation of the individual 
         models per planet (i.e., ``self.model['p1']``, ``self.model['p2']``, etc. will not exist). Default is False.
 
