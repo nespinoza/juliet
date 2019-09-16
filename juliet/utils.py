@@ -2,7 +2,7 @@ import numpy as np
 from astropy.io import fits
 import pickle
 
-def get_TESS_data(filename):
+def get_TESS_data(filename, fluxtype = 'PDCSAP_FLUX'):
     """
     Given a filename, this function returns an array of times,
     fluxes and errors on those fluxes.
@@ -11,11 +11,11 @@ def get_TESS_data(filename):
     data = fits.getdata(filename)
 
     # Identify zero-flux values to take them out of the data arrays:
-    idx = np.where((data['PDCSAP_FLUX']!=0.)&(~np.isnan(data['PDCSAP_FLUX'])))[0]
+    idx = np.where((data[fluxtype]!=0.)&(~np.isnan(data[fluxtype])))[0]
 
     # Return median-normalized flux:
-    return data['TIME'][idx],data['PDCSAP_FLUX'][idx]/np.median(data['PDCSAP_FLUX'][idx]), \
-           data['PDCSAP_FLUX_ERR'][idx]/np.median(data['PDCSAP_FLUX'][idx])
+    return data['TIME'][idx],data[fluxtype][idx]/np.median(data[fluxtype][idx]), \
+           data[fluxtype+'_ERR'][idx]/np.median(data[fluxtype][idx])
 
 def reverse_ld_coeffs(ld_law, q1, q2): 
     if ld_law == 'quadratic':
