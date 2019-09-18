@@ -191,5 +191,170 @@ for the parameters of this fit using Daniel Foreman-Mackey's `corner <https://co
    :alt: Corner plot for results for the 2-planet fit.
 
 Best-fit period of this second planet is at 4.76 days: just like in the paper! The semi-amplitudes mostly agree as well. 
-We are only missing the addition of Gaussian Processes to this fit, which maybe might explain some of the extra variance 
-observed in the best-fit model above --- we touch on this problem in the :ref:`gps` tutorial.
+Judging from the errorbars, it seems there still is *some* unexplained variance in the data. Could it be an additional planet? 
+Let us try fitting an extra planet --- this time we will try a larger prior for the period of this third signal, going all the way 
+from 1 to 40 days, which is about half the observing window for the FEROS and HARPS observations, which are the most constraining 
+ones:
+
+.. code-block:: python
+
+    # Add third planet to the prior:
+    params3pl = params + ['P_p3',   't0_p3',  'K_p3',    'ecc_p3','omega_p3']
+    dists3pl = dists +   ['uniform','uniform','uniform', 'fixed', 'fixed']
+    hyperps3pl = hyperps + [[1.,40.],[2458325.,2458355.],[0.,100.], 0., 90.]
+
+    # Repopulate priors dictionary:
+    priors3pl = np.copy(priors)
+
+    for param, dist, hyperp in zip(params3pl, dists3pl, hyperps3pl):
+        priors3pl[param] = {}
+        priors3pl[param]['distribution'], priors3pl[param]['hyperparameters'] = dist, hyperp
+
+    # Run juliet:
+    dataset = juliet.load(priors = priors3pl, rvfilename='rvs_toi141.dat', out_folder = 'toi141_rvs_3planets')
+    results = dataset.fit(n_live_points = 300)
+
+The resulting fit doesn't look too different from the 2-planet one:
+
+.. code-block:: python
+
+    keplerian = results.rv.evaluate('FEROS', t = model_times) - \ 
+                np.median(results.posteriors['posterior_samples']['mu_FEROS'])
+
+    # Now plot the (systematic-velocity corrected) RVs:
+    instruments = ['FEROS','HARPS']
+    colors = ['cornflowerblue','orangered']
+    fig = plt.figure(figsize=(12,5))
+    for i in range(len(instruments)):
+        instrument = instruments[i]
+        jitter = np.median(results.posteriors['posterior_samples']['sigma_w_'+instrument])
+        mu = np.median(results.posteriors['posterior_samples']['mu_'+instrument])
+        # Plot original errorbars:
+        plt.errorbar(dataset.times_rv[instrument]-2457000,dataset.data_rv[instrument]-mu,\
+                     yerr = dataset.errors_rv[instrument],fmt='o',\
+                     mec=colors[i], ecolor=colors[i], elinewidth=3, mfc = 'white', \
+                     ms = 7, label=instrument, zorder=10)
+        # Plot original errorbars + jitter:
+        plt.errorbar(dataset.times_rv[instrument]-2457000,dataset.data_rv[instrument]-mu,\
+                     yerr = np.sqrt(dataset.errors_rv[instrument]**2+jitter**2),fmt='o',\
+                     mec=colors[i], ecolor=colors[i], mfc = 'white', label=None,\
+                     alpha = 0.5, zorder=5)
+
+    plt.plot(model_times-2457000, keplerian,color='black',zorder=1)
+    plt.ylabel('RV (m/s)')
+    plt.xlabel('Time (BJD - 2457000)')
+    plt.title('3 Planet Fit | Log-evidence: {0:.3f} $\pm$ {1:.3f}'.format(results.posteriors['lnZ'],\
+               results.posteriors['lnZerr']))
+    plt.ylim([-20,20])
+    plt.xlim([1365,1435])
+    plt.legend()
+
+.. figure:: rvfit_3pl.png
+   :alt: Results for the 3-planet fit.
+
+In fact, the evidence is *worse* in this 3-planet fit (:math:`\ln Z_3 = -694`) than in the 2-planet fit (:math:`\ln Z_2 = -691`). 
+If both models were equiprobable a-priori, these log-evidences mean that, given the data, the 2-planet model is about 
+20 times more likely than the 3-planet model. So it seems that if there is some extra variance in the dataset, given 
+the data at hand, this cannot be explained by an extra, third planetary signal alone --- at least not with periods between 
+1 and 40 days. But what if there is a *longer* period planet creating a trend in the data? We deal with this possibility next
+
+Long-term trends in RV data
+-------
+
+As mentioned above, within ``juliet`` it is possible to fit for a long-term trend in the data that is common to all the 
+instruments, parametrized by an intercept :math:`B` (``rv_intercept`` parameter within ``juliet``), a slope :math:`A` 
+(``rv_slope`` parameter within ``juliet``) and a quadratic coefficient :math:`Q` (``rv_quad`` parameter within ``juliet``). 
+This long-term trend is useful to constrain signals whose periods might be longer than the current time baseline, which might 
+*locally* appear as long-term trends. To fit those to the data, we just need to define priors for these parameters --- let us 
+do this with the TOI-141 dataset by first trying to fit a simple linear term (i.e., let us define only the parameters 
+``rv_intercept`` and ``rv_slope``). Let us give wide uniform priors for those, join those priors to the 2-planet-fit priors 
+and perform the fit:
+
+.. code-block:: python
+
+    # Add linear trend to the prior:
+    paramsLT = params + ['rv_intercept',   'rv_slope']
+    distsLT = dists +   ['uniform','uniform']
+    hyperpsLT = hyperps + [[-100.,100.],[-100., 100.]]
+
+    # Repopulate priors dictionary:
+    priorsLT = np.copy(priors)
+
+    for param, dist, hyperp in zip(paramsLT, distsLT, hyperpsLT):
+        priorsLT[param] = {}
+        priorsLT[param]['distribution'], priorsLT[param]['hyperparameters'] = dist, hyperp
+
+    # Run juliet:
+    dataset = juliet.load(priors = priorsLT, rvfilename='rvs_toi141.dat', out_folder = 'toi141_rvs_3planets')
+    results = dataset.fit(n_live_points = 300)
+
+Before plotting the results, note that when we evaluate the model using ``results.rv.evaluate`` we will get back the *full* model --- 
+that is, a Keplerian *plus* the long-term trend model in our case (plus the systemic velocity of the instrument). However, one can pass 
+an extra flag to this function, the ``return_components`` flag, which in addition to the full model returns a dictionary that will have 
+all the (deterministic) components of the model. Let us plot all the components of the model on top of each other using this flag:
+
+.. code-block:: python
+
+    # Return full model and the components of the model:
+    full_model, components = results.rv.evaluate('FEROS', t = model_times, return_components = True)
+    # Substract systemic RV from full model (note this is part of the components):
+    full_model -= components['mu']
+
+    # Now plot the (systematic-velocity corrected) RVs (same code as above):
+    instruments = ['FEROS','HARPS']
+    colors = ['cornflowerblue','orangered']
+    fig = plt.figure(figsize=(12,5))
+    for i in range(len(instruments)):
+        instrument = instruments[i]
+        jitter = np.median(results.posteriors['posterior_samples']['sigma_w_'+instrument])
+        mu = np.median(results.posteriors['posterior_samples']['mu_'+instrument])
+        # Plot original errorbars:
+        plt.errorbar(dataset.times_rv[instrument]-2457000,dataset.data_rv[instrument]-mu,\
+                     yerr = dataset.errors_rv[instrument],fmt='o',\
+                     mec=colors[i], ecolor=colors[i], elinewidth=3, mfc = 'white', \
+                     ms = 7, label=instrument, zorder=10)
+        # Plot original errorbars + jitter:
+        plt.errorbar(dataset.times_rv[instrument]-2457000,dataset.data_rv[instrument]-mu,\
+                     yerr = np.sqrt(dataset.errors_rv[instrument]**2+jitter**2),fmt='o',\
+                     mec=colors[i], ecolor=colors[i], mfc = 'white', label=None,\
+                     alpha = 0.5, zorder=5)
+
+    # Plot full model:
+    plt.plot(model_times-2457000, full_model,color='black',zorder=1, label = 'Full model')
+
+    # Extract model components and plot them:
+    plt.plot(model_times-2457000, components['keplerian'],color='grey',zorder=0, alpha=0.5, label = 'Keplerian')
+    plt.plot(model_times-2457000, components['trend'],color='grey',zorder=0,alpha=0.5, lw = 3, label = 'Linear trend')
+
+    # Labels:
+    plt.ylabel('RV (m/s)')
+    plt.xlabel('Time (BJD - 2457000)')
+    plt.title('2 Planet Fit + Linear Trend | Log-evidence: {0:.3f} $\pm$ {1:.3f}'.format(results.posteriors['lnZ'],\
+               results.posteriors['lnZerr']))
+    plt.ylim([-35,25])
+    plt.xlim([1365,1435])
+    plt.legend(ncol = 2)
+
+.. figure:: rvfit_2pl_lt.png
+   :alt: Results for the 2-planet fit + linear trend.
+
+As can be seen, the ``components`` dictionary extracted from the ``results.rv.evaluate`` function contains the Keplerian 
+signal under ``components['keplerian']``, and the trend under ``components['keplerian']``. In addition, it also stores 
+the Keplerians of each of the individual planets under ``components['p1']`` and ``components['p2']`` in our case. Note however, 
+that the linear trend appears to not be significant in our case. So it might be that the unexplained variance could be 
+explained by something else --- in the :ref:`gps` tutorial, we explore adding a Gaussian Process to the dataset in order 
+to explain this. 
+
+.. note::
+
+    Note how in our case the ``components`` dictionary for the FEROS instrument has its systemic RV stored under 
+    ``components['mu']``, which in general is *different* than taking the median of the 
+    ``results.posteriors['posterior_samples']['mu_FEROS']`` array. This is because, as was already mentioned 
+    in the :ref:`transitfit` tutorial, the ``results.rv.evaluate`` function (and the ``results.lc.evaluate`` function) 
+    evaluate the model by default on ``nsamples = 1000`` samples of the posterior. Thus, ``components['mu']`` is the 
+    median value of the systemic RV over the same ``1000`` samples as the other components, whereas 
+    ``results.posteriors['posterior_samples']['mu_FEROS']`` contains *all* the samples and thus, taking the 
+    median of that array should be slightly different than ``components['mu']``. This difference, of course, is 
+    typically much smaller than the errors, so it shouldn't be a problem in general. One can set the ``all_samples`` 
+    flag to ``True`` in the ``results.rv.evaluate`` function to use all the samples --- in this case, both should 
+    give the same results.
