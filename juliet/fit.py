@@ -1267,6 +1267,11 @@ class model(object):
         for instrument in self.inames:
             self.model[instrument]['deterministic'] = self.model['Keplerian+Trend'][self.instrument_indexes[instrument]] + parameter_values['mu_'+instrument] 
             self.model[instrument]['deterministic_variances'] = self.errors[instrument]**2 + parameter_values['sigma_w_'+instrument]**2
+            if self.lm_boolean[instrument]:
+                self.model[instrument]['LM'] = np.zeros(self.ndatapoints_per_instrument[instrument])
+                for i in range(lm_n[instrument]):
+                    self.model[instrument]['LM'] += parameter_values['theta'+str(i)+'_'+instrument]*self.lm_arguments[:,i]
+                self.model[instrument]['deterministic'] += self.model[instrument]['LM']
             # If the model under consideration is a global model, populate the global model dictionary:
             if self.global_model:
                 self.model['global'][self.instrument_indexes[instrument]] = self.model[instrument]['deterministic']
@@ -1298,7 +1303,7 @@ class model(object):
 
     def evaluate_model(self, instrument = None, parameter_values = None, resampling = None, nresampling = None, etresampling = None, \
                           all_samples = False, nsamples = 1000, return_samples = False, t = None, GPregressors = None, LMregressors = None, \
-                          return_err = False, alpha = 0.68):
+                          return_err = False, alpha = 0.68, return_components = False):
         """
         This function evaluates the current lc or rv  model given a set of parameter values. Resampling options can be changed if resampling is a boolean,
         but the object is at the end rolled-back to the default resampling definitions the user defined in the juliet.load object. For now, resampling only is 
@@ -1315,6 +1320,10 @@ class model(object):
         # Check if user gave input parameter_values dictionary. If that's the case, generate again the 
         # full lightcurve/rv model:
         if parameter_values is not None:
+            # If return_components, generate the components dictionary:
+            if return_components:
+                self.log_like_calc = False
+                components = {}
             # Now, consider two possible cases. If the user is giving a parameter_values where the dictionary contains *arrays* of values 
             # in it, then iterate through all the values in order to calculate the median model. If the dictionary contains only individual 
             # values, evaluate the model only at those values:
@@ -1358,6 +1367,18 @@ class model(object):
                             # Set inames to just the name of the instrument under consideration:
                             self.iname = [instrument]
                             original_instrument_index = self.instrument_indexes[instrument]
+
+                # Fill the components dictionary in case return_components is true; use the output_model_samples for the size of each component array:
+                if return_components:
+                    for i in self.numbering:
+                        components['p'+str(i)] = np.zeros(output_model_samples.shape)
+                    if self.modeltype == 'lc':
+                        components['lm'] = np.zeros(output_model_samples.shape)
+                    else:
+                        components['keplerian'] = np.zeros(output_model_samples.shape)
+                        components['trend'] = np.zeros(output_model_samples.shape) 
+                        components['lm'] = np.zeros(output_model_samples.shape)
+                        components['mu'] = np.zeros(output_model_samples.shape[0])
 
                 # Save the original inames. If not global model, we won't care about generating the models for the other instruments:
                 if not self.global_model:
@@ -1420,6 +1441,26 @@ class model(object):
                     else:
                         output_model_samples[counter,:] = self.get_GP_plus_deterministic_model(current_parameter_values, \
                                                                                                   instrument = instrument)
+
+                    if return_components:
+                        if self.modeltype == 'lc':
+                            transit = 0.
+                            for i in self.numbering:
+                                components['p'+str(i)][counter,:] = self.model[instrument]['p'+str(i)]
+                                transit += (components['p'+str(i)] - 1.)
+                            components['transit'][counter,:] = 1. + transit
+                        else:
+                            for i in self.numbering:
+                                components['p'+str(i)][counter,:] = self.model['p'+str(i)] 
+                            components['trend'][counter,:] = self.model['Keplerian+Trend'] - self.model['Keplerian']
+                            components['keplerian'][counter,:] = self.model['Keplerian']
+                            components['mu'][counter] = current_parameter_values['mu_'+instrument]
+                        if self.lm_boolean[instrument]:
+                            if self.modeltype == 'lc':
+                                components['lm'][counter,:] = self.model[instrument]['LM']
+                            else:
+                                components['lm'][counter,:] = self.model[instrument]['LM']
+
                     # Rollback in case t is not None:
                     if t is not None:
                         self.times[instrument] = original_instrument_times
@@ -1462,25 +1503,57 @@ class model(object):
                     if self.dictionary[instrument]['GPDetrend']:
                         self.model[instrument]['deterministic'], self.model[instrument]['GP'] = np.median(output_modelDET_samples,axis=0), \
                                                                                        np.median(output_modelGP_samples,axis=0)
+
+                # If return_components is true, generate the median models for each part of the full model:
+                if return_components:
+                    for k in components.keys():
+                        components[k] = np.median(components[k],axis=0)
             else:
                 self.generate_lc_model(parameter_values)
                 output_model = self.get_GP_plus_deterministic_model(parameter_values, instrument = instrument)
+                if return_components:
+                    if self.modeltype == 'lc':
+                        transit = 0.
+                        for i in self.numbering:
+                            components['p'+str(i)] = self.model[instrument]['p'+str(i)]
+                            transit += (components['p'+str(i)] - 1.)
+                        components['transit'] = 1. + transit
+                    else:
+                        for i in self.numbering:
+                            components['p'+str(i)] = self.model['p'+str(i)]
+                        components['trend'] = self.model['Keplerian+Trend'] - self.model['Keplerian']
+                        components['keplerian'] = self.model['Keplerian']
+                        components['mu'] = parameter_values['mu_'+instrument]
+                    if self.lm_boolean[instrument]:
+                        components['lm'] = self.model[instrument]['LM']
         else:
          
             x = self.evaluate_model(instrument = instrument, parameter_values = self.posteriors, resampling = resampling, \
                                               nresampling = nresampling, etresampling = etresampling, all_samples = all_samples, \
                                               nsamples = nsamples, return_samples = return_samples, t = t, GPregressors = GPregressors, \
-                                              LMregressors = LMregressors, return_err = return_err)
+                                              LMregressors = LMregressors, return_err = return_err, return_components = return_components)
             if return_samples:
                 if return_err:
-                    output_model_samples, m_output_model, u_output_model, l_output_model = x
+                    if return_components:
+                        output_model_samples, m_output_model, u_output_model, l_output_model = x
+                    else:
+                        output_model_samples, m_output_model, u_output_model, l_output_model, components = x
                 else:
-                    output_model_samples,output_model = x
+                    if return_components:
+                        output_model_samples,output_model,components = x
+                    else:
+                        output_model_samples,output_model = x
             else:
                 if return_err:
-                    m_output_model, u_output_model, l_output_model = x
+                    if return_components:
+                        m_output_model, u_output_model, l_output_model, components = x
+                    else:
+                        m_output_model, u_output_model, l_output_model = x
                 else:
-                    output_model = x
+                    if return_components:
+                        output_model, components = x
+                    else:
+                        output_model = x
 
         if resampling is not None: 
              # get lc, return, then turn all back to normal:
@@ -1492,14 +1565,26 @@ class model(object):
                  self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
         if return_samples:
             if return_err:
-                return output_model_samples, m_output_model, u_output_model, l_output_model
+                if return_components:
+                    return output_model_samples, m_output_model, u_output_model, l_output_model, components
+                else:
+                    return output_model_samples, m_output_model, u_output_model, l_output_model
             else:
-                return output_model_samples,output_model
+                if return_components:
+                    return output_model_samples,output_model, components
+                else:
+                    return output_model_samples,output_model
         else:
             if return_err:
-                return m_output_model, u_output_model, l_output_model
+                if return_components:
+                    return m_output_model, u_output_model, l_output_model, components
+                else:
+                    return m_output_model, u_output_model, l_output_model
             else:
-                return output_model
+                if return_components:
+                    return output_model, components
+                else:
+                    return output_model
 
     def generate_lc_model(self, parameter_values):
         self.modelOK = True
