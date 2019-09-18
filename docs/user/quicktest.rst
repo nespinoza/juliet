@@ -48,7 +48,8 @@ directly given a web link to the data --- let's load it and plot the data to see
 
 .. code-block:: python
 
-    import juliet 
+    import juliet
+    import numpy as np 
     # First, get times, normalized-fluxes and errors for TOI-141 from MAST:
     t,f,ferr  = juliet.get_TESS_data('https://archive.stsci.edu/hlsps/tess-data-alerts/'+\
                                      'hlsp_tess-data-alerts_tess_phot_00403224672-'+\

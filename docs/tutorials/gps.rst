@@ -33,6 +33,7 @@ Let's start by downloading and plotting the *TESS* data for HATS-46b in Sector 1
 .. code-block:: python
 
    import juliet
+   import numpy as np
    import matplotlib.pyplot as plt
 
    # First, get arrays of times, normalized-fluxes and errors for HATS-46 

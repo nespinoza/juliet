@@ -57,6 +57,7 @@ is much smaller than the one for Sector 1 (which we tackle in the :ref:`gps` tut
 .. code-block:: python
 
    import juliet
+   import numpy as np
    import matplotlib.pyplot as plt 
 
    # First, get arrays of times, normalized-fluxes and errors for HATS-46 
@@ -376,7 +377,7 @@ it is a 17-dimensional problem after all. Let us plot the results of the joint i
 
 Pretty nice fit! The Swope data actually shows a little bit more scatter --- indeed, the :math:`\sigma_{w,SWOPE} = 1269^{+185}_{-155}` ppm, which 
 indicates that there seems to be some extra process happening in the lightcurve (e.g., systematics), which are being modelled in our fit with a 
-simple jitter term. So, how does the posteriors of our parameters compare with that of the *TESS*-only fit. We can repeat the plot made above for 
+simple jitter term. So, how does the posteriors of our parameters compare with that of the *TESS*-only fit? We can repeat the plot made above for 
 the planet-to-star radius ratio and impact parameter to check:
 
 .. figure:: posterior_bp_joint.png
