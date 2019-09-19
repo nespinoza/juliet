@@ -67,7 +67,6 @@ to zero for now:
     for param, dist, hyperp in zip(params, dists, hyperps):
         priors[param] = {}
         priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
-        print param,priors[param]
 
     dataset = juliet.load(priors = priors, rvfilename='rvs_toi141.dat', out_folder = 'toi141_rvs')
     results = dataset.fit(n_live_points = 300)   
@@ -151,7 +150,6 @@ and an additional one with an unknown period from, say, 1 to 10 days. To do this
     for param, dist, hyperp in zip(params, dists, hyperps):
         priors[param] = {}
         priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
-        print param,priors[param]
 
 And let's perform the second ``juliet`` fit with this two-planet system:
 
