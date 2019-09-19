@@ -1,5 +1,11 @@
 # Import batman, for lightcurve models:
 import batman
+# Try to import catwoman:
+try: 
+    import catwoman
+    have_catwoman = True
+except:
+    have_catwoman = False
 # Import radvel, for RV models:
 import radvel
 # Import george for detrending:
@@ -430,6 +436,7 @@ class load(object):
             # Save if transit fitting will be done for a given dataset/instrument (this is so users can fit photometry with, e.g., GPs):
             if dictype == 'lc':
                 dictionary[instrument]['TransitFit'] = False
+                dictionary[instrument]['TransitFitCatwoman'] = False
 
         if dictype == 'lc':
             # Extract limb-darkening law. If no limb-darkening law was given by the user, assume LD law depending on whether the user defined a prior for q1 only for a 
@@ -479,6 +486,11 @@ class load(object):
                             dictionary[inames[i]]['TransitFit'] = True
                             if self.verbose:
                                 print('\t Transit fit detected for instrument ',inames[i])
+                    if pri[0:3] == 'phi':
+                        dictionary[inames[i]]['TransitFit'] = True
+                        dictionary[inames[i]]['TransitFitCatwoman'] = True
+                        if self.verbose:
+                            print('\t Transit (catwoman) fit detected for instrument ',inames[i])
 
         # Now, implement noise models for each of the instrument. First check if model should be global or instrument-by-instrument, 
         # based on the input instruments given for the GP regressors.
@@ -740,19 +752,22 @@ class load(object):
            raise Exception('INPUT ERROR: Prior file is not a string or a dictionary (and it has to). Do juliet.load? for details.')
 
         # Define cases in which data is given through files: 
-        if (t_lc is None) and (t_rv is None):
+        if (t_lc is None):
             if lcfilename is not None:
                 t_lc,y_lc,yerr_lc,instruments_lc,instrument_indexes_lc,ninstruments_lc,inames_lc,lm_lc_boolean,lm_lc_arguments = \
                 read_data(lcfilename)
 
                 # Save data to object:
                 self.set_lc_data(t_lc, y_lc, yerr_lc, instruments_lc,instrument_indexes_lc,ninstruments_lc,inames_lc,lm_lc_boolean,lm_lc_arguments)
+        if (t_rv is None): 
             if rvfilename is not None:
                 t_rv,y_rv,yerr_rv,instruments_rv,instrument_indexes_rv,ninstruments_rv,inames_rv,lm_rv_boolean,lm_rv_arguments = \
                 read_data(rvfilename)
 
                 # Save data to object:
                 self.set_rv_data(t_rv,y_rv,yerr_rv,instruments_rv,instrument_indexes_rv,ninstruments_rv,inames_rv,lm_rv_boolean,lm_rv_arguments)
+
+        if (t_lc is None and t_rv is None):
             if (lcfilename is None) and (rvfilename is None): 
                 raise Exception('INPUT ERROR: No complete dataset (photometric or radial-velocity) given.\n'+\
                       ' Make sure to feed times (t_lc and/or t_rv), values (y_lc and/or y_rv), \n'+\
@@ -1197,6 +1212,31 @@ class model(object):
              m = batman.TransitModel(params, t, supersample_factor=nresampling, exp_time=etresampling)
          return params,m
 
+    def init_catwoman(self, t, ld_law, nresampling = None, etresampling = None):
+         """  
+         This function initializes the batman code.
+         """
+         params = batman.TransitParams()
+         params.t0 = 0.
+         params.per = 1.
+         params.rp = 0.1
+         params.rp2 = 0.1
+         params.a = 15.
+         params.inc = 87.
+         params.ecc = 0.
+         params.w = 90.
+         params.phi = 90.
+         if ld_law == 'linear':
+             params.u = [0.5]
+         else:
+             params.u = [0.1,0.3]
+         params.limb_dark = ld_law
+         if nresampling is None or etresampling is None:
+             m = catwoman.TransitModel(params, t)
+         else:
+             m = catwoman.TransitModel(params, t, supersample_factor=nresampling, exp_time=etresampling)
+         return params,m
+
     def init_radvel(self, nplanets=1):
         return radvel.model.Parameters(nplanets,basis='per tc e w k')  
 
@@ -1356,8 +1396,12 @@ class model(object):
                     original_instrument_times = np.copy(self.times[instrument])
                     if self.modeltype == 'lc':
                         if self.dictionary[instrument]['TransitFit']:
-                            supersample_params,supersample_m = self.init_batman(t, self.dictionary[instrument]['ldlaw'])
-                            sample_params,sample_m = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                            if not self.dictionary[instrument]['TransitFitCatwoman']:
+                                supersample_params,supersample_m = self.init_batman(t, self.dictionary[instrument]['ldlaw'])
+                                sample_params,sample_m = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                            else:
+                                supersample_params,supersample_m = self.init_catwoman(t, self.dictionary[instrument]['ldlaw'])
+                                sample_params,sample_m = self.init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'])             
                     else:
                         original_t = np.copy(self.t)
                         original_instrument_indexes = np.copy(self.instrument_indexes)
@@ -1637,13 +1681,27 @@ class model(object):
                                   self.pu + (self.pl-self.pu)*np.sqrt(r1/self.Ar)*(1.-r2)
                     else:
                        if not self.dictionary['fitrho']:
-                           a,b,p,t0,P = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
-                                        parameter_values['p_p'+str(i)], parameter_values['t0_p'+str(i)],\
-                                        parameter_values['P_p'+str(i)]
+                           if not self.dictionary[instrument]['TransitFitCatwoman']:
+                               a,b,p,t0,P = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
+                                            parameter_values['p_p'+str(i)], parameter_values['t0_p'+str(i)],\
+                                            parameter_values['P_p'+str(i)]
+                           else:
+                               a,b,p1,p2,t0,P,phi = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
+                                            parameter_values['p1_p'+str(i)], parameter_values['p2_p'+str(i)], \
+                                            parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)], \
+                                            parameter_values['phi_p'+str(i)]
+                               p = np.min([p1,p2])
                        else:
-                           rho,b,p,t0,P = parameter_values['rho'], parameter_values['b_p'+str(i)],\
-                                          parameter_values['p_p'+str(i)], parameter_values['t0_p'+str(i)],\
-                                          parameter_values['P_p'+str(i)]
+                           if not self.dictionary[instrument]['TransitFitCatwoman']:
+                                rho,b,p,t0,P = parameter_values['rho'], parameter_values['b_p'+str(i)],\
+                                               parameter_values['p_p'+str(i)], parameter_values['t0_p'+str(i)],\
+                                               parameter_values['P_p'+str(i)]
+                           else:
+                                rho,b,p1,p2,t0,P,phi = parameter_values['rho'], parameter_values['b_p'+str(i)],\
+                                               parameter_values['p1_p'+str(i)], parameter_values['p2_p'+str(i)],\
+                                               parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)],\
+                                               parameter_values['phi_p'+str(i)]
+                                p = np.min([p1,p2])
                            a = ((rho*G*((P*24.*3600.)**2))/(3.*np.pi))**(1./3.)
 
                     # Now extract eccentricity and omega depending on the used parametrization for each planet:
@@ -1666,11 +1724,16 @@ class model(object):
                         if not (b>1.+p or inc_inv_factor >=1.):
                             self.model[instrument]['params'].t0 = t0
                             self.model[instrument]['params'].per = P
-                            self.model[instrument]['params'].rp = p
                             self.model[instrument]['params'].a = a
                             self.model[instrument]['params'].inc = np.arccos(inc_inv_factor)*180./np.pi
                             self.model[instrument]['params'].ecc = ecc 
                             self.model[instrument]['params'].w = omega
+                            if not self.dictionary[instrument]['TransitFitCatwoman']:
+                                self.model[instrument]['params'].rp = p
+                            else:
+                                self.model[instrument]['params'].rp = p1
+                                self.model[instrument]['params'].rp2 = p2
+                                self.model[instrument]['params'].phi = phi
                             if self.dictionary[instrument]['ldlaw'] is not 'linear':
                                self.model[instrument]['params'].u = [coeff1, coeff2]
                             else:
@@ -1821,11 +1884,21 @@ class model(object):
                 if self.dictionary[instrument]['TransitFit']:
                     # First, take the opportunity to initialize transit lightcurves for each instrument:
                     if self.dictionary[instrument]['resampling']:
-                        self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                        if not self.dictionary[instrument]['TransitFitCatwoman']:
+                            self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                                         nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                         etresampling = self.dictionary[instrument]['exptimeresampling'])
+                        else:
+                            self.model[instrument]['params'], self.model[instrument]['m'] = self.init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
                                                                                                          nresampling = self.dictionary[instrument]['nresampling'],\
                                                                                                          etresampling = self.dictionary[instrument]['exptimeresampling'])
                     else:
-                        self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                        if not self.dictionary[instrument]['TransitFitCatwoman']:
+                            self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], \
+                                                                                                             self.dictionary[instrument]['ldlaw'])
+                        else:
+                            self.model[instrument]['params'], self.model[instrument]['m'] = self.init_catwoman(self.times[instrument], \
+                                                                                                               self.dictionary[instrument]['ldlaw'])
                     # Individual transit lightcurves for each planet:
                     for i in self.numbering:
                         self.model[instrument]['p'+str(i)] = np.ones(len(self.instrument_indexes[instrument]))
