@@ -108,7 +108,7 @@ of the other planets:
    gs = gridspec.GridSpec(1, 3, width_ratios=[2,2,2])
 
 Let's first deal with **the plot for the transiting planet lightcurve** (``p1``). For this one, we will not only plot the phased data and model, but 
-will also bin the data so we can more easily see the transit event --- to this we will use the ``juliet.bin_data`` function, 
+will also bin the data so we can more easily see the transit event --- to this end we will use the ``juliet.bin_data`` function, 
 which given times/phases, data and a number of bins, will bin your data and return binned times/phases, data and errors:
 
 .. code-block:: python
@@ -139,7 +139,7 @@ which given times/phases, data and a number of bins, will bin your data and retu
     ax1.set_xlim([-0.06,0.06])
     ax1.set_ylim([0.999,1.001])
 
-Now, let's plot in the next panel the radial-velocity data for this planet only. For this, we will evaluate the radial-velocity model 
+Now, let's plot in the next panel **the radial-velocity data for this planet only**. For this, we will evaluate the radial-velocity model 
 on times that provide a better sampling of the while Keplerian curve. To "clean" the data from the other planetary and systematic 
 components, we will also evaluate the model at the same times as the data and remove all components *but* the one from the planet. To 
 this end, we will substract the planetary component to the full radial-velocity model, and substract that to the data:
@@ -191,7 +191,7 @@ this end, we will substract the planetary component to the full radial-velocity 
     ax2.set_xlabel('Phases')
     ax2.set_ylabel('Radial-velocity (m/s)')
 
-Now, finally, we deal with the non-transiting planet (``p2``). There is an interesting detail about this one, however. 
+Now, finally, **we deal with the non-transiting planet** (``p2``). There is an interesting detail about this one, however. 
 We already saw in the :ref:`rvfits` tutorial that there we obtained a period slightly different to the one that was 
 published in the paper. Well, if you explore the posterior distribution of the period of this second planet with this 
 joint-fit you will be able to see why: turns out there are actually *two* possible periods (one at :math:`4.785` days and 
