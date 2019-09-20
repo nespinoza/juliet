@@ -195,7 +195,12 @@ Now, finally, **we deal with the non-transiting planet** (``p2``). There is an i
 We already saw in the :ref:`rvfits` tutorial that there we obtained a period slightly different to the one that was 
 published in the paper. Well, if you explore the posterior distribution of the period of this second planet with this 
 joint-fit you will be able to see why: turns out there are actually *two* possible periods (one at :math:`4.785` days and 
-another one at :math:`4.760` days). I will let the reader find out for her/himself how we cracked this down in the paper, 
+another one at :math:`4.760` days): 
+
+.. figure:: toi141-P2.png
+   :alt: Posterior distribution of the period of the non-transiting planet.
+
+I will let the reader find out for her/himself how we cracked this down in the paper, 
 but turns out the real period is the one at :math:`4.785` days (the other one is an alias). 
 
 So --- how do we use all the posterior samples corresponding to *that* mode in order to plot the radial-velocity curve of 
