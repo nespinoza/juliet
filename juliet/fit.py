@@ -1416,6 +1416,7 @@ class model(object):
                         components['p'+str(i)] = np.zeros(output_model_samples.shape)
                     if self.modeltype == 'lc':
                         components['lm'] = np.zeros(output_model_samples.shape)
+                        components['transit'] = np.zeros(output_model_samples.shape)
                     else:
                         components['keplerian'] = np.zeros(output_model_samples.shape)
                         components['trend'] = np.zeros(output_model_samples.shape) 
@@ -1489,7 +1490,7 @@ class model(object):
                             transit = 0.
                             for i in self.numbering:
                                 components['p'+str(i)][counter,:] = self.model[instrument]['p'+str(i)]
-                                transit += (components['p'+str(i)] - 1.)
+                                transit += (components['p'+str(i)][counter,:] - 1.)
                             components['transit'][counter,:] = 1. + transit
                         else:
                             for i in self.numbering:
