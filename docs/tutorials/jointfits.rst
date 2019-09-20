@@ -1,6 +1,6 @@
 .. _jointfits:
 
-Fitting transits and radial-velocities
+Joint transit and radial-velocity fits
 ===================
 
 We have dealt so far separately between fitting transit lightcurves in the :ref:`transitfit` tutorial and with fitting 
