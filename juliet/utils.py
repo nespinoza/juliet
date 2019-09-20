@@ -244,7 +244,7 @@ def readpriors(priorname):
                     parameter,prior_name = param,priors[param]['distribution']
                 pvector = parameter.split('_')
                 # Check if parameter/planet is from a transiting planet:
-                if pvector[0] == 'r1' or pvector[0] == 'p':
+                if pvector[0] == 'r1' or pvector[0] == 'p' or pvector[0] == 'phi':
                     pnumber = int(pvector[1][1:])
                     numbering_transit = np.append(numbering_transit,pnumber)
                     n_transit += 1
