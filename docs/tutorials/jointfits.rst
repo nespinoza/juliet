@@ -140,7 +140,7 @@ which given times/phases, data and a number of bins, will bin your data and retu
     ax1.set_ylim([0.999,1.001])
 
 Now, let's plot in the next panel **the radial-velocity data for this planet only**. For this, we will evaluate the radial-velocity model 
-on times that provide a better sampling of the while Keplerian curve. To "clean" the data from the other planetary and systematic 
+on times that provide a better sampling of the whole Keplerian curve. To "clean" the data from the other planetary and systematic 
 components, we will also evaluate the model at the same times as the data and remove all components *but* the one from the planet. To 
 this end, we will substract the planetary component to the full radial-velocity model, and substract that to the data:
 
