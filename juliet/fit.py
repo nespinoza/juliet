@@ -180,11 +180,11 @@ class load(object):
         Same as ``GPlceparamfile`` but for the radial-velocities.
 
     :param lctimedef: (optional, string)               
-        Time definitions for each of the lightcurve instruments. Default is ``TDB`` for all instruments. If more than one instrument is given, this string 
+        Time definitions for each of the lightcurve instruments. Default is to assume all instruments (in lcs and rvs) have the same time definitions. If more than one instrument is given, this string 
         should have instruments and time-definitions separated by commas, e.g., ``TESS-TDB, LCOGT-UTC``, etc.
 
     :param rvtimedef: (optional, string)               
-        Time definitions for each of the radial-velocity instruments. Default is ``UTC`` for all insstruments. If more than one instrument is given, 
+        Time definitions for each of the radial-velocity instruments. Default is to assume all instruments (in lcs and rvs) have the same time definitions. If more than one instrument is given, 
         this string should have instruments and time-definitions separated by commas, e.g., ``FEROS-TDB, HARPS-UTC``, etc.
 
     :param ld_laws: (optional, string)                 
@@ -1308,7 +1308,7 @@ class model(object):
             if self.lm_boolean[instrument]:
                 self.model[instrument]['LM'] = np.zeros(self.ndatapoints_per_instrument[instrument])
                 for i in range(self.lm_n[instrument]):
-                    self.model[instrument]['LM'] += parameter_values['theta'+str(i)+'_'+instrument]*self.lm_arguments[:,i]
+                    self.model[instrument]['LM'] += parameter_values['theta'+str(i)+'_'+instrument]*self.lm_arguments[instrument][:,i]
                 self.model[instrument]['deterministic'] += self.model[instrument]['LM']
             # If the model under consideration is a global model, populate the global model dictionary:
             if self.global_model:
@@ -1755,7 +1755,7 @@ class model(object):
             if self.lm_boolean[instrument]:
                 self.model[instrument]['LM'] = np.zeros(self.ndatapoints_per_instrument[instrument])
                 for i in range(self.lm_n[instrument]):
-                    self.model[instrument]['LM'] += parameter_values['theta'+str(i)+'_'+instrument]*self.lm_arguments[:,i]
+                    self.model[instrument]['LM'] += parameter_values['theta'+str(i)+'_'+instrument]*self.lm_arguments[instrument][:,i]
                 self.model[instrument]['deterministic'] = self.model[instrument]['M'] + self.model[instrument]['LM']
             else:
                 self.model[instrument]['deterministic'] = self.model[instrument]['M']
