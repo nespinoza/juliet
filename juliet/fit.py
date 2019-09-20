@@ -210,7 +210,7 @@ class load(object):
 
     """
 
-    def data_preparation(self,times,instruments,linear_regressors,linear_instruments):
+    def data_preparation(self,times,instruments,linear_regressors):
         """
         This function generates f useful internal arrays for this class: inames which saves the instrument names, ``global_times`` 
         which is a "flattened" array of the ``times`` dictionary where all the times for all instruments are stacked, instrument_indexes, 
@@ -226,20 +226,20 @@ class load(object):
         for instrument in inames:
             instrument_indexes[instrument] = np.where(instruments == instrument)[0]
 
-        # Also generate lm_lc_boolean and lm_lc_arguments in case linear regressors were passed:
+        # Also generate lm_lc_boolean in case linear regressors were passed:
         lm_boolean = {}
         lm_arguments = {}
         if linear_regressors is not None:
+            linear_instruments = linear_regressors.keys()
             for instrument in inames:
                 if instrument in linear_instruments:
                     lm_boolean[instrument] = True
-                    lm_arguments[instrument] = linear_regressors[instrument_indexes[instrument],:]
                 else:
                     lm_boolean[instrument] = False
         else:
             for instrument in inames:
                 lm_boolean[instrument] = False
-        return inames, instrument_indexes, lm_boolean, lm_arguments
+        return inames, instrument_indexes, lm_boolean
 
     def convert_input_data(self, t, y, yerr):
         """
@@ -797,7 +797,8 @@ class load(object):
             # Create global arrays:
             tglobal_lc, yglobal_lc, yglobalerr_lc, instruments_lc = self.convert_input_data(t_lc, y_lc, yerr_lc)
             # Save data in a format useful for global modelling:
-            inames_lc, instrument_indexes_lc, lm_lc_boolean, lm_lc_arguments = self.data_preparation(tglobal_lc,instruments_lc,linear_regressors_lc,linear_instruments_lc)
+            inames_lc, instrument_indexes_lc, lm_lc_boolean = self.data_preparation(tglobal_lc,instruments_lc,linear_regressors_lc)
+            lm_lc_arguments = linear_regressors_lc
             ninstruments_lc = len(inames_lc)
 
             # Save data to object:
@@ -818,7 +819,8 @@ class load(object):
         if (rvfilename is None) and (t_rv is not None):
             input_error_catcher(t_rv,y_rv,yerr_rv,'radial-velocity')
             tglobal_rv, yglobal_rv, yglobalerr_rv, instruments_rv = self.convert_input_data(t_rv, y_rv, yerr_rv)
-            inames_rv, instrument_indexes_rv, lm_rv_boolean, lm_rv_arguments = self.data_preparation(t_rv,instruments_rv,linear_regressors_rv,linear_instruments_rv)
+            inames_rv, instrument_indexes_rv, lm_rv_boolean = self.data_preparation(t_rv,instruments_rv,linear_regressors_rv)
+            lm_rv_arguments = linear_regressors_rv
             ninstruments_rv = len(inames_rv)
 
             # Save data to object:
