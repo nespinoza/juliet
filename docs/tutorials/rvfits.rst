@@ -188,11 +188,12 @@ for the parameters of this fit using Daniel Foreman-Mackey's `corner <https://co
 .. figure:: corner-2planet.png
    :alt: Corner plot for results for the 2-planet fit.
 
-Best-fit period of this second planet is at 4.76 days: just like in the paper! The semi-amplitudes mostly agree as well. 
-Judging from the errorbars, it seems there still is *some* unexplained variance in the data. Could it be an additional planet? 
-Let us try fitting an extra planet --- this time we will try a larger prior for the period of this third signal, going all the way 
-from 1 to 40 days, which is about half the observing window for the FEROS and HARPS observations, which are the most constraining 
-ones:
+Best-fit period of this second planet is at 4.76 days --- this is slightly off with the value cited in the paper (which is 
+:math:`4.78503 \pm 0.0005`), we will touch on this "mistery" in the :ref:`jointfits` tutorial. The semi-amplitudes mostly 
+agree with the values in the paper. Judging from the errorbars, it seems there still is *some* unexplained variance in the data. 
+Could it be an additional planet? Let us try fitting an extra planet --- this time we will try a larger prior for the period of 
+this third signal, going all the way from 1 to 40 days, which is about half the observing window for the FEROS and HARPS observations, 
+which are the most constraining ones:
 
 .. code-block:: python
 
