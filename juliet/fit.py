@@ -645,11 +645,9 @@ class load(object):
                    dynesty_nthreads = dynesty_nthreads, n_live_points = n_live_points, ecclim = ecclim, delta_z_lim = delta_z_lim, \
                    pl = pl, pu = pu)
 
-    def __init__(self,priors = None, input_folder = None, t_lc = None, y_lc = None, yerr_lc = None, instruments_lc = None,\
-                 t_rv = None, y_rv = None, yerr_rv = None, instruments_rv = None,\
-                 GP_regressors_lc = None, linear_regressors_lc = None, \
-                 linear_instruments_lc = None, GP_regressors_rv = None, \
-                 linear_regressors_rv = None, linear_instruments_rv = None,\
+    def __init__(self,priors = None, input_folder = None, t_lc = None, y_lc = None, yerr_lc = None, \
+                 t_rv = None, y_rv = None, yerr_rv = None, GP_regressors_lc = None, linear_regressors_lc = None, \
+                 GP_regressors_rv = None, linear_regressors_rv = None, 
                  out_folder = None, lcfilename = None, rvfilename = None, GPlceparamfile = None,\
                  GPrveparamfile = None, lctimedef = 'TDB', rvtimedef = 'UTC',\
                  ld_laws = 'quadratic', priorfile = None, lc_n_supersamp = None, lc_exptime_supersamp = None, \
@@ -1309,7 +1307,7 @@ class model(object):
             self.model[instrument]['deterministic_variances'] = self.errors[instrument]**2 + parameter_values['sigma_w_'+instrument]**2
             if self.lm_boolean[instrument]:
                 self.model[instrument]['LM'] = np.zeros(self.ndatapoints_per_instrument[instrument])
-                for i in range(lm_n[instrument]):
+                for i in range(self.lm_n[instrument]):
                     self.model[instrument]['LM'] += parameter_values['theta'+str(i)+'_'+instrument]*self.lm_arguments[:,i]
                 self.model[instrument]['deterministic'] += self.model[instrument]['LM']
             # If the model under consideration is a global model, populate the global model dictionary:
@@ -1756,7 +1754,7 @@ class model(object):
             # Now, if a linear model was defined, generate it and add it to the full model:
             if self.lm_boolean[instrument]:
                 self.model[instrument]['LM'] = np.zeros(self.ndatapoints_per_instrument[instrument])
-                for i in range(lm_n[instrument]):
+                for i in range(self.lm_n[instrument]):
                     self.model[instrument]['LM'] += parameter_values['theta'+str(i)+'_'+instrument]*self.lm_arguments[:,i]
                 self.model[instrument]['deterministic'] = self.model[instrument]['M'] + self.model[instrument]['LM']
             else:
