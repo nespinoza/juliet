@@ -21,7 +21,7 @@ where the terms :math:`\mathcal{M}_i(t)` is the transit or radial-velocity model
 noise model (for details on those, see previous tutorials on transits and radial-velocities), and where :math:`\textrm{LM}_i(t)` is 
 a linear model given by:
 
-:math:`\textrm{LM}_i(t) = \vec{x}_{i} \vec{\theta} = \sum_{n=0}^{p_i}x_{n,i}(t) \theta_{n,i}^{\textrm{LM}}`.
+:math:`\textrm{LM}_i(t) = \sum_{n=0}^{p_i}x_{n,i}(t) \theta_{n,i}^{\textrm{LM}}`.
 
 Here, the :math:`x_{n,i}(t)` are the :math:`p_i+1` linear regressors at time :math:`t` for instrument :math:`i`, 
 and the :math:`\theta_{n,i}^{\textrm{LM}}` are the coefficients of those regressors (e.g., :math:`x_{n,i}(t) = t^n` 
