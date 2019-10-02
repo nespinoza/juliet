@@ -324,7 +324,7 @@ class load(object):
 
     def check_global(self,name):
         for pname in self.priors.keys():
-            if name in pname.split('_'):
+            if name in pname.split('_')[1:]:
                 return True
         return False
 
@@ -819,7 +819,7 @@ class load(object):
         if (rvfilename is None) and (t_rv is not None):
             input_error_catcher(t_rv,y_rv,yerr_rv,'radial-velocity')
             tglobal_rv, yglobal_rv, yglobalerr_rv, instruments_rv = self.convert_input_data(t_rv, y_rv, yerr_rv)
-            inames_rv, instrument_indexes_rv, lm_rv_boolean = self.data_preparation(t_rv,instruments_rv,linear_regressors_rv)
+            inames_rv, instrument_indexes_rv, lm_rv_boolean = self.data_preparation(tglobal_rv,instruments_rv,linear_regressors_rv)
             lm_rv_arguments = linear_regressors_rv
             ninstruments_rv = len(inames_rv)
 
