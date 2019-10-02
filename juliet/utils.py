@@ -2,6 +2,18 @@ import numpy as np
 from astropy.io import fits
 import pickle
 
+def mag_to_flux(m,merr):
+    """ 
+    Convert magnitude to relative fluxes. 
+    """
+    fluxes = np.zeros(len(m))
+    fluxes_err = np.zeros(len(m))
+    for i in range(len(m)):
+        dist = 10**(-np.random.normal(m[i],merr[i],1000)/2.51)
+        fluxes[i] = np.mean(dist)
+        fluxes_err[i] = np.sqrt(np.var(dist))
+    return fluxes,fluxes_err
+
 def get_TESS_data(filename, fluxtype = 'PDCSAP_FLUX'):
     """
     Given a filename, this function returns an array of times,
