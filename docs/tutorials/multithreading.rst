@@ -45,5 +45,5 @@ So, for example, to use ``juliet`` with 6 number of cores, in a session you woul
    dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, \
                       yerr_lc = fluxes_error, out_folder = 'hats46')
 
-   results = dataset.fit(dynesty_nthreads = 6)
+   results = dataset.fit(use_dynesty=True, dynesty_nthreads = 6)
 
