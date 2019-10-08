@@ -341,7 +341,7 @@ class load(object):
             multidimensional = False
             out = np.zeros(ndata)
         for instrument in inames:
-            if multi_dimensional:
+            if multidimensional:
                 out[instrument_indexes[instrument],:] = GP_arguments[instrument]
             else:
                 out[instrument_indexes[instrument]] = GP_arguments[instrument]
@@ -406,7 +406,7 @@ class load(object):
             self.global_lc_model = self.check_global('lc')
             global_model = self.global_lc_model
             if global_model and (self.GP_lc_arguments is not None):
-                self.GP_lc_arguments['lc'] = append_GP(len(self.t_lc), self.instrument_indexes_lc, self.GP_lc_arguments, inames)
+                self.GP_lc_arguments['lc'] = self.append_GP(len(self.t_lc), self.instrument_indexes_lc, self.GP_lc_arguments, inames)
             GP_regressors = self.GP_lc_arguments
             
         elif dictype == 'rv':
@@ -421,7 +421,7 @@ class load(object):
             global_model = self.global_lc_model
             # If global_model is True, create an additional key in the GP_regressors array that will have all the GP regressors appended:
             if global_model and (self.GP_rv_arguments is not None):
-                self.GP_rv_arguments['rv'] = append_GP(len(self.t_rv), self.instrument_indexes_rv, self.GP_rv_arguments, inames)
+                self.GP_rv_arguments['rv'] = self.append_GP(len(self.t_rv), self.instrument_indexes_rv, self.GP_rv_arguments, inames)
             GP_regressors = self.GP_rv_arguments
         else:
             raise Exception('INPUT ERROR: dictype not understood. Has to be either lc or rv.')
@@ -651,7 +651,7 @@ class load(object):
                  out_folder = None, lcfilename = None, rvfilename = None, GPlceparamfile = None,\
                  GPrveparamfile = None, lctimedef = 'TDB', rvtimedef = 'UTC',\
                  ld_laws = 'quadratic', priorfile = None, lc_n_supersamp = None, lc_exptime_supersamp = None, \
-                 lc_instrument_supersamp = None, verbose = False):
+                 lc_instrument_supersamp = None, mag_to_flux = True, verbose = False):
 
         self.lcfilename = lcfilename
         self.rvfilename = rvfilename
@@ -1031,7 +1031,7 @@ class fit(object):
         runDynesty = False
         if not self.use_dynesty:
             if self.out_folder is None:
-                out_folder = os.getcwd()+'/'
+                self.out_folder = os.getcwd()+'/'
                 runMultiNest = True
             else:
                 if (not os.path.exists(self.out_folder+'posteriors.pkl')):
@@ -2317,7 +2317,7 @@ class gaussian_process(object):
             # (e.g., global photometric signal, or global RV signal) that assumes a given 
             # GP realization for all instruments (but allows different jitters for each 
             # instrument, added in quadrature to the self.yerr):
-            self.parameter_vector = np.zeros(len(self.variables)+panthomvariable)
+            self.parameter_vector = np.zeros(len(self.variables)+phantomvariable)
             self.global_GP = True
         else:
             # If GP per instrument, then there is one jitter term per instrument directly added in the model:
