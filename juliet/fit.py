@@ -138,14 +138,16 @@ class load(object):
 
                                     >>> GP_regressors_lc = {}
                                     >>> GP_regressors_lc['TESS'] = np.linspace(-1,1,100)
- 
+
+        If a global model wants to be used, then the instrument should be ``rv``, and each of the ``m`` rows should correspond to the ``m`` times.
+
     :param linear_regressors_lc: (optional, dictionary)
         Similarly as for ``GP_regressors_lc``, this is a dictionary whose keys are names of instruments where a linear regression is to be fit. 
         On each name/element, an array of shape ``(q,p)`` containing in each column the ``p`` linear regressors to be used for the ``q`` 
         photometric measurements. Again, note the order of each regressor of each instrument has to match the corresponding order in the ``t_lc`` array. 
          
     :param GP_regressors_rv: (optional, dictionary)  
-        Same as ``GP_regressors_lc`` but for the radial-velocity data. 
+        Same as ``GP_regressors_lc`` but for the radial-velocity data. If a global model wants to be used, then the instrument should be ``lc``, and each of the ``m`` rows should correspond to the ``m`` times.
 
     :param linear_regressors_rv: (optional, dictionary)
         Same as ``linear_regressors_lc``, but for the radial-velocities.
@@ -173,11 +175,10 @@ class load(object):
     :param GPlceparamfile: (optional, string)          
         If a path to a file is given, the columns of that file will be used as GP regressors for the lightcurve fit. The file format is a pure ascii file 
         where regressors are given in different columns, and the last column holds the instrument name. The order of this file has to be consistent with 
-        ``t_lc`` and/or the ``lcfilename`` file. If no instrument for each regressor is given, it is assumed the GP is a global GP, common to all 
-        instruments.
+        ``t_lc`` and/or the ``lcfilename`` file. If a global model wants to be used, set the instrument names of all regressors to ``lc``.
 
     :param GPrveparamfile: (optional, string)          
-        Same as ``GPlceparamfile`` but for the radial-velocities.
+        Same as ``GPlceparamfile`` but for the radial-velocities. If a global model wants to be used, set the instrument names of all regressors to ``rv``.
 
     :param lctimedef: (optional, string)               
         Time definitions for each of the lightcurve instruments. Default is to assume all instruments (in lcs and rvs) have the same time definitions. If more than one instrument is given, this string 
@@ -405,10 +406,9 @@ class load(object):
             # Check if model is global based on the input prior names. If they include as instrument "rv", set to global model:
             self.global_lc_model = self.check_global('lc')
             global_model = self.global_lc_model
-            if global_model and (self.GP_lc_arguments is not None):
-                self.GP_lc_arguments['lc'] = self.append_GP(len(self.t_lc), self.instrument_indexes_lc, self.GP_lc_arguments, inames)
+            #if global_model and (self.GP_lc_arguments is not None):
+            #    self.GP_lc_arguments['lc'] = self.append_GP(len(self.t_lc), self.instrument_indexes_lc, self.GP_lc_arguments, inames)
             GP_regressors = self.GP_lc_arguments
-            
         elif dictype == 'rv':
             inames = self.inames_rv
             ninstruments = self.ninstruments_rv
@@ -417,11 +417,11 @@ class load(object):
             exptime_supersamp = None
             numbering_planets = self.numbering_rv_planets
             # Check if model is global based on the input prior names. If they include as instrument "lc", set to global model:
-            self.global_lc_model = self.check_global('rv')
-            global_model = self.global_lc_model
+            self.global_rv_model = self.check_global('rv')
+            global_model = self.global_rv_model
             # If global_model is True, create an additional key in the GP_regressors array that will have all the GP regressors appended:
-            if global_model and (self.GP_rv_arguments is not None):
-                self.GP_rv_arguments['rv'] = self.append_GP(len(self.t_rv), self.instrument_indexes_rv, self.GP_rv_arguments, inames)
+            #if global_model and (self.GP_rv_arguments is not None):
+            #    self.GP_rv_arguments['rv'] = self.append_GP(len(self.t_rv), self.instrument_indexes_rv, self.GP_rv_arguments, inames)
             GP_regressors = self.GP_rv_arguments
         else:
             raise Exception('INPUT ERROR: dictype not understood. Has to be either lc or rv.')
@@ -847,6 +847,8 @@ class load(object):
             self.generate_datadict('lc')
         if t_rv is not None:
             self.generate_datadict('rv')
+        print('global_lc_model:',self.global_lc_model)
+        print('global_rv_model:',self.global_rv_model)
 
 class fit(object):
     """
@@ -1214,7 +1216,7 @@ class model(object):
 
     def init_catwoman(self, t, ld_law, nresampling = None, etresampling = None):
          """  
-         This function initializes the batman code.
+         This function initializes the catwoman code.
          """
          params = batman.TransitParams()
          params.t0 = 0.
@@ -1776,6 +1778,7 @@ class model(object):
     def get_log_likelihood(self, parameter_values):
         if self.global_model:
             residuals = self.y - self.model['global']
+            print(self.dictionary)
             if self.dictionary['global_model']['GPDetrend']:
                 self.dictionary['global_model']['noise_model'].set_parameter_vector(parameter_values)
                 self.dictionary['global_model']['noise_model'].yerr = np.sqrt(self.model['global_variances'])
@@ -1858,7 +1861,7 @@ class model(object):
             # First, if a global model, generate array that will save this:
             if self.global_model:
                 self.model['global'] = np.zeros(len(self.t))
-                self.model['global_errors'] = np.zeros(len(self.t))
+                self.model['global_variances'] = np.zeros(len(self.t))
             # If limb-darkening or dilution factors will be shared by different instruments, set the correct variable name for each:
             self.ld_iname = {}
             self.mdilution_iname = {}
@@ -1962,7 +1965,7 @@ class model(object):
             # First, if a global model, generate array that will save this:
             if self.global_model:
                 self.model['global'] = np.zeros(len(self.t))
-                self.model['global_errors'] = np.zeros(len(self.t))
+                self.model['global_variances'] = np.zeros(len(self.t))
             # Initialize radvel:
             self.model['radvel'] = self.init_radvel(nplanets=self.nplanets)
             # First go around all planets to compute the full RV models:
