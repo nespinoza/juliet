@@ -847,8 +847,6 @@ class load(object):
             self.generate_datadict('lc')
         if t_rv is not None:
             self.generate_datadict('rv')
-        print('global_lc_model:',self.global_lc_model)
-        print('global_rv_model:',self.global_rv_model)
 
 class fit(object):
     """
