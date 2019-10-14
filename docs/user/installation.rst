@@ -69,7 +69,11 @@ Then, you need to build and compile `MultiNest`. For this, do:
 
 This will create a file ``libmultinest.so`` or ``libmultinest.dylib`` under ``MultiNest/lib``: that is the one that will allow us  
 to use ``pymultinest``. To not move that file around in your system, you can include the ``MultiNest/lib`` folder in your 
-``LD_LIBRARY_PATH`` (e.g., in your ``~/.bash_profile`` or ``~/.bashrc`` file).
+``LD_LIBRARY_PATH`` (e.g., in your ``~/.bash_profile`` or ``~/.bashrc`` file). In my case, the library is under ``/Users/nespinoza/github/MultiNest/lib``, so I added the following line to my ``~/.bash_profile`` file:
+
+.. code-block:: bash
+
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/Users/nespinoza/github/MultiNest/lib
 
 .. _python-deps:
 
