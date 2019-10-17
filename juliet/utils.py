@@ -155,16 +155,6 @@ def read_data(fname):
         indexes[instrument] = np.where(instruments == instrument)[0]
     return ts,fs,ferrs,instruments,indexes,len(instrument_names),instrument_names,lm_boolean,lm_arguments
 
-def will_it_float(value):
-    """
-    Function name idea taken from https://stackoverflow.com/questions/736043/checking-if-a-string-can-be-converted-to-float-in-python.
-    """
-    try:
-        float(value)
-        return True
-    except ValueError:
-        return False
-        
 def readGPeparams(fname):
     fin = open(fname,'r')
     GPDictionary = {}
@@ -177,33 +167,21 @@ def readGPeparams(fname):
                 vector = line.split()
                 variables,instrument = vector[:-1],vector[-1].split()[0]
                 if ftime:
-                    if will_it_float(instrument):
+                    if instrument == 'rv' or instrument == 'lc':
                         global_model = True
-                        appended_vector = np.append(np.double(np.array(variables)),np.double(np.array(instrument)))
                     else:
                         global_model = False
-                        appended_vector = np.double(np.array(variables))
+                    appended_vector = np.double(np.array(variables))
                 else:
-                    if global_model:
-                        appended_vector = np.append(np.double(np.array(variables)),np.double(np.array(instrument)))
-                    else:
-                        appended_vector = np.double(np.array(variables))
+                    appended_vector = np.double(np.array(variables))
                     
-                if global_model:
-                    if ftime:
-                        GPDictionary['global_model'] = appended_vector
-                        ftime = False
-                    else:
-                        GPDictionary['global_model'] = np.vstack((GPDictionary['global_model'],appended_vector))
+                if ftime:
+                    ftime = False
+                if instrument in GPDictionary.keys():
+                    GPDictionary[instrument] = np.vstack((GPDictionary[instrument],appended_vector))
                 else:
-                    #variables,instrument = vector[:-1],vector[-1].split()[0]
-                    if ftime:
-                        ftime = False
-                    if instrument in GPDictionary.keys():
-                        GPDictionary[instrument] = np.vstack((GPDictionary[instrument],appended_vector))
-                    else:
-                        GPDictionary[instrument] = {}
-                        GPDictionary[instrument] = appended_vector
+                    GPDictionary[instrument] = {}
+                    GPDictionary[instrument] = appended_vector
         else:
             break
     return GPDictionary,global_model
