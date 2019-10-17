@@ -43,6 +43,18 @@ def reverse_ld_coeffs(ld_law, q1, q2):
         return q1,q2
     return coeff1,coeff2
 
+def reverse_q_coeffs(ld_law, u1, u2): 
+    if ld_law == 'quadratic':
+        q1 = (u1 + u2)**2
+        q2 = (u1/2.)/(u1 + u2)
+    elif ld_law=='squareroot':
+        q1 = (u1 + u2)**2 
+        q2 = (u2/2.)/(u1 + u2)
+    elif ld_law=='logarithmic':
+        q1 = (1. - u2)**2
+        q2 = (1. - u1)/(1. - u2)
+    return q1,q2
+
 def convert_ld_coeffs(ld_law, coeff1, coeff2):
     if ld_law == 'quadratic':
         q1 = (coeff1 + coeff2)**2
