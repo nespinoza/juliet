@@ -1337,6 +1337,7 @@ if (not os.path.exists(out_folder+'posteriors.pkl')) and (not os.path.exists(out
                 results = sampler.results
             else:
                 from multiprocessing import Pool
+                import contextlib
                 nthreads = int(dynesty_nthreads)
                 with contextlib.closing(Pool(processes=nthreads-1)) as executor:
                     sampler = dynesty.NestedSampler(loglike, prior, n_params, nlive=n_live_points,\
