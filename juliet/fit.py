@@ -351,38 +351,38 @@ class load(object):
     def sort_GP(self, dictype):
         if dictype == 'lc':
             # Sort first times, fluxes, errors and the GP regressor:
-            idx_sort = np.argsort(self.GP_lc_arguments['lc'])
+            idx_sort = np.argsort(self.GP_lc_arguments['lc'][:,0])
             self.t_lc = self.t_lc[idx_sort]
             self.y_lc = self.y_lc[idx_sort]
             self.yerr_lc = self.yerr_lc[idx_sort]      
-            self.GP_lc_arguments['lc'] = self.GP_lc_arguments['lc'][idx_sort]
+            self.GP_lc_arguments['lc'][:,0] = self.GP_lc_arguments['lc'][idx_sort,0]
             # Now with the sorted indices, iterate through the instrument indexes and change them according to the new 
             # ordering:
             for instrument in self.inames_lc:
-                new_instrument_indexes = np.zeros(len(instrument_indexes))
+                new_instrument_indexes = np.zeros(len(self.instrument_indexes_lc[instrument]))
                 instrument_indexes = self.instrument_indexes_lc[instrument]
                 counter = 0
                 for i in instrument_indexes:
                     new_instrument_indexes[counter] = np.where(i == idx_sort)[0][0]
                     counter += 1
-                self.instrument_indexes_lc[instrument] = new_instrument_indexes
+                self.instrument_indexes_lc[instrument] = new_instrument_indexes.astype('int')
         elif dictype == 'rv':
             # Sort first times, rvs, errors and the GP regressor:
-            idx_sort = np.argsort(self.GP_rv_arguments['rv'])
+            idx_sort = np.argsort(self.GP_rv_arguments['rv'][:,0])
             self.t_rv = self.t_rv[idx_sort]
             self.y_rv = self.y_rv[idx_sort]
             self.yerr_rv = self.yerr_rv[idx_sort]           
-            self.GP_rv_arguments['rv'] = self.GP_rv_arguments['rv'][idx_sort]
+            self.GP_rv_arguments['rv'][:,0] = self.GP_rv_arguments['rv'][idx_sort,0]
             # Now with the sorted indices, iterate through the instrument indexes and change them according to the new 
             # ordering:
             for instrument in self.inames_rv:
-                new_instrument_indexes = np.zeros(len(instrument_indexes))
+                new_instrument_indexes = np.zeros(len(self.instrument_indexes_rv[instrument]))
                 instrument_indexes = self.instrument_indexes_rv[instrument]
                 counter = 0
                 for i in instrument_indexes:
                     new_instrument_indexes[counter] = np.where(i == idx_sort)[0][0]
                     counter += 1 
-                self.instrument_indexes_rv[instrument] = new_instrument_indexes
+                self.instrument_indexes_rv[instrument] = new_instrument_indexes.astype('int')
                     
 
     def generate_datadict(self, dictype):
@@ -1240,7 +1240,7 @@ class model(object):
     def init_radvel(self, nplanets=1):
         return radvel.model.Parameters(nplanets,basis='per tc e w k')  
 
-    def generate_rv_model(self, parameter_values):
+    def generate_rv_model(self, parameter_values, evaluate_global_errors = True):
         self.modelOK = True
         # Before anything continues, check the periods are chronologically ordered (this is to avoid multiple modes due to 
         # periods "jumping" between planet numbering):
@@ -1315,27 +1315,28 @@ class model(object):
             # If the model under consideration is a global model, populate the global model dictionary:
             if self.global_model:
                 self.model['global'][self.instrument_indexes[instrument]] = self.model[instrument]['deterministic']
-                self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
-                                                                                      parameter_values['sigma_w_'+instrument]**2
+                if evaluate_global_errors:
+                    self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
+                                                                                          parameter_values['sigma_w_'+instrument]**2
         
     def get_GP_plus_deterministic_model(self, parameter_values, instrument = None):
         if self.global_model:
             if self.dictionary['global_model']['GPDetrend']:
-                residuals = self.y - self.model['global']
+                #residuals = self.residuals #self.y - self.model['global']
                 self.dictionary['global_model']['noise_model'].set_parameter_vector(parameter_values)
-                self.dictionary['global_model']['noise_model'].yerr = np.sqrt(self.model['global_variances'])
+                self.dictionary['global_model']['noise_model'].yerr = np.sqrt(self.variances)
                 self.dictionary['global_model']['noise_model'].compute_GP()
                 # Return mean signal plus GP model:
-                self.model['GP'] = self.dictionary['global_model']['noise_model'].GP.predict(residuals, self.dictionary['global_model']['noise_model'].X, \
+                self.model['GP'] = self.dictionary['global_model']['noise_model'].GP.predict(self.residuals, self.dictionary['global_model']['noise_model'].X, \
                                                                                                    return_var=False, return_cov=False)
-                return self.model['global'], self.model['GP'], elf.model['global'] + self.model['GP']
+                return self.model['global'], self.model['GP'], self.model['global'] + self.model['GP']
             else:
                 return self.model['global'] 
         else:
             if self.dictionary[instrument]['GPDetrend']:
-                residuals = self.residuals#self.data[instrument] - self.model[instrument]['deterministic']
+                #residuals = self.residuals#self.data[instrument] - self.model[instrument]['deterministic']
                 self.dictionary[instrument]['noise_model'].set_parameter_vector(parameter_values)
-                self.model[instrument]['GP'] = self.dictionary[instrument]['noise_model'].GP.predict(residuals,self.dictionary[instrument]['noise_model'].X, \
+                self.model[instrument]['GP'] = self.dictionary[instrument]['noise_model'].GP.predict(self.residuals,self.dictionary[instrument]['noise_model'].X, \
                                                return_var=False, return_cov=False)
                 return self.model[instrument]['deterministic'], self.model[instrument]['GP'], self.model[instrument]['deterministic'] + self.model[instrument]['GP']
             else:
@@ -1346,10 +1347,57 @@ class model(object):
                           return_err = False, alpha = 0.68, return_components = False):
         """
         This function evaluates the current lc or rv  model given a set of parameter values. Resampling options can be changed if resampling is a boolean,
-        but the object is at the end rolled-back to the default resampling definitions the user defined in the juliet.load object. For now, resampling only is 
-        available for lightcurve models. TODO: add resampling for RVs.
+        but the object is at the end rolled-back to the default resampling definitions the user defined in the juliet.load object. 
+        For now, resampling only is available for lightcurve models. TODO: add resampling for RVs.
+
+        :params instrument: (optional, string)
+        Instrument the user wants to evaluate the model on. It is expected to be given for non-global models, not necessary for global models. 
+
+        :params parameter_values: (optional, dict)
+        Dictionary containing samples of the parameter values in it. Each key is a parameter name (e.g. 'p_p1', 'q1_TESS', etc.), and inside each of those 
+        keys an array of N samples is expected (i.e., parameter_values['p_p1'] is an array of length N). The indexes have to be consistent between different 
+        parameters.
+
+        :params resampling: (optional, boolean)
+        Boolean indicating if the model needs to be resampled or not
+
+        :params etresampling: (optional, double)
+        Exposure time of the resampling
+
+        :params all_samples: (optional, boolean)
+        Boolean indicating if all the posterior samples should be used or only a pre-defined number of samples. Default is 1000.
+
+        :params return_samples: (optional, boolean)
+        Boolean indicating whether the user wants the posterior samples of the model to be returned.
+
+        :params t: (optional, numpy array)
+        Array with the times at which the model wants to be evaluated
+
+        :params GPRegressors: (optional, numpy array)
+        Array containing the GP Regressors onto which evaluate the models (same length as t)
+
+        :params LMRegressors: (optional, numpy array or dictionary)
+        If the model is not global, this is an array containing the Linear Regressors onto which evaulate the model for the input instrument. 
+        Has to have the same dimension as `t`. If model is global, this needs to be a dictionary, of the same length as input `t`.
+
+        :params return_err: (optional, boolean)
+        If True, this returns the n-sigma error on the evaluated model.
+
+        :params alpha: (optional, double)
+        Credibility band for return_err. Default is 1-sigma (68%).
+
+        :params return_components: (optional, boolean)
+        If True, components of the model are returned
+
         """
-        if resampling is not None and self.modeltype == 'lc':
+        # If no instrument is given, assume user wants a global model evaluation:
+        if instrument is None:
+            if self.global_model:
+                instrument = 'global_model'
+            else:
+                raise Exception("Input error: an instrument has to be defined for non-global models in order to evaluate the model.")
+
+        if (resampling is not None) and (self.modeltype == 'lc') and (instrument is not None):
             if resampling:
                 self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
                                                                                                  nresampling = nresampling,\
@@ -1372,7 +1420,7 @@ class model(object):
             if type(parameter_values[input_parameters[0]]) is np.ndarray:
                 # To generate a median model first generate an output_model_samples array that will save the model at each evaluation. This will 
                 # save nsamples samples of the posterior model. If all_samples = True, all samples from the posterior are used for the evaluated model 
-                # (this is slower, but you might not care). First create idx_samples, which will save the samples:
+                # (this is slower, but user might not care). First create idx_samples, which will save the indexes of the samples:
                 nsampled = len(parameter_values[input_parameters[0]])
                 if all_samples:
                     nsamples = nsampled
@@ -1383,101 +1431,211 @@ class model(object):
                 
                 # Create the output_model arrays: these will save on each iteration the full model (lc/rv + GP, output_model_samples), 
                 # the GP-only model (GP, output_modelGP_samples) and the lc/rv-only model (lc/rv, output_modelDET_samples) --- the latter ones 
-                # will make sense only if there is a GP model:
+                # will make sense only if there is a GP model. If not, it will be a zero-array throughout the evaluation process:
+                instruments = self.dictionary.keys()
                 if t is None:
+                    # If user did not give input times, then output samples follow the times on which the model was fitted:
                     if self.global_model:
                         output_model_samples = np.zeros([nsamples,self.ndatapoints_all_instruments])
                     else:
                         output_model_samples = np.zeros([nsamples,self.ndatapoints_per_instrument[instrument]])
                 else:
+                    # If user gave input times (usually extrapolating from the times the model was fitted on), then 
+                    # save the number of points in this input array:
                     nt = len(t)
-                    nt_original = len(self.times[instrument])
+                    # And modify the length of the output samples, which will now be a matrix with dimensions (number of samples, input times):
                     output_model_samples = np.zeros([nsamples,nt])
-                    original_instrument_times = np.copy(self.times[instrument])
-                    if self.modeltype == 'lc':
-                        if self.dictionary[instrument]['TransitFit']:
-                            if not self.dictionary[instrument]['TransitFitCatwoman']:
-                                supersample_params,supersample_m = self.init_batman(t, self.dictionary[instrument]['ldlaw'])
-                                sample_params,sample_m = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
-                            else:
-                                supersample_params,supersample_m = self.init_catwoman(t, self.dictionary[instrument]['ldlaw'])
-                                sample_params,sample_m = self.init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'])             
+                    if self.global_model:
+                        # If model is global, it means there is an underlying global noise model, so we have to evaluate the model in *all* the instruments 
+                        # because the GP component is only extractable once we have the full residuals. Because of this, we generate dictionaries that save 
+                        # the original number of datapoints for each instrument and the original times of each instrument. This is useful because later we 
+                        # will switch back and forth from the original times (to evaluate the model and get the residuals) to the input times (to generate 
+                        # predictions):
+                        nt_original, original_instrument_times = {}, {}
+                        for ginstrument in instruments:
+                            nt_original[ginstrument] = len(self.times[ginstrument])
+                            original_instrument_times[ginstrument] = np.copy(self.times[ginstrument])
                     else:
+                        # If model is not global, we don't care about generating the model for all the instruments --- we do it only for the instrument 
+                        # of interest. In this case, the nt_original and original_instrument_times are not dictionaries but "simple" arrays saving the 
+                        # number of datapoints for that instrument and the times for that instrument. 
+                        nt_original = len(self.times[instrument])
+                        original_instrument_times = np.copy(self.times[instrument])
+                    if self.modeltype == 'lc':
+                        # If we are trying to evaluate a lightcurve mode then, again what we do will depend depending if this is a global model or not. In both, 
+                        # the idea is to save the lightcurve generating objects both using the input times and the original times:
+                        if self.global_model:
+                            # If global model, then iterate through all the instruments of the fit. If the TransitFit or TransitFitCatwoman is true, 
+                            # then generate the model-generating objects for those instruments using both the input times and the model-fit times. Save 
+                            # those in dictionaries:
+                            for ginstrument in instruments:
+                                if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']:
+                                    if not self.dictionary[ginstrument]['TransitFitCatwoman']:
+                                        supersample_params[ginstrument],supersample_m[ginstrument] = self.init_batman(t, self.dictionary[ginstrument]['ldlaw'])
+                                        sample_params[ginstrument],sample_m[ginstrument] = self.init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
+                                    else:
+                                        supersample_params[ginstrument],supersample_m[ginstrument] = self.init_catwoman(t, self.dictionary[ginstrument]['ldlaw'])
+                                        sample_params[ginstrument],sample_m[ginstrument] = self.init_catwoman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
+                        else:
+                            # If model is not global, the variables saved are not dictionaries but simply the objects, as we are just going to evaluate the 
+                            # model for one dataset (the one of the input instrument):
+                            if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman']:
+                                if not self.dictionary[instrument]['TransitFitCatwoman']:
+                                    supersample_params,supersample_m = self.init_batman(t, self.dictionary[instrument]['ldlaw'])
+                                    sample_params,sample_m = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                                else:
+                                    supersample_params,supersample_m = self.init_catwoman(t, self.dictionary[instrument]['ldlaw'])
+                                    sample_params,sample_m = self.init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                    else:
+                        # If we are trying to evaluate radial-velocities, we don't need to generate objects because radvel receives the times as inputs 
+                        # on each call. In this case then we save the original times (self.t has *all* the times of all the instruments) and instrument 
+                        # indexes (remember self.t[self.instrument_indexes[yourinstrument]] returns the times of yourinstrument):
                         original_t = np.copy(self.t)
-                        original_instrument_indexes = np.copy(self.instrument_indexes)
-                        # If not global, assume indexes for selected instrument are all the user-inputted t's
-                        if not self.global_model:
+                        if self.global_model:
+                            # If global model, copy all the possible instrument indexes to the original_instrument_indexes:
+                            original_instrument_indexes = np.copy(self.instrument_indexes)
+                        else:
+                            # If not global, assume indexes for selected instrument are all the user-inputted t's. Also, save only the instrument 
+                            # indexes corresponding to the instrument of interest. The others don't matter so we don't save them:
                             dummy_indexes = np.arange(len(t))
-                            # Set inames to just the name of the instrument under consideration:
-                            self.iname = [instrument]
                             original_instrument_index = self.instrument_indexes[instrument]
 
-                # Fill the components dictionary in case return_components is true; use the output_model_samples for the size of each component array:
+                # Fill the components dictionary in case return_components is true; use the output_model_samples for the size of each component array. 
+                # If global model, and the model being evaluated is a lightcurve, remember to give back one planet component per instrument because 
+                # each instrument might have different limb-darkening laws. To this, end, in that case, the components['p'+str(i)] dictionary is, itself, 
+                # a dictionary. Same thing for the components['transit'] dictionary:
                 if return_components:
                     for i in self.numbering:
-                        components['p'+str(i)] = np.zeros(output_model_samples.shape)
-                    if self.modeltype == 'lc':
+                        if self.global_model and self.modeltype == 'lc':
+                            components['p'+str(i)] = {}
+                            for ginstrument in instruments:
+                                components['p'+str(i)][ginstrument] = np.zeros(output_model_samples.shape)
+                        else:
+                            components['p'+str(i)] = np.zeros(output_model_samples.shape)
+                    if self.global_model:
+                        components['lm'] = {}
+                        for ginstrument in instruments:
+                            components['lm'][ginstrument] = np.zeros(output_model_samples.shape)
+                    else:
                         components['lm'] = np.zeros(output_model_samples.shape)
-                        components['transit'] = np.zeros(output_model_samples.shape)
+                    if self.modeltype == 'lc':
+                        if self.global_model:
+                            components['transit'] = {}
+                            for ginstrument in instruments:
+                                components['transit'][ginstrument] = np.zeros(output_model_samples.shape)
+                        else:
+                            components['transit'] = np.zeros(output_model_samples.shape)
                     else:
                         components['keplerian'] = np.zeros(output_model_samples.shape)
                         components['trend'] = np.zeros(output_model_samples.shape) 
-                        components['lm'] = np.zeros(output_model_samples.shape)
-                        components['mu'] = np.zeros(output_model_samples.shape[0])
+                        if self.global_model:
+                            components['mu'] = {}
+                            for ginstrument in instruments:
+                                components['mu'][ginstrument] = np.zeros(output_model_samples.shape[0])
+                        else:
+                            components['mu'] = np.zeros(output_model_samples.shape[0])
 
-                # Save the original inames. If not global model, we won't care about generating the models for the other instruments:
+                # Save the original inames in the case of non-global models, and set self.inames to the input model. This is because if the model 
+                # is not global, we don't care about generating the models for the other instruments (and in the lightcurve and RV evaluation part, 
+                # self.inames is used to iterate through the instruments one wants to evaluate the model):
                 if not self.global_model:
                     original_inames = np.copy(self.inames)
-                    # Set inames to just the name of the instrument under consideration:
                     self.inames = [instrument]
 
+                # IF GP detrend, there is an underlying GP being applied. Generate arrays that will save the GP and deterministic component:
                 if self.dictionary[instrument]['GPDetrend']:
                     output_modelGP_samples = np.copy(output_model_samples)
                     output_modelDET_samples = np.copy(output_model_samples)
 
                 # Create dictionary that saves the current parameter_values to evaluate:
                 current_parameter_values = dict.fromkeys(parameters)
-                # First go through all parameters in the prior; fix the ones which are fixed:
+
+                # Having defined everything, we now finally start evaluation the model. First go through all parameters in the prior; fix the ones 
+                # which are fixed:
                 for parameter in parameters:
                     if self.priors[parameter]['distribution'] == 'fixed': 
                         current_parameter_values[parameter] = self.priors[parameter]['hyperparameters']
-                # If extrapolating the model, save the current times, current GPregressors and current linear 
-                # regressors: 
+
+                # If extrapolating the model, save the current GPregressors and current linear 
+                # regressors. Save the input GPRegressors to the self.dictionary. Note this is done because 
+                # we won't be evaluating the likelihood on each iteration, so we don't need the original GP Regressors, 
+                # but only the input ones ad the residuals are generated deterministically. These residuals are passed 
+                # to the GP objet to generate samples from the GP. This latter is not true for the linear model, because it 
+                # is a determinisitc model an needs to be evaluated on each iteration on both the input regressors of the 
+                # fit (to generate the residuals) and on the input regressors to this function (to generate predictions):
                 if t is not None:
                     if self.dictionary[instrument]['GPDetrend']:
                         original_GPregressors = np.copy(self.dictionary[instrument]['noise_model'].X)
                         self.dictionary[instrument]['noise_model'].X = GPregressors
-                    if self.lm_boolean[instrument]:
-                        original_lm_arguments  = np.copy(self.lm_arguments[instrument])
-                # Now iterate through all samples, through all the input parameters:
+                    if self.global_model:
+                        original_lm_arguments  = np.copy(self.lm_arguments)
+                    else:
+                        if self.lm_boolean[instrument]:
+                            original_lm_arguments  = np.copy(self.lm_arguments[instrument])
+
+                # Now iterate through all samples:
                 counter = 0
                 for i in idx_samples:
+                    # Get parameters for the i-th sample:
                     for parameter in input_parameters:
                         # Populate the current parameter_values
                         current_parameter_values[parameter] = parameter_values[parameter][i]
+
                     # Evaluate rv/lightcurve at the current parameter values, calculate residuals, save them:
                     if self.modeltype == 'lc':
                         self.generate_lc_model(current_parameter_values)
                     else:
-                        self.generate_rv_model(current_parameter_values)
-                    self.residuals = self.data[instrument] - self.model[instrument]['deterministic']
+                        self.generate_rv_model(current_parameter_values, evaluate_global_errors = True)
+
+                    # Save residuals (and global errors, in the case of global models):
+                    if self.global_model:
+                        self.residuals = self.y - self.model['global']
+                        self.variances = self.model['global_variances']
+                    else:
+                        self.residuals = self.data[instrument] - self.model[instrument]['deterministic']
+
                     # If extrapolating (t is not None), evaluate the extrapolated model with a lightcurve/rv model 
                     # considering the input times and not the current dataset times:
                     if t is not None:
                         if self.modeltype == 'lc':
-                            if self.dictionary[instrument]['TransitFit']:
-                                self.model[instrument]['params'], self.model[instrument]['m'] = supersample_params,supersample_m
-                            if self.lm_boolean[instrument]:
-                                self.lm_arguments[instrument] = LMregressors
-                            self.model[instrument]['ones'] = np.ones(nt)
-                            self.ndatapoints_per_instrument[instrument] = nt 
-                            self.generate_lc_model(current_parameter_values)    
+                            if self.global_model:
+                                # If global model, set all super-sample objects to evaluate at the input times:
+                                for ginstrument in instruments:
+                                    if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']:
+                                        self.model[ginstrument]['params'], self.model[ginstrument]['m'] = supersample_params[ginstrument],supersample_m[ginstrument]
+                                    if self.lm_boolean[ginstrument]:
+                                        self.lm_arguments[ginstrument] = LMregressors[ginstrument]
+                                    self.model[ginstrument]['ones'] = np.ones(nt)
+                                    self.ndatapoints_per_instrument[ginstrument] = nt
+                                    self.instrument_indexes[ginstrument] = dummy_indexes
+                            else:
+                                # If not, set them only for the instrument of interest:
+                                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman']:
+                                    self.model[instrument]['params'], self.model[instrument]['m'] = supersample_params,supersample_m
+                                if self.lm_boolean[instrument]:
+                                    self.lm_arguments[instrument] = LMregressors
+                                self.model[instrument]['ones'] = np.ones(nt)
+                                self.ndatapoints_per_instrument[instrument] = nt 
+                            # Generate lightcurve model:
+                            self.generate_lc_model(current_parameter_values, evaluate_global_errors = False)    
                         else:
+                            # As with the lc case, RV model set-up depends on whether the model is global or not: 
                             self.t = t
-                            if not self.global_model:
+                            if self.global_model:
+                                # If global, in the model evaluation part (generate_rv_model function), the model for each instrument is evaluated at 
+                                # certain indexes self.instrument_indexes[instrument]. We here decide that on each instrument we will evaluate the model 
+                                # at all the input times t (this is what the dummy_index variable does), so we fill up this dictionary with that. 
+                                for ginstrument in instruments:
+                                    if self.lm_boolean[ginstrument]:
+                                        self.lm_arguments[ginstrument] = LMregressors[ginstrument]
+                                    self.times[ginstrument] = t
+                                    self.instrument_indexes[ginstrument] = dummy_indexes
+                            else:
                                 self.times[instrument] = t
                                 self.instrument_indexes[instrument] = dummy_indexes
-                            self.generate_rv_model(current_parameter_values)
+                                if self.lm_boolean[instrument]:
+                                    self.lm_arguments[instrument] = LMregressors
+                            self.generate_rv_model(current_parameter_values, evaluate_global_errors = False)
 
                     if self.dictionary[instrument]['GPDetrend']:
                         output_modelDET_samples[counter,:], output_modelGP_samples[counter,:], output_model_samples[counter,:] = \
@@ -1487,39 +1645,72 @@ class model(object):
                         output_model_samples[counter,:] = self.get_GP_plus_deterministic_model(current_parameter_values, \
                                                                                                   instrument = instrument)
 
+                    # Now, if user wants component back, again all depends if global model is on or not but only for the lightcurves 
+                    # (which depend on limb-darkening). For the RVs it doesn't matter except for 'mu' (the systemic velocity), which 
+                    # for global models is actually a dictionary:
                     if return_components:
                         if self.modeltype == 'lc':
-                            transit = 0.
-                            for i in self.numbering:
-                                components['p'+str(i)][counter,:] = self.model[instrument]['p'+str(i)]
-                                transit += (components['p'+str(i)][counter,:] - 1.)
-                            components['transit'][counter,:] = 1. + transit
+                            if self.global_model:
+                                # If it is, then the components['p'+str(i)] dictionary will have to be a dictionary on itself, 
+                                # such that we return the global transit model for each of the instruments. Same thing for the 
+                                # components['transit'] dictionary.
+                                for ginstrument in instruments:
+                                    transit = 0.
+                                    for i in self.numbering:
+                                        components['p'+str(i)][ginstrument][counter,:] = self.model[ginstrument]['p'+str(i)]
+                                        transit += (components['p'+str(i)][ginstrument][counter,:] - 1.)
+                                    components['transit'][ginstrument][counter,:] = 1. + transit
+                            else:
+                                transit = 0.
+                                for i in self.numbering:
+                                    components['p'+str(i)][counter,:] = self.model[instrument]['p'+str(i)]
+                                    transit += (components['p'+str(i)][counter,:] - 1.)
+                                components['transit'][counter,:] = 1. + transit
                         else:
                             for i in self.numbering:
                                 components['p'+str(i)][counter,:] = self.model['p'+str(i)] 
                             components['trend'][counter,:] = self.model['Keplerian+Trend'] - self.model['Keplerian']
                             components['keplerian'][counter,:] = self.model['Keplerian']
-                            components['mu'][counter] = current_parameter_values['mu_'+instrument]
-                        if self.lm_boolean[instrument]:
-                            if self.modeltype == 'lc':
-                                components['lm'][counter,:] = self.model[instrument]['LM']
+                            if self.global_model:
+                                for ginstrument in instruments:
+                                    components['mu'][ginstrument][counter] = current_parameter_values['mu_'+ginstrument]
                             else:
+                                components['mu'][counter] = current_parameter_values['mu_'+instrument]
+                        if self.global_model:
+                            for ginstrument in instruments:
+                                if self.lm_boolean[ginstrument]:
+                                    components['lm'][ginstrument][counter,:] = self.model[ginstrument]['LM']
+                        else:
+                            if self.lm_boolean[instrument]:
                                 components['lm'][counter,:] = self.model[instrument]['LM']
 
                     # Rollback in case t is not None:
                     if t is not None:
-                        self.times[instrument] = original_instrument_times
-                        if self.modeltype == 'lc':
-                            if self.dictionary[instrument]['TransitFit']:
-                                self.model[instrument]['params'], self.model[instrument]['m'] = sample_params,sample_m
-                            if self.lm_boolean[instrument]:
-                                self.lm_arguments[instrument] = original_lm_arguments
-                            self.model[instrument]['ones'] = np.ones(nt_original)
+                        if self.global_model:
+                            self.instrument_indexes = original_instrument_indexes
+                            for ginstrument in instruments:
+                                self.times[ginstrument] = original_instrument_times[ginstrument]
+                                if self.modeltype == 'lc':
+                                    if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']:
+                                        self.model[ginstrument]['params'], self.model[ginstrument]['m'] = sample_params[ginstrument],sample_m[ginstrument]
+                                    if self.lm_boolean[ginstrument]:
+                                        self.lm_arguments[ginstrument] = original_lm_arguments[ginstrument]
+                                    self.model[ginstrument]['ones'] = np.ones(nt_original[ginstrument])
+                                else:
+                                    self.t = original_t
+                                self.ndatapoints_per_instrument[ginstrument] = nt_original[ginstrument]
                         else:
-                            self.t = original_t
-                            if not self.global_model:
+                            self.times[instrument] = original_instrument_times
+                            if self.modeltype == 'lc':
+                                if self.dictionary[instrument]['TransitFit']:
+                                    self.model[instrument]['params'], self.model[instrument]['m'] = sample_params,sample_m
+                                if self.lm_boolean[instrument]:
+                                    self.lm_arguments[instrument] = original_lm_arguments
+                                self.model[instrument]['ones'] = np.ones(nt_original)
+                            else:
+                                self.t = original_t
                                 self.instrument_indexes[instrument] = original_instrument_index 
-                        self.ndatapoints_per_instrument[instrument] = nt_original
+                            self.ndatapoints_per_instrument[instrument] = nt_original
                         
                     counter += 1
                 # If return_error is on, return upper and lower sigma (68% CI) of the model(s):
@@ -1527,50 +1718,112 @@ class model(object):
                     m_output_model, u_output_model, l_output_model = np.zeros(output_model_samples.shape[1]),\
                                                                      np.zeros(output_model_samples.shape[1]),\
                                                                      np.zeros(output_model_samples.shape[1])
+                    if self.global_model:
+                        if self.dictionary['global_model']['GPDetrend']:
+                            LCm_output_model, LCu_output_model, LCl_output_model = np.copy(m_output_model), np.copy(u_output_model), \
+                                                                                   np.copy(l_output_model)
 
-                    if self.dictionary[instrument]['GPDetrend']:
-                        LCm_output_model, LCu_output_model, LCl_output_model = np.copy(m_output_model), np.copy(u_output_model), \
-                                                                               np.copy(l_output_model) 
-
-                        GPm_output_model, GPu_output_model, GPl_output_model = np.copy(m_output_model), np.copy(u_output_model), \
-                                                                               np.copy(l_output_model)
-                    for i in range(output_model_samples.shape[1]):
-                        m_output_model[i], u_output_model[i], l_output_model[i] = get_quantiles(output_model_samples[:,i], alpha = alpha)
+                            GPm_output_model, GPu_output_model, GPl_output_model = np.copy(m_output_model), np.copy(u_output_model), \
+                                                                                   np.copy(l_output_model)
+                        for i in range(output_model_samples.shape[1]):
+                            m_output_model[i], u_output_model[i], l_output_model[i] = get_quantiles(output_model_samples[:,i], alpha = alpha)
+                            if self.dictionary['global_model']['GPDetrend']:
+                                mLC_output_model[i], uLC_output_model[i], lLC_output_model[i] = get_quantiles(output_modelDET_samples[:,i], alpha = alpha)
+                                mGP_output_model[i], uGP_output_model[i], lGP_output_model[i] = get_quantiles(output_modelGP_samples[:,i], alpha = alpha)
+                        if self.dictionary['global_model']['GPDetrend']:
+                            self.model['deterministic'], self.model['GP'] = mLC_output_model, mGP_output_model
+                            self.model['deterministic_uerror'], self.model['GP_uerror'] = uLC_output_model, uGP_output_model
+                            self.model['deterministic_lerror'], self.model['GP_lerror'] = lLC_output_model, lGP_output_model
+                    else:
                         if self.dictionary[instrument]['GPDetrend']:
-                            mLC_output_model[i], uLC_output_model[i], lLC_output_model[i] = get_quantiles(output_modelDET_samples[:,i], alpha = alpha)
-                            mGP_output_model[i], uGP_output_model[i], lGP_output_model[i] = get_quantiles(output_modelGP_samples[:,i], alpha = alpha)
-                    if self.dictionary[instrument]['GPDetrend']: 
-                        self.model[instrument]['deterministic'], self.model[instrument]['GP'] = mLC_output_model, mGP_output_model
-                        self.model[instrument]['deterministic_uerror'], self.model[instrument]['GP_uerror'] = uLC_output_model, uGP_output_model
-                        self.model[instrument]['deterministic_lerror'], self.model[instrument]['GP_lerror'] = lLC_output_model, lGP_output_model
+                            LCm_output_model, LCu_output_model, LCl_output_model = np.copy(m_output_model), np.copy(u_output_model), \
+                                                                                   np.copy(l_output_model) 
+
+                            GPm_output_model, GPu_output_model, GPl_output_model = np.copy(m_output_model), np.copy(u_output_model), \
+                                                                                   np.copy(l_output_model)
+                        for i in range(output_model_samples.shape[1]):
+                            m_output_model[i], u_output_model[i], l_output_model[i] = get_quantiles(output_model_samples[:,i], alpha = alpha)
+                            if self.dictionary[instrument]['GPDetrend']:
+                                mLC_output_model[i], uLC_output_model[i], lLC_output_model[i] = get_quantiles(output_modelDET_samples[:,i], alpha = alpha)
+                                mGP_output_model[i], uGP_output_model[i], lGP_output_model[i] = get_quantiles(output_modelGP_samples[:,i], alpha = alpha)
+                        if self.dictionary[instrument]['GPDetrend']: 
+                            self.model[instrument]['deterministic'], self.model[instrument]['GP'] = mLC_output_model, mGP_output_model
+                            self.model[instrument]['deterministic_uerror'], self.model[instrument]['GP_uerror'] = uLC_output_model, uGP_output_model
+                            self.model[instrument]['deterministic_lerror'], self.model[instrument]['GP_lerror'] = lLC_output_model, lGP_output_model
                 else:
                     output_model = np.median(output_model_samples,axis=0)
-                    if self.dictionary[instrument]['GPDetrend']:
-                        self.model[instrument]['deterministic'], self.model[instrument]['GP'] = np.median(output_modelDET_samples,axis=0), \
-                                                                                       np.median(output_modelGP_samples,axis=0)
+                    if self.global_model:
+                        if self.dictionary[instrument]['GPDetrend']:
+                            self.model['deterministic'], self.model['GP'] = np.median(output_modelDET_samples,axis=0), \
+                                                                            np.median(output_modelGP_samples,axis=0)
+                    else:
+                        if self.dictionary[instrument]['GPDetrend']:
+                            self.model[instrument]['deterministic'], self.model[instrument]['GP'] = np.median(output_modelDET_samples,axis=0), \
+                                                                                          np.median(output_modelGP_samples,axis=0)
 
                 # If return_components is true, generate the median models for each part of the full model:
                 if return_components:
-                    for k in components.keys():
-                        components[k] = np.median(components[k],axis=0)
-            else:
-                self.generate_lc_model(parameter_values)
-                output_model = self.get_GP_plus_deterministic_model(parameter_values, instrument = instrument)
-                if return_components:
-                    if self.modeltype == 'lc':
-                        transit = 0.
-                        for i in self.numbering:
-                            components['p'+str(i)] = self.model[instrument]['p'+str(i)]
-                            transit += (components['p'+str(i)] - 1.)
-                        components['transit'] = 1. + transit
+                    if self.global_model and self.modeltype == 'lc':
+                        for k in components.keys():
+                            for ginstrument in instruments:
+                                components[k][ginstrument] = np.median(components[k][ginstrument],axis=0)
+
                     else:
-                        for i in self.numbering:
-                            components['p'+str(i)] = self.model['p'+str(i)]
-                        components['trend'] = self.model['Keplerian+Trend'] - self.model['Keplerian']
-                        components['keplerian'] = self.model['Keplerian']
-                        components['mu'] = parameter_values['mu_'+instrument]
-                    if self.lm_boolean[instrument]:
-                        components['lm'] = self.model[instrument]['LM']
+                        for k in components.keys():
+                            components[k] = np.median(components[k],axis=0)
+            else:
+                if self.modeltype == 'lc':
+                    self.generate_lc_model(parameter_values)
+                else:
+                    self.generate_rv_model(parameter_values)
+
+                if self.global_model:
+                    self.residuals = self.y - self.model['global']
+                    self.variances = self.model['global_variances']
+                    if self.dictionary['global_model']['GPDetrend']:
+                        self.model['deterministic'], self.model['GP'], output_model = self.get_GP_plus_deterministic_model(parameter_values)
+                    else:
+                        output_model = self.get_GP_plus_deterministic_model(parameter_values)
+                    if return_components:
+                        if self.modeltype == 'lc':
+                            for ginstrument in instruments:
+                                transit = 0.
+                                for i in self.numbering:
+                                    components['p'+str(i)][ginstrument] = self.model[ginstrument]['p'+str(i)]
+                                    transit += (components['p'+str(i)][ginstrument] - 1.)
+                                components['transit'][ginstrument] = 1. + transit
+                        else:
+                            for i in self.numbering:
+                                components['p'+str(i)] = self.model['p'+str(i)]
+                            components['trend'] = self.model['Keplerian+Trend'] - self.model['Keplerian']
+                            components['keplerian'] = self.model['Keplerian']
+                            for ginstrument in instruments:
+                                components['mu'][ginstrument] = parameter_values['mu_'+instrument]
+                        for ginstrument in instruments:
+                            if self.lm_boolean[ginstrument]:
+                                components['lm'][ginstrument] = self.model[ginstrument]['LM']
+                else:
+                    self.residuals = self.data[instrument] - self.model[instrument]['deterministic']
+                    if self.dictionary[instrument]['GPDetrend']:
+                        self.model['deterministic'], self.model['GP'], output_model = self.get_GP_plus_deterministic_model(parameter_values, instrument = instrument)
+                    else:
+                        output_model = self.get_GP_plus_deterministic_model(parameter_values, instrument = instrument)
+                    if return_components:
+                        if self.modeltype == 'lc':
+
+                            transit = 0.
+                            for i in self.numbering:
+                                components['p'+str(i)] = self.model[instrument]['p'+str(i)]
+                                transit += (components['p'+str(i)] - 1.)
+                            components['transit'] = 1. + transit
+                        else:
+                            for i in self.numbering:
+                                components['p'+str(i)] = self.model['p'+str(i)]
+                            components['trend'] = self.model['Keplerian+Trend'] - self.model['Keplerian']
+                            components['keplerian'] = self.model['Keplerian']
+                            components['mu'] = parameter_values['mu_'+instrument]
+                        if self.lm_boolean[instrument]:
+                            components['lm'] = self.model[instrument]['LM']
         else:
          
             x = self.evaluate_model(instrument = instrument, parameter_values = self.posteriors, resampling = resampling, \
@@ -1600,7 +1853,7 @@ class model(object):
                     else:
                         output_model = x
 
-        if resampling is not None: 
+        if (resampling is not None) and (self.modeltype == 'lc') and (instrument is not None): 
              # get lc, return, then turn all back to normal:
              if self.dictionary[instrument]['resampling']:
                  self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
@@ -1608,6 +1861,11 @@ class model(object):
                                                                                                   etresampling = self.dictionary[instrument]['exptimeresampling'])
              else:
                  self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+
+        if not self.global_model:
+            # Return original inames back in case of non-global models:
+            self.inames = original_inames
+
         if return_samples:
             if return_err:
                 if return_components:
@@ -1631,7 +1889,7 @@ class model(object):
                 else:
                     return output_model
 
-    def generate_lc_model(self, parameter_values):
+    def generate_lc_model(self, parameter_values, evaluate_global_errors = True):
         self.modelOK = True
         # Before anything continues, check the periods are chronologically ordered (this is to avoid multiple modes due to 
         # periods "jumping" between planet numbering):
@@ -1766,8 +2024,9 @@ class model(object):
             # Finally, if the model under consideration is a global model, populate the global model dictionary:
             if self.global_model:
                 self.model['global'][self.instrument_indexes[instrument]] = self.model[instrument]['deterministic']
-                self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
-                                                                                      (parameter_values['sigma_w_'+instrument]*1e-6)**2
+                if evaluate_global_errors:
+                    self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
+                                                                                          (parameter_values['sigma_w_'+instrument]*1e-6)**2
 
     def gaussian_log_likelihood(self, residuals, variances):
         taus = 1./variances
@@ -1776,7 +2035,6 @@ class model(object):
     def get_log_likelihood(self, parameter_values):
         if self.global_model:
             residuals = self.y - self.model['global']
-            print(self.dictionary)
             if self.dictionary['global_model']['GPDetrend']:
                 self.dictionary['global_model']['noise_model'].set_parameter_vector(parameter_values)
                 self.dictionary['global_model']['noise_model'].yerr = np.sqrt(self.model['global_variances'])
@@ -1860,6 +2118,7 @@ class model(object):
             if self.global_model:
                 self.model['global'] = np.zeros(len(self.t))
                 self.model['global_variances'] = np.zeros(len(self.t))
+                self.model['deterministic'] = np.zeros(len(self.t))
             # If limb-darkening or dilution factors will be shared by different instruments, set the correct variable name for each:
             self.ld_iname = {}
             self.mdilution_iname = {}
@@ -2050,14 +2309,22 @@ class gaussian_process(object):
         if self.use_celerite:
             self.GP = celerite.GP(self.kernel, mean=0.0)
         else:
-            # (Note no jitter kernel is given, as with george one defines this in the george.GP call):
-            jitter_term = george.modeling.ConstantModel(1.)
-            if self.george_hodlr:
-                self.GP = george.GP(self.kernel, mean = 0.0, fit_mean = False, white_noise = jitter_term,\
-                                    fit_white_noise = True, solver = george.HODLRSolver)
+            if self.global_GP:
+                if self.george_hodlr:
+                    self.GP = george.GP(self.kernel, mean = 0.0, fit_mean = False,\
+                                        fit_white_noise = False, solver = george.HODLRSolver)
+                else:
+                    self.GP = george.GP(self.kernel, mean = 0.0, fit_mean = False,\
+                                        fit_white_noise = False)
             else:
-                self.GP = george.GP(self.kernel, mean = 0.0, fit_mean = False, white_noise = jitter_term,\
-                                    fit_white_noise = True)
+                # (Note no jitter kernel is given, as with george one defines this in the george.GP call):
+                jitter_term = george.modeling.ConstantModel(1.)
+                if self.george_hodlr:
+                    self.GP = george.GP(self.kernel, mean = 0.0, fit_mean = False, white_noise = jitter_term,\
+                                        fit_white_noise = True, solver = george.HODLRSolver)
+                else:
+                    self.GP = george.GP(self.kernel, mean = 0.0, fit_mean = False, white_noise = jitter_term,\
+                                        fit_white_noise = True)
         self.compute_GP()
 
     def compute_GP(self):
@@ -2152,11 +2419,15 @@ class gaussian_process(object):
         # Name of input instrument if given:
         self.instrument = instrument
         
+        # Initialize global model variable:
+        self.global_GP = False
+
         # Extract information from the data object:
         if self.model_type == 'lc':
             # Save input predictor:
             if instrument == 'lc':
                 self.X = data.GP_lc_arguments['lc']
+                self.global_GP = True
             else:
                 self.X = data.GP_lc_arguments[instrument]
             # Save errors (if any):
@@ -2171,6 +2442,7 @@ class gaussian_process(object):
             # Save input predictor:
             if instrument == 'rv':
                 self.X = data.GP_rv_arguments['rv']
+                self.global_GP = True
             else:
                 self.X = data.GP_rv_arguments[instrument]
             # Save errors (if any):
@@ -2304,24 +2576,23 @@ class gaussian_process(object):
         # Check if use_celerite is True; if True, check that the regressor is ordered. If not, don't do the self.init_GP():
         if self.use_celerite:
             idx_sorted = np.argsort(self.X)
-            diff1 = np.sum(self.X - self.X[idx_sorted])
-            diff2 = np.sum(self.X - self.X[idx_sorted[::-1]])
-            if diff1 == 0 or diff1 == 0:
+            lX = len(self.X)
+            diff1 = np.count_nonzero(self.X - self.X[idx_sorted])
+            diff2 = np.count_nonzero(self.X - self.X[idx_sorted[::-1]])
+            if diff1 == lX or diff2 == lX:
                 self.init_GP()
                 self.isInit = True
         else:
             self.init_GP()
             self.isInit = True
 
-        if self.instrument in ['rv','lc']:
+        if self.global_GP:
             # If instrument is 'rv' or 'lc', assume GP object will fit for a global GP 
             # (e.g., global photometric signal, or global RV signal) that assumes a given 
             # GP realization for all instruments (but allows different jitters for each 
             # instrument, added in quadrature to the self.yerr):
             self.parameter_vector = np.zeros(len(self.variables)+phantomvariable)
-            self.global_GP = True
         else:
             # If GP per instrument, then there is one jitter term per instrument directly added in the model:
             self.parameter_vector = np.zeros(len(self.variables)+1+phantomvariable)
-            self.global_GP = False
         self.set_input_instrument(data.priors)
