@@ -1405,6 +1405,14 @@ class model(object):
             else:
                 self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
 
+        # Save the original inames in the case of non-global models, and set self.inames to the input model. This is because if the model 
+        # is not global, we don't care about generating the models for the other instruments (and in the lightcurve and RV evaluation part, 
+        # self.inames is used to iterate through the instruments one wants to evaluate the model):
+
+        if not self.global_model:
+            original_inames = np.copy(self.inames)
+            self.inames = [instrument]
+
         # Check if user gave input parameter_values dictionary. If that's the case, generate again the 
         # full lightcurve/rv model:
         if parameter_values is not None:
@@ -1534,13 +1542,6 @@ class model(object):
                                 components['mu'][ginstrument] = np.zeros(output_model_samples.shape[0])
                         else:
                             components['mu'] = np.zeros(output_model_samples.shape[0])
-
-                # Save the original inames in the case of non-global models, and set self.inames to the input model. This is because if the model 
-                # is not global, we don't care about generating the models for the other instruments (and in the lightcurve and RV evaluation part, 
-                # self.inames is used to iterate through the instruments one wants to evaluate the model):
-                if not self.global_model:
-                    original_inames = np.copy(self.inames)
-                    self.inames = [instrument]
 
                 # IF GP detrend, there is an underlying GP being applied. Generate arrays that will save the GP and deterministic component:
                 if self.dictionary[instrument]['GPDetrend']:
