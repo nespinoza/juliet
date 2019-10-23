@@ -2579,7 +2579,7 @@ class gaussian_process(object):
             lX = len(self.X)
             diff1 = np.count_nonzero(self.X - self.X[idx_sorted])
             diff2 = np.count_nonzero(self.X - self.X[idx_sorted[::-1]])
-            if diff1 == lX or diff2 == lX:
+            if diff1 == 0 or diff2 == 0:
                 self.init_GP()
                 self.isInit = True
         else:
