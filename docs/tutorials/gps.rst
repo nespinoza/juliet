@@ -346,3 +346,98 @@ mean out-of-transit flux, which we fit together with the other parameters in our
 that is plotted in the right panel in the above presented figure. The ``results.lc.model['TESS']['GP']`` dictionary, on the other 
 hand, holds the GP part of the model --- because this is an additive process in this case, we can just substract it from the data 
 in order to get the "systematic-corrected" data that we plot in the right panel in the figure above.
+
+Global and instrument-by instrument GP models
+---------------------------------------------
+
+In the previous lightcurve analysis we dealt with GP models which are individually defined for each instrument. This means that even if 
+the hyperparameters between the GPs (e.g., timescales) are shared between different instruments because we believe they might arise from the 
+same parent physical process, we are modelling each instrument as if the data we observe in them was produced by a different realization from 
+that GP. In some cases, however, we would want to model a GP which is _common_ to all the instruments, i.e., a GP model whose realization gave 
+rise to the data we see in _all_ of our instruments simultaneously. Within ``juliet``, we refer to those kind of models as *global* GP models. 
+These are most useful in radial-velocity analyses, where an underlying physical signal might be common to all the instruments. For example, we 
+might believe a given signal in our radial-velocity data is produced by stellar activity, and if all the instruments have similar bandpasses, 
+then the amplitude, period and timescales are associated with the process itself and not with each instrument. Of course, one can still define 
+different individual jitter terms for each instrument in this case.
+
+In practice, as explained in detail in the Section 2 of the `juliet paper <https://arxiv.org/abs/1812.08549>`_, the difference between a _global_ model 
+and an instrument-by-instrument model is that for the former a unique covariance matrix (and set of GP hyperparameters) is defined for the problem, 
+whereas in the instrument-by-instrument type of models a different covariance matrix (and thus different GP hyperparameters --- which might be shared, 
+as we'll see in a moment!) is defined for each instrument. The lightcurve examples above were instrument-by-instrument models. Here, we will exemplify 
+the difference between those two using the radial-velocity dataset for TOI-141 already analyzed in the :ref:`rvfits` tutorial which can be 
+downloaded from [`here <https://github.com/nespinoza/juliet/blob/master/docs/tutorials/rvs_toi141.dat>`_]. We will use the time as the GP regressor in 
+our case; we have uplaoded a file containing those times [`here <https://github.com/nespinoza/juliet/blob/master/docs/tutorials/GP_regressors_rv.dat>`_].
+
+Let us start by fitting a *global* GP model to that data. To this end, let's try to fit the same Matern kernel defined in the previous GP 
+examples. To define a global GP model, for radial-velocity fits, one has to simply add ``rv`` instead of the instrument name to the GP hyperparameters:
+
+.. code-block:: python
+
+    import numpy as np
+    import juliet
+    priors = {}
+
+    # Name of the parameters to be fit:
+    params = ['P_p1','t0_p1','mu_CORALIE14', \
+              'mu_CORALIE07','mu_HARPS','mu_FEROS',\
+              'K_p1', 'ecc_p1', 'omega_p1', 'sigma_w_CORALIE14','sigma_w_CORALIE07',\
+               'sigma_w_HARPS','sigma_w_FEROS','GP_sigma_rv','GP_rho_rv']
+
+    # Distributions:
+    dists = ['normal','normal','uniform', \
+             'uniform','uniform','uniform',\
+             'uniform','fixed', 'fixed', 'loguniform', 'loguniform',\
+             'loguniform', 'loguniform','loguniform','loguniform']
+
+    # Hyperparameters
+    hyperps = [[1.007917,0.000073], [2458325.5386,0.0011], [-100,100], \
+               [-100,100], [-100,100], [-100,100], \
+               [0.,100.], 0., 90., [1e-3, 100.], [1e-3, 100.], \
+               [1e-3, 100.], [1e-3, 100.],[0.01,100.],[0.01,100.]]
+
+    # Populate the priors dictionary:
+    for param, dist, hyperp in zip(params, dists, hyperps):
+        priors[param] = {}
+        priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
+
+    # Add second planet to the prior:
+    params = params + ['P_p2',   't0_p2',  'K_p2',    'ecc_p2','omega_p2']
+    dists = dists +   ['uniform','uniform','uniform', 'fixed', 'fixed']
+    hyperps = hyperps + [[1.,10.],[2458325.,2458330.],[0.,100.], 0., 90.]
+
+    # Repopulate priors dictionary:
+    priors = {}
+
+    for param, dist, hyperp in zip(params, dists, hyperps):
+        priors[param] = {}
+        priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
+
+    dataset = juliet.load(priors = priors, rvfilename='rvs_toi141.dat', out_folder = 'toi141_rvs', \
+                          GPrveparamfile='GP_regressors_rv.dat')
+
+Once done, let's plot the results. We'll plot a portion of the time-series so we can check what the different components of the model are doing, 
+and only plot the HARPS and FEROS data, which are the most constraining for our dataset:
+
+.. code-block:: python
+
+    import matplotlib.pyplot as plt
+    instruments = ['HARPS','FEROS']
+    colors = ['red','black']
+
+    fig = plt.figure(figsize=(10,4))
+    for instrument,color in zip (instruments,colors):
+        plt.errorbar(dataset.times_rv[instrument]-2454705,dataset.data_rv[instrument] - components['mu'][instrument], \
+                     yerr = dataset.errors_rv[instrument], fmt = 'o', label = instrument+' data',mfc='white', mec = color, ecolor = color, \
+                     elinewidth=1)
+
+        plt.plot(model_times-2454705,keplerian,label='Full model',color='black')
+    plt.plot(model_times-2454705,results.rv.model['deterministic'],label = 'Keplerian component', color = 'steelblue')
+    plt.plot(model_times-2454705,results.rv.model['GP'], label = 'GP component',color='red')
+    plt.plot(model_times-2454705,keplerian,label='Keplerian component',color='cornflowerblue')
+    plt.xlim([3701,3715])
+    plt.ylabel('Radial velocity (m/s)')
+    plt.xlabel('Time (BJD - 2454705)')
+    plt.legend(ncol=2)
+
+.. figure:: gp_global_fit.png
+   :alt: Global GP fit to the TOI-141 radial-velocity dataset.
