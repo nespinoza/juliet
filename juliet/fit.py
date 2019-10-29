@@ -2396,7 +2396,7 @@ class gaussian_process(object):
                 base_index += 1
             self.parameter_vector[base_index] = np.log((parameter_values['GP_sigma_'+self.input_instrument[0]]*self.sigma_factor)**2.)
             for i in range(self.nX):
-                self.parameter_vector[base_index + 1 + i] = np.log(1./priors['GP_alpha'+str(i)+'_'+self.input_instrument[1+i]])
+                self.parameter_vector[base_index + 1 + i] = np.log(1./parameter_values['GP_alpha'+str(i)+'_'+self.input_instrument[1+i]])
         elif self.kernel_name == 'ExpSineSquaredSEKernel':
             if not self.global_GP:
                 self.parameter_vector[base_index] = np.log((parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)**2)
