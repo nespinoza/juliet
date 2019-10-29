@@ -2024,7 +2024,7 @@ class model(object):
                                 self.model[instrument]['params'].rp = p1
                                 self.model[instrument]['params'].rp2 = p2
                                 self.model[instrument]['params'].phi = phi
-                            if self.dictionary[instrument]['ldlaw'] is not 'linear':
+                            if self.dictionary[instrument]['ldlaw'] != 'linear':
                                self.model[instrument]['params'].u = [coeff1, coeff2]
                             else:
                                self.model[instrument]['params'].u = [coeff1]
