@@ -622,7 +622,7 @@ class load(object):
             # Next, save GP regressors:
             if (not os.path.exists(self.out_folder+'GP_lc_regressors.dat')):
                 if self.GPlceparamfile is not None:
-                    os.system('cp '+GPlceparamfile+' '+self.out_folder+'GP_lc_regressors.dat')
+                    os.system('cp '+self.GPlceparamfile+' '+self.out_folder+'GP_lc_regressors.dat')
                 elif self.GP_lc_arguments is not None:
                     self.save_regressors(self.out_folder+'GP_lc_regressors.dat', self.GP_lc_arguments, self.global_lc_model)
             if (not os.path.exists(self.out_folder+'GP_rv_regressors.dat')):
@@ -2024,7 +2024,7 @@ class model(object):
                                 self.model[instrument]['params'].rp = p1
                                 self.model[instrument]['params'].rp2 = p2
                                 self.model[instrument]['params'].phi = phi
-                            if self.dictionary[instrument]['ldlaw'] is not 'linear':
+                            if self.dictionary[instrument]['ldlaw'] != 'linear':
                                self.model[instrument]['params'].u = [coeff1, coeff2]
                             else:
                                self.model[instrument]['params'].u = [coeff1]
@@ -2396,7 +2396,7 @@ class gaussian_process(object):
                 base_index += 1
             self.parameter_vector[base_index] = np.log((parameter_values['GP_sigma_'+self.input_instrument[0]]*self.sigma_factor)**2.)
             for i in range(self.nX):
-                self.parameter_vector[base_index + 1 + i] = np.log(1./priors['GP_alpha'+str(i)+'_'+self.input_instrument[1+i]])
+                self.parameter_vector[base_index + 1 + i] = np.log(1./parameter_values['GP_alpha'+str(i)+'_'+self.input_instrument[1+i]])
         elif self.kernel_name == 'ExpSineSquaredSEKernel':
             if not self.global_GP:
                 self.parameter_vector[base_index] = np.log((parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)**2)
