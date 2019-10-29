@@ -198,13 +198,13 @@ class load(object):
         second column and hyperparameters in the third column.
 
     :param lc_instrument_supersamp: (optional, array of strings)     
-        Define for which lightcurve instruments super-sampling will be applied (e.g., in the case of long-cadence integrations). e.g., ``instrument_supersamp = ['TESS','K2']``
+        Define for which lightcurve instruments super-sampling will be applied (e.g., in the case of long-cadence integrations). e.g., ``lc_instrument_supersamp = ['TESS','K2']``
 
-    :param n_supersamp: (optional, array of ints)              
-        Define the number of datapoints to supersample. Order should be consistent with order in ``instrument_supersamp``. e.g., ``n_supersamp = [20,30]``.
+    :param lc_n_supersamp: (optional, array of ints)              
+        Define the number of datapoints to supersample. Order should be consistent with order in ``lc_instrument_supersamp``. e.g., ``lc_n_supersamp = [20,30]``.
 
-    :param exptime_supersamp: (optional, array of floats)        
-        Define the exposure-time of the observations for the supersampling. Order should be consistent with order in ``instrument_supersamp``. e.g., ``exptime_supersamp = [0.020434,0.020434]``
+    :param lc_exptime_supersamp: (optional, array of floats)        
+        Define the exposure-time of the observations for the supersampling. Order should be consistent with order in ``lc_instrument_supersamp``. e.g., ``lc_exptime_supersamp = [0.020434,0.020434]``
 
     :param verbose: (optional, boolean)
         If True, all outputs of the code are printed to terminal. Default is False.
