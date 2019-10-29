@@ -622,7 +622,7 @@ class load(object):
             # Next, save GP regressors:
             if (not os.path.exists(self.out_folder+'GP_lc_regressors.dat')):
                 if self.GPlceparamfile is not None:
-                    os.system('cp '+GPlceparamfile+' '+self.out_folder+'GP_lc_regressors.dat')
+                    os.system('cp '+self.GPlceparamfile+' '+self.out_folder+'GP_lc_regressors.dat')
                 elif self.GP_lc_arguments is not None:
                     self.save_regressors(self.out_folder+'GP_lc_regressors.dat', self.GP_lc_arguments, self.global_lc_model)
             if (not os.path.exists(self.out_folder+'GP_rv_regressors.dat')):
