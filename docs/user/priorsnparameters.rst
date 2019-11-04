@@ -133,7 +133,7 @@ analogous ``GP_regressors_lc`` and ``GP_regressors_rv`` inputs). Alternatively, 
 last column being the instrument name can be given through the same ``juliet.load`` call using the ``GPlceparamfile`` for the file defining the GP regressors 
 for the lightcurves and ``GPrveparamfile`` for the file defining the GP regressors for the radial-velocities. 
 
-``juliet`` automatically identifies which kernel the user wants to use for each instrument depending on the name of the GP hyperparameters in the `priors` file. 
+``juliet`` automatically identifies which kernel the user wants to use for each instrument depending on the name of the GP hyperparameters in the `priors`. 
 For instrument-by-instrument models (i.e., GP regressions which are individual to each instrument) the parameter names follow the ``pname_instrument`` form, 
 where ``pname`` is any of the parameter names listed below and ``instrument`` is a given instrument (e.g., ``GP_sigma_TESS``). For so-called "global" models, 
 which are models that are `not` instrument-specific (for more details on the difference between those types of models, check the ``juliet`` paper and/or the 
