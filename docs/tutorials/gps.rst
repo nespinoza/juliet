@@ -353,20 +353,33 @@ Global and instrument-by instrument GP models
 In the previous lightcurve analysis we dealt with GP models which are individually defined for each instrument. This means that even if 
 the hyperparameters between the GPs (e.g., timescales) are shared between different instruments because we believe they might arise from the 
 same parent physical process, we are modelling each instrument as if the data we observe in them was produced by a different realization from 
-that GP. In some cases, however, we would want to model a GP which is _common_ to all the instruments, i.e., a GP model whose realization gave 
-rise to the data we see in _all_ of our instruments simultaneously. Within ``juliet``, we refer to those kind of models as *global* GP models. 
+that GP. In some cases, however, we would want to model a GP which is *common* to all the instruments, i.e., a GP model whose realization gave 
+rise to the data we see in *all* of our instruments simultaneously. Within ``juliet``, we refer to those kind of models as *global* GP models. 
 These are most useful in radial-velocity analyses, where an underlying physical signal might be common to all the instruments. For example, we 
 might believe a given signal in our radial-velocity data is produced by stellar activity, and if all the instruments have similar bandpasses, 
 then the amplitude, period and timescales are associated with the process itself and not with each instrument. Of course, one can still define 
 different individual jitter terms for each instrument in this case.
 
-In practice, as explained in detail in the Section 2 of the `juliet paper <https://arxiv.org/abs/1812.08549>`_, the difference between a _global_ model 
-and an instrument-by-instrument model is that for the former a unique covariance matrix (and set of GP hyperparameters) is defined for the problem, 
-whereas in the instrument-by-instrument type of models a different covariance matrix (and thus different GP hyperparameters --- which might be shared, 
-as we'll see in a moment!) is defined for each instrument. The lightcurve examples above were instrument-by-instrument models. Here, we will exemplify 
-the difference between those two using the radial-velocity dataset for TOI-141 already analyzed in the :ref:`rvfits` tutorial which can be 
-downloaded from [`here <https://github.com/nespinoza/juliet/blob/master/docs/tutorials/rvs_toi141.dat>`_]. We will use the time as the GP regressor in 
-our case; we have uplaoded a file containing those times [`here <https://github.com/nespinoza/juliet/blob/master/docs/tutorials/GP_regressors_rv.dat>`_].
+In practice, as explained in detail in the Section 2 of the `juliet paper <https://arxiv.org/abs/1812.08549>`_, the difference between a **global** model 
+and an **instrument-by-instrument** model is that for the former a unique covariance matrix (and set of GP hyperparameters) is defined for the problem. 
+This means that the likelihood of a **global** model is written as presented at the introduction of this tutorial, i.e.,
+
+  :math:`\mathcal{L} =  -\frac{1}{2}\left[N\ln 2\pi + \ln\left|\mathbf{\Sigma}\right|  + \vec{r}^T \mathbf{\Sigma}^{-1}\vec{r} \right].`
+
+Here, :math:`N` is the total number of datapoints considering all the instruments in the problem, :math:`\mathbf{\Sigma}` is the covariance matrix for 
+that same full dataset and :math:`\vec{r}` is the vector of residuals for the same dataset. In the **instrument-by-instrument** type of models, however, a 
+different covariance matrix (and thus different GP hyperparameters --- which might be shared, as we'll see in a moment!) is defined for each instrument. 
+The total likelihood of the problem is, thus, given by:
+
+  :math:`\mathcal{L} =  \sum_{i} -\frac{1}{2}\left[N_i\ln 2\pi + \ln\left|\mathbf{\Sigma}_i\right|  + \vec{r}_i^T \mathbf{\Sigma}_i^{-1}\vec{r}_i \right],`
+
+where :math:`N_i` is the number of datapoints for instrument :math:`i`, :math:`\mathbf{\Sigma}_i` is the covariance matrix for that instrument and 
+:math:`\vec{r}_i` is the vector of residuals for that same instrument. The lightcurve examples above were instrument-by-instrument models, which makes sense 
+because the instrumental systematics were individual to the TESS lightcurves --- if we had to incorporate extra datasets, those would most likely have to have 
+different GP hyperparameters (and, perhaps, kernels). Here, we will exemplify the difference between those two types of models using the radial-velocity dataset 
+for TOI-141 already analyzed in the :ref:`rvfits` tutorial which can be downloaded from [`here <https://github.com/nespinoza/juliet/blob/master/docs/tutorials/rvs_toi141.dat>`_]. 
+We will use the time as the GP regressor in our case; we have uplaoded a file containing those times 
+[`here <https://github.com/nespinoza/juliet/blob/master/docs/tutorials/GP_regressors_rv.dat>`_].
 
 Let us start by fitting a *global* GP model to that data. To this end, let's try to fit the same Matern kernel defined in the previous GP 
 examples. To define a global GP model, for radial-velocity fits, one has to simply add ``rv`` instead of the instrument name to the GP hyperparameters:
@@ -430,10 +443,9 @@ and only plot the HARPS and FEROS data, which are the most constraining for our 
                      yerr = dataset.errors_rv[instrument], fmt = 'o', label = instrument+' data',mfc='white', mec = color, ecolor = color, \
                      elinewidth=1)
 
-        plt.plot(model_times-2454705,keplerian,label='Full model',color='black')
+    plt.plot(model_times-2454705,keplerian,label='Full model',color='black')
     plt.plot(model_times-2454705,results.rv.model['deterministic'],label = 'Keplerian component', color = 'steelblue')
     plt.plot(model_times-2454705,results.rv.model['GP'], label = 'GP component',color='red')
-    plt.plot(model_times-2454705,keplerian,label='Keplerian component',color='cornflowerblue')
     plt.xlim([3701,3715])
     plt.ylabel('Radial velocity (m/s)')
     plt.xlabel('Time (BJD - 2454705)')
