@@ -118,8 +118,118 @@ string defines the names and laws to be used for each instrument separated by co
 common within instruments, too. To force this, simply give all the instruments that should be common to different instruments 
 separated by underscores when passing the `priors` (see below) to ``juliet``, e.g., ``q1_TESS_K2``.
 
-There are additional instrument parameters that can be given to `juliet` to account for linear trends in the data, or gaussian-processes. 
-Check the tutorials to see how to implement those.
+Exoplanets with juliet, pt. III: linear models & gaussian processes
+--------------------------------
+
+There are additional instrument parameters that can be given to `juliet` to account for linear models in the data and/or gaussian-processes. 
+For `linear models`, it is assumed each linear regressor ``i`` of instrument ``instrument`` will be weighted by a parameter ``theta_i_instrument``. There 
+is no limit to the number of linear terms a given instrument can have, and the linear regressors can either be given directly as a dictionary through 
+the ``juliet.load`` call (through the ``linear_regressors_lc`` input for lightcurve linear regressors and/or the ``linear_regressors_rv`` input for 
+linear regressors for the radial-velocities), or as extra columns in any input lightcurve or radial-velocity file the user is giving as input to that 
+same call.
+
+For `Gaussian Processes` (GPs), the regressors can be given in a similar manner as for linear regressors when doing the ``juliet.load`` call (i.e., via the 
+analogous ``GP_regressors_lc`` and ``GP_regressors_rv`` inputs). Alternatively, the name of a file which contains the different regressors on each column with the 
+last column being the instrument name can be given through the same ``juliet.load`` call using the ``GPlceparamfile`` for the file defining the GP regressors 
+for the lightcurves and ``GPrveparamfile`` for the file defining the GP regressors for the radial-velocities. 
+
+``juliet`` automatically identifies which kernel the user wants to use for each instrument depending on the name of the GP hyperparameters in the `priors` file. 
+For instrument-by-instrument models (i.e., GP regressions which are individual to each instrument) the parameter names follow the ``pname_instrument`` form, 
+where ``pname`` is any of the parameter names listed below and ``instrument`` is a given instrument (e.g., ``GP_sigma_TESS``). For so-called "global" models, 
+which are models that are `not` instrument-specific (for more details on the difference between those types of models, check the ``juliet`` paper and/or the 
+:ref:`gps` tutorial), the parameter names follow the ``pname_lc`` form for global lightcurve models, and ``pname_rv`` for radial-velocity global models. 
+
+Below we list the GP kernels implemented so far within `juliet`. More kernels can be implemented upon request and/or via git push to the `juliet` repository --- 
+again, for usage details, please check out the :ref:`gps` tutorial:
+
+* **Multi-dimensional squared-exponential kernel**
+
++-----------------+--------------+
+| Hyperparameters | Description  |
++=================+==============+
+| `GP_sigma`    | Amplitude of the GP (in ppm for the photometry, units of measurements for RVs)|
++---------------+-------------------------------------------------------------------------------+
+| `GP_alpha0`    | Inverse (squared) length-scale/normalized amplitude of the first external parameter |
++---------------+-------------------------------------------------------------------------------+
+| `GP_alpha1`      | Inverse (squared) length-scale/normalized amplitude of the second external parameter|
++---------------+-------------------------------------------------------------------------------+
+| ...      | ... |
++---------------+-------------------------------------------------------------------------------+
+| `GP_alphan`      | Inverse (squared) length-scale/normalized amplitude of the n+1 external parameter |
++---------------+-------------------------------------------------------------------------------+
+
+* **Exp-sine-squared kernel**
+
++-----------------+--------------+
+| Hyperparameters | Description |
++=================+==============+
+| `GP_sigma`    | Amplitude of the GP (in ppm for the photometry, units of measurements for RVs)|
++-----------------+--------------+
+| `GP_alpha`    | Inverse (squared) length-scale of the external parameter |
++-----------------+--------------+
+| `GP_Gamma`    | Amplitude of the sine-part of the kernel|
++-----------------+--------------+
+| `GP_Prot`     | Period of the quasi-periodic kernel|
++---------------+-------------------------------------------------------------------------------+
+
+* **`celerite` quasi-periodic kernel**
+
++-----------------+--------------+
+| Hyperparameters | Description |
++=================+==============+
+| `GP_B`    | Amplitude of the GP (in ppm for the photometry, units of measurements for RVs)|
++-----------------+--------------+
+| `GP_C`    | Additive factor impacting on the amplitude of the GP|
++-----------------+--------------+
+| `GP_L`    | Length-scale of exponential part of the GP |
++-----------------+--------------+
+| `GP_Prot`     | Period of the quasi-periodic GP|
++---------------+-------------------------------------------------------------------------------+
+
+* **`celerite` Simple Harmonic Oscillator (SHO) kernel**
+
++-----------------+--------------+
+| Hyperparameters | Description |
++=================+==============+
+| `GP_S0`     | Characteristic power of the SHO|
++-----------------+--------------+
+| `GP_omega0`   | Characteristic frequency of the SHO |
++-----------------+--------------+
+| `GP_Q`  | Quality factor of the SHO |
++---------------+-------------------------------------------------------------------------------+
+
+* **`celerite` (approximate) Matern kernel**
+
++-----------------+--------------+
+| Hyperparameters | Description |
++=================+==============+
+| `GP_sigma`     | Amplitude of the GP (in ppm for the photometry, units of measurements for RVs)|
++-----------------+--------------+
+| `GP_rho` | Time/length-scale of the GP|
++-----------------+--------------+
+
+* **`celerite` exponential kernel**
+
++-----------------+--------------+
+| Hyperparameters | Description |
++=================+==============+
+| `GP_sigma`     | Amplitude of the GP (in ppm for the photometry, units of measurements for RVs)|
++-----------------+--------------+
+| `GP_timescale` | Time/length-scale of the GP|
++-----------------+--------------+
+
+* **`celerite` (approximate) Matern multiplied by exponential kernel**
+
++-----------------+--------------+
+| Hyperparameters | Description |
++=================+==============+
+| `GP_sigma`     | Amplitude of the GP (in ppm for the photometry, units of measurements for RVs)|
++-----------------+--------------+
+| `GP_rho` | Time/length-scale of the Matern part of the GP|
++-----------------+--------------+
+| `GP_timescale` | Time/length-scale of the exponential part of the GP|
++-----------------+--------------+
+
 
 Priors
 -------
