@@ -122,11 +122,11 @@ Exoplanets with juliet, pt. III: linear models & gaussian processes
 --------------------------------
 
 There are additional instrument parameters that can be given to `juliet` to account for linear models in the data and/or gaussian-processes. 
-For `linear models`, it is assumed each linear regressor ``i`` of instrument ``instrument`` will be weighted by a parameter ``theta_i_instrument``. There 
+For `linear models`, it is assumed each linear regressor ``X`` of instrument ``instrument`` will be weighted by a parameter ``thetaX_instrument``. There 
 is no limit to the number of linear terms a given instrument can have, and the linear regressors can either be given directly as a dictionary through 
 the ``juliet.load`` call (through the ``linear_regressors_lc`` input for lightcurve linear regressors and/or the ``linear_regressors_rv`` input for 
 linear regressors for the radial-velocities), or as extra columns in any input lightcurve or radial-velocity file the user is giving as input to that 
-same call.
+same call. For details, check out the :ref:`linearmodels` tutorial.
 
 For `Gaussian Processes` (GPs), the regressors can be given in a similar manner as for linear regressors when doing the ``juliet.load`` call (i.e., via the 
 analogous ``GP_regressors_lc`` and ``GP_regressors_rv`` inputs). Alternatively, the name of a file which contains the different regressors on each column with the 
