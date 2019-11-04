@@ -142,27 +142,27 @@ which are models that are `not` instrument-specific (for more details on the dif
 Below we list the GP kernels implemented so far within `juliet`. More kernels can be implemented upon request and/or via git push to the `juliet` repository --- 
 again, for usage details, please check out the :ref:`gps` tutorial:
 
-* **Multi-dimensional squared-exponential kernel**
+**Multi-dimensional squared-exponential kernel**
 
-+-----------------+--------------+
-| Hyperparameters | Description  |
-+=================+==============+
-| `GP_sigma`    | Amplitude of the GP (in ppm for the photometry, units of measurements for RVs)|
-+---------------+-------------------------------------------------------------------------------+
-| `GP_alpha0`    | Inverse (squared) length-scale/normalized amplitude of the first external parameter |
-+---------------+-------------------------------------------------------------------------------+
-| `GP_alpha1`      | Inverse (squared) length-scale/normalized amplitude of the second external parameter|
-+---------------+-------------------------------------------------------------------------------+
-| ...      | ... |
-+---------------+-------------------------------------------------------------------------------+
-| `GP_alphan`      | Inverse (squared) length-scale/normalized amplitude of the n+1 external parameter |
-+---------------+-------------------------------------------------------------------------------+
++----------------------------+--------------------------------------------------------------------------------------+
+| Hyperparameters            |           Description                                                                |   
++============================+======================================================================================+
+| `GP_sigma`                 |   Amplitude of the GP (in ppm for the photometry, units of measurements for RVs)     |
++----------------------------+--------------------------------------------------------------------------------------+
+| `GP_alpha0`                | Inverse (squared) length-scale/normalized amplitude of the first external parameter  |
++----------------------------+--------------------------------------------------------------------------------------+
+| `GP_alpha1`                | Inverse (squared) length-scale/normalized amplitude of the second external parameter |
++----------------------------+--------------------------------------------------------------------------------------+
+| ...                        | ...                                                                                  |
++----------------------------+--------------------------------------------------------------------------------------+
+| `GP_alphan`                | Inverse (squared) length-scale/normalized amplitude of the n+1 external parameter    |
++----------------------------+--------------------------------------------------------------------------------------+
 
-* **Exp-sine-squared kernel**
+**Exp-sine-squared kernel**
 
-+-----------------+--------------+
-| Hyperparameters | Description |
-+=================+==============+
++----------------------------+-------------------------------------------------------------------------------------+
+| Hyperparameters            |           Description                                                               |
++============================+=====================================================================================+
 | `GP_sigma`    | Amplitude of the GP (in ppm for the photometry, units of measurements for RVs)|
 +-----------------+--------------+
 | `GP_alpha`    | Inverse (squared) length-scale of the external parameter |
@@ -172,11 +172,11 @@ again, for usage details, please check out the :ref:`gps` tutorial:
 | `GP_Prot`     | Period of the quasi-periodic kernel|
 +---------------+-------------------------------------------------------------------------------+
 
-* **`celerite` quasi-periodic kernel**
+**celerite quasi-periodic kernel**
 
-+-----------------+--------------+
-| Hyperparameters | Description |
-+=================+==============+
++----------------------------+-------------------------------------------------------------------------------------+
+| Hyperparameters            |           Description                                                               |
++============================+=====================================================================================+
 | `GP_B`    | Amplitude of the GP (in ppm for the photometry, units of measurements for RVs)|
 +-----------------+--------------+
 | `GP_C`    | Additive factor impacting on the amplitude of the GP|
@@ -186,11 +186,11 @@ again, for usage details, please check out the :ref:`gps` tutorial:
 | `GP_Prot`     | Period of the quasi-periodic GP|
 +---------------+-------------------------------------------------------------------------------+
 
-* **`celerite` Simple Harmonic Oscillator (SHO) kernel**
+**celerite Simple Harmonic Oscillator (SHO) kernel**
 
-+-----------------+--------------+
-| Hyperparameters | Description |
-+=================+==============+
++----------------------------+-------------------------------------------------------------------------------------+
+| Hyperparameters            |           Description                                                               |
++============================+=====================================================================================+
 | `GP_S0`     | Characteristic power of the SHO|
 +-----------------+--------------+
 | `GP_omega0`   | Characteristic frequency of the SHO |
@@ -198,31 +198,31 @@ again, for usage details, please check out the :ref:`gps` tutorial:
 | `GP_Q`  | Quality factor of the SHO |
 +---------------+-------------------------------------------------------------------------------+
 
-* **`celerite` (approximate) Matern kernel**
+**celerite (approximate) Matern kernel**
 
-+-----------------+--------------+
-| Hyperparameters | Description |
-+=================+==============+
++----------------------------+-------------------------------------------------------------------------------------+
+| Hyperparameters            |           Description                                                               |
++============================+=====================================================================================+
 | `GP_sigma`     | Amplitude of the GP (in ppm for the photometry, units of measurements for RVs)|
 +-----------------+--------------+
 | `GP_rho` | Time/length-scale of the GP|
 +-----------------+--------------+
 
-* **`celerite` exponential kernel**
+**celerite exponential kernel**
 
-+-----------------+--------------+
-| Hyperparameters | Description |
-+=================+==============+
++----------------------------+-------------------------------------------------------------------------------------+
+| Hyperparameters            |           Description                                                               |
++============================+=====================================================================================+
 | `GP_sigma`     | Amplitude of the GP (in ppm for the photometry, units of measurements for RVs)|
 +-----------------+--------------+
 | `GP_timescale` | Time/length-scale of the GP|
 +-----------------+--------------+
 
-* **`celerite` (approximate) Matern multiplied by exponential kernel**
+**celerite (approximate) Matern multiplied by exponential kernel**
 
-+-----------------+--------------+
-| Hyperparameters | Description |
-+=================+==============+
++----------------------------+-------------------------------------------------------------------------------------+
+| Hyperparameters            |           Description                                                               |
++============================+=====================================================================================+
 | `GP_sigma`     | Amplitude of the GP (in ppm for the photometry, units of measurements for RVs)|
 +-----------------+--------------+
 | `GP_rho` | Time/length-scale of the Matern part of the GP|
