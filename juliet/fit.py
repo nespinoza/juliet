@@ -1801,7 +1801,7 @@ class model(object):
                             for ginstrument in instruments:
                                 components['mu'][ginstrument] = np.median(components['mu'][ginstrument])
                         else:
-                            components['mu'][counter] = np.median(components['mu'])
+                            components['mu'] = np.median(components['mu'], axis=0)
             else:
                 if self.modeltype == 'lc':
                     self.generate_lc_model(parameter_values)
@@ -1864,9 +1864,9 @@ class model(object):
             if return_samples:
                 if return_err:
                     if return_components:
-                        output_model_samples, m_output_model, u_output_model, l_output_model = x
-                    else:
                         output_model_samples, m_output_model, u_output_model, l_output_model, components = x
+                    else:
+                        output_model_samples, m_output_model, u_output_model, l_output_model = x
                 else:
                     if return_components:
                         output_model_samples,output_model,components = x
