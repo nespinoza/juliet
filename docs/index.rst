@@ -68,23 +68,24 @@ Copyright 2018-2019 Nestor Espinoza & Diana Kossakowski.
 `public GitHub repository <https://github.com/nespinoza/juliet>`_. The source code is made available under the 
 terms of the MIT license.
 
-If you make use of this code, please cite `the paper which is currently on the
-ArXiv <https://arxiv.org/abs/1812.08549>`_:
+If you make use of this code, please cite `the paper <https://arxiv.org/abs/1812.08549>`_:
 
 .. code-block:: tex
 
-    @ARTICLE{juliet,
+    @ARTICLE{2019MNRAS.490.2262E,
            author = {{Espinoza}, N{\'e}stor and {Kossakowski}, Diana and {Brahm}, Rafael},
-            title = "{Juliet: a versatile modelling tool for transiting and non-transiting exoplanetary systems}",
-          journal = {arXiv e-prints},
-         keywords = {Astrophysics - Earth and Planetary Astrophysics},
-             year = 2018,
-            month = Dec,
-              eid = {arXiv:1812.08549},
-            pages = {arXiv:1812.08549},
+            title = "{juliet: a versatile modelling tool for transiting and non-transiting exoplanetary systems}",
+          journal = {\mnras},
+         keywords = {methods: data analysis, methods: statistical, techniques: photometric, techniques: radial velocities, planets and satellites: fundamental parameters, planets and satellites: individual: K2-140b, K2-32b, c, d, Astrophysics - Earth and Planetary Astrophysics},
+             year = "2019",
+            month = "Dec",
+           volume = {490},
+           number = {2},
+            pages = {2262-2283},
+              doi = {10.1093/mnras/stz2688},
     archivePrefix = {arXiv},
            eprint = {1812.08549},
      primaryClass = {astro-ph.EP},
-           adsurl = {https://ui.adsabs.harvard.edu/\#abs/2018arXiv181208549E},
+           adsurl = {https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.2262E},
           adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
