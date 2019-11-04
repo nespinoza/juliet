@@ -471,7 +471,8 @@ class load(object):
         # For now this only allows inputs from lightcurves; TODO: add supersampling for RVs.
         if instrument_supersamp is not None and dictype == 'lc':
             for i in range(len(instrument_supersamp)):
-                print('\t Resampling detected for instrument ',instrument_supersamp[i])
+                if self.verbose:
+                    print('\t Resampling detected for instrument ',instrument_supersamp[i])
                 dictionary[instrument_supersamp[i]]['resampling'] = True
                 dictionary[instrument_supersamp[i]]['nresampling'] = n_supersamp[i]
                 dictionary[instrument_supersamp[i]]['exptimeresampling'] = exptime_supersamp[i]
