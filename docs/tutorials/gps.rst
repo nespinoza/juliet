@@ -453,3 +453,187 @@ and only plot the HARPS and FEROS data, which are the most constraining for our 
 
 .. figure:: gp_global_fit.png
    :alt: Global GP fit to the TOI-141 radial-velocity dataset.
+
+Nice! This plot is very similar to the one shown in Figure 8 of the TOI-141b paper in `Espinoza et al. (2019) <https://arxiv.org/abs/1903.07694>`_ --- only that in that 
+paper, the authors used a different kernel. It is reassurring that this simple kernel gives very similar results! As can be seen, the key idea of a *global* model is evident 
+from these results: it is a model that spans different instruments, modelling what could be an underlying physical process that impacts all of them simultaneously.
+
+Now let us model the same data assuming an **instrument-by-instrument** model. For this, let's suppose the time-scale of the process is common to all the instruments, but that the 
+amplitudes of the process are different for each of them. In order to tell to ``juliet`` that we want an instrument-by-instrument model, we have to first create a file with the GP regressors 
+that identifies the regressors for each instrument --- we have uploaded the one used in this example 
+[`here <https://github.com/nespinoza/juliet/blob/master/docs/tutorials/GP_regressors_rv_i-i.dat>`_]. Then, we simply define the GP hyperparameters for each instrument --- common parameters 
+between instruments will have instruments separated by underscores after the GP hyperparameter name, like for ``GP_rho`` below:
+
+.. code-block:: python
+
+    priors = {}
+
+    # Name of the parameters to be fit:
+    params = ['P_p1','t0_p1','mu_CORALIE14', \
+              'mu_CORALIE07','mu_HARPS','mu_FEROS',\
+              'K_p1', 'ecc_p1', 'omega_p1', 'sigma_w_CORALIE14','sigma_w_CORALIE07',\
+              'sigma_w_HARPS','sigma_w_FEROS','GP_sigma_HARPS','GP_sigma_FEROS','GP_sigma_CORALIE14', 'GP_sigma_CORALIE07',\
+              'GP_rho_HARPS_FEROS_CORALIE14_CORALIE07']
+
+    # Distributions:
+    dists = ['normal','normal','uniform', \
+             'uniform','uniform','uniform',\
+             'uniform','fixed', 'fixed', 'loguniform', 'loguniform',\
+             'loguniform', 'loguniform','loguniform','loguniform','loguniform','loguniform',\
+             'loguniform']
+
+    # Hyperparameters
+    hyperps = [[1.007917,0.000073], [2458325.5386,0.0011], [-100,100], \
+               [-100,100], [-100,100], [-100,100], \
+               [0.,100.], 0., 90., [1e-3, 100.], [1e-3, 100.], \
+               [1e-3, 100.], [1e-3, 100.],[0.01,100.],[0.01,100.],[0.01,100.],[0.01,100.],\
+               [0.01,100.]]
+
+    # Populate the priors dictionary:
+    for param, dist, hyperp in zip(params, dists, hyperps):
+        priors[param] = {}
+        priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
+
+    # Add second planet to the prior:
+    params = params + ['P_p2',   't0_p2',  'K_p2',    'ecc_p2','omega_p2']
+    dists = dists +   ['uniform','uniform','uniform', 'fixed', 'fixed']
+    hyperps = hyperps + [[1.,10.],[2458325.,2458330.],[0.,100.], 0., 90.]
+
+    # Repopulate priors dictionary:
+    priors = {}
+
+    for param, dist, hyperp in zip(params, dists, hyperps):
+        priors[param] = {}
+        priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
+
+    dataset = juliet.load(priors = priors, rvfilename='rvs_toi141.dat', out_folder = 'toi141_rvs_i-i', \
+                          GPrveparamfile='GP_regressors_rv_i-i.dat', verbose = True)
+
+
+
+    results = dataset.fit(n_live_points = 300)
+
+Now let us plot the results of the fit. Because this is an instrument-by-instrument model, we have to plot the fits individually for each instruments. Let's plot FEROS and HARPS data 
+once again:
+
+.. clode-block:: python
+
+    model_times = np.linspace(np.max(dataset.t_rv)-50,np.max(dataset.t_rv),1000)
+
+    import matplotlib.pyplot as plt
+    instruments = ['HARPS','FEROS']
+    colors = ['red','black']
+
+    fig = plt.figure(figsize=(10,8))
+    counter = 0
+    for instrument,color in zip (instruments,colors):
+        plt.subplot('21'+str(counter+1))
+        keplerian, components = results.rv.evaluate(instrument,t = model_times, GPregressors = model_times, return_components = True)
+        plt.errorbar(dataset.times_rv[instrument]-2454705,dataset.data_rv[instrument] - components['mu'], \
+                     yerr = dataset.errors_rv[instrument], fmt = 'o', label = instrument+' data',mfc='white', mec = color, ecolor = color, \
+                     elinewidth=1)
+        plt.plot(model_times-2454705,keplerian,label='Full model',color='black')
+        plt.plot(model_times-2454705,results.rv.model[instrument]['deterministic'],label = 'Keplerian component', color = 'steelblue')
+        plt.plot(model_times-2454705,results.rv.model[instrument]['GP'], label = 'GP component',color='red')
+        counter += 1
+        plt.legend()
+        plt.xlim([3701,3715])
+        plt.ylabel('Radial velocity (m/s)')
+    plt.xlabel('Time (BJD - 2454705)')
+
+.. figure:: gp_i-i_fit.png
+   :alt: Instrument-by-instrument GP fit to the TOI-141 radial-velocity dataset.
+
+Notice how in this instrument-by-instrument GP fit, not only the amplitude but the overall shape of the GP component is different between instruments. This is exactly what 
+we are modelling with an instrumenb-by-instrumeng GP fit: a process that might share some hyperparameters, but that has different realizations on each instrument. 
+
+So, is the instrument-by-instrument model or the global GP fit the best for the TOI-141 dataset? We can use the log-evidences to find this out! For the global model, we 
+obtain a log-evidence of :math:`\ln Z = -678.76 \pm 0.03`, whereas for the instrument-by-instrument model we obtain a log-evidence of :math:`\ln Z = -679.4 \pm 0.1`. From this, 
+we see that although they are statistically indistinguishable (:math:`\Delta \ln Z < 2`), we will most likely want to favor the global model as it has fewer parameters. One interesting 
+point the reader might make is that, from the plots above, it might *seem* FEROS is dominating the GP component --- so it might be that the GP signal is actually arising from the 
+FEROS data, and not from all the other instruments. One way to check if this is the case is to run an instrument-by-instrument GP model where a GP is applied only to the FEROS data; 
+physically, this would be modelling a signal that is only arising in this instrument due to, e.g., unknown instrumental systematics. It is easy to test this out with ``juliet``; 
+we just repeat the instrument-by-instrument model above but adding a GP only to the FEROS data:
+
+.. clode-block:: python
+
+    priors = {}
+
+    # Name of the parameters to be fit:
+    params = ['P_p1','t0_p1','mu_CORALIE14', \
+              'mu_CORALIE07','mu_HARPS','mu_FEROS',\
+              'K_p1', 'ecc_p1', 'omega_p1', 'sigma_w_CORALIE14','sigma_w_CORALIE07',\
+              'sigma_w_HARPS','sigma_w_FEROS','GP_sigma_FEROS', 'GP_rho_FEROS']
+
+    # Distributions:
+    dists = ['normal','normal','uniform', \
+             'uniform','uniform','uniform',\
+             'uniform','fixed', 'fixed', 'loguniform', 'loguniform',\
+             'loguniform', 'loguniform','loguniform','loguniform']
+
+    # Hyperparameters
+    hyperps = [[1.007917,0.000073], [2458325.5386,0.0011], [-100,100], \
+               [-100,100], [-100,100], [-100,100], \
+               [0.,100.], 0., 90., [1e-3, 100.], [1e-3, 100.], \
+               [1e-3, 100.], [1e-3, 100.],[0.01,100.],[0.01,100.]]
+
+    # Populate the priors dictionary:
+    for param, dist, hyperp in zip(params, dists, hyperps):
+        priors[param] = {}
+        priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
+
+    # Add second planet to the prior:
+    params = params + ['P_p2',   't0_p2',  'K_p2',    'ecc_p2','omega_p2']
+    dists = dists +   ['uniform','uniform','uniform', 'fixed', 'fixed']
+    hyperps = hyperps + [[1.,10.],[2458325.,2458330.],[0.,100.], 0., 90.]
+
+    # Repopulate priors dictionary:
+    priors = {}
+
+    for param, dist, hyperp in zip(params, dists, hyperps):
+        priors[param] = {}
+        priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
+
+    dataset = juliet.load(priors = priors, rvfilename='rvs_toi141.dat', out_folder = 'toi141_rvs_i-i-FEROS', \
+                          GPrveparamfile='GP_regressors_rv_i-i-FEROS.dat', verbose = True)
+
+
+
+    results = dataset.fit(n_live_points = 300)
+
+Let us plot the result to see how this looks like:
+
+.. code-block:: python
+
+    model_times = np.linspace(np.max(dataset.t_rv)-50,np.max(dataset.t_rv),1000)
+
+    import matplotlib.pyplot as plt
+    instruments = ['FEROS']
+    colors = ['black']
+
+    fig = plt.figure(figsize=(10,8))
+    counter = 0
+    for instrument,color in zip (instruments,colors):
+        plt.subplot('21'+str(counter+1))
+        keplerian, components = results.rv.evaluate(instrument,t = model_times, GPregressors = model_times, return_components = True)
+        plt.errorbar(dataset.times_rv[instrument]-2454705,dataset.data_rv[instrument] - components['mu'], \
+                     yerr = dataset.errors_rv[instrument], fmt = 'o', label = instrument+' data',mfc='white', mec = color, ecolor = color, \
+                     elinewidth=1)
+        plt.plot(model_times-2454705,keplerian,label='Full model',color='black')
+        plt.plot(model_times-2454705,results.rv.model[instrument]['deterministic'],label = 'Keplerian component', color = 'steelblue')
+        plt.plot(model_times-2454705,results.rv.model[instrument]['GP'], label = 'GP component',color='red')
+        counter += 1
+        plt.legend()
+        plt.xlim([3701,3715])
+        plt.ylabel('Radial velocity (m/s)')
+    plt.xlabel('Time (BJD - 2454705)')
+    plt.legend(ncol=2)
+
+.. figure:: gp_i-i_fit_feros.png
+   :alt: Instrument-by-instrument GP fit to the FEROS data only in the TOI-141 radial-velocity dataset.
+
+It seems the signal is fairly similar in this narrow time-range to the one we obtained in the global model and the instrument-by-instrument models above! 
+However, ``juliet`` has one more piece of data that can allow us to discriminate the "best" model: the log-evidence. This model has a log-evidence of 
+:math:`\ln Z = -681.65 \pm 0.07` --- the global model has a log-evidence which is :math:`\Delta \ln Z = 2.9` *higher* than this model and thus is about 
+18 times more likely than this FEROS-only instrument-by-instrument model. Given our data, then, it seems the *global* model is the best model at hand, at 
+least compared against the instrument-by-instrument models defined above.
