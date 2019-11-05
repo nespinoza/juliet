@@ -513,10 +513,10 @@ between instruments will have instruments separated by underscores after the GP 
 
     results = dataset.fit(n_live_points = 300)
 
-Now let us plot the results of the fit. Because this is an instrument-by-instrument model, we have to plot the fits individually for each instruments. Let's plot FEROS and HARPS data 
+Now let us plot the results of the fit. Because this is an instrument-by-instrument model, we have to plot the fits individually for each instruments. Let's plot the FEROS and HARPS data 
 once again:
 
-.. clode-block:: python
+.. code-block:: python
 
     model_times = np.linspace(np.max(dataset.t_rv)-50,np.max(dataset.t_rv),1000)
 
@@ -545,7 +545,7 @@ once again:
    :alt: Instrument-by-instrument GP fit to the TOI-141 radial-velocity dataset.
 
 Notice how in this instrument-by-instrument GP fit, not only the amplitude but the overall shape of the GP component is different between instruments. This is exactly what 
-we are modelling with an instrumenb-by-instrumeng GP fit: a process that might share some hyperparameters, but that has different realizations on each instrument. 
+we are modelling with an instrument-by-instrument GP fit: a process that might share some hyperparameters, but that has different realizations on each instrument. 
 
 So, is the instrument-by-instrument model or the global GP fit the best for the TOI-141 dataset? We can use the log-evidences to find this out! For the global model, we 
 obtain a log-evidence of :math:`\ln Z = -678.76 \pm 0.03`, whereas for the instrument-by-instrument model we obtain a log-evidence of :math:`\ln Z = -679.4 \pm 0.1`. From this, 
@@ -555,7 +555,7 @@ FEROS data, and not from all the other instruments. One way to check if this is 
 physically, this would be modelling a signal that is only arising in this instrument due to, e.g., unknown instrumental systematics. It is easy to test this out with ``juliet``; 
 we just repeat the instrument-by-instrument model above but adding a GP only to the FEROS data:
 
-.. clode-block:: python
+.. code-block:: python
 
     priors = {}
 
