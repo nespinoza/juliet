@@ -10,9 +10,9 @@ which are not only good for underlying stochastic processes that might be presen
 good for modelling underlying deterministic processes for which we do not have a good model at hand. GPs attempt to model 
 the likelihood, :math:`\mathcal{L}`, as coming from a multi-variate gaussian distribution, i.e., 
 
-:math:`\mathcal{L} =  -\frac{1}{2}\left[N\ln 2\pi + \ln\left|\mathbf{\Sigma}\right|  + \vec{r}^T \mathbf{\Sigma}^{-1}\vec{r} \right],`
+:math:`\ln \mathcal{L} =  -\frac{1}{2}\left[N\ln 2\pi + \ln\left|\mathbf{\Sigma}\right|  + \vec{r}^T \mathbf{\Sigma}^{-1}\vec{r} \right],`
 
-where :math:`N` is the number of datapoints, :math:`\mathbf{\Sigma}` is a covariance matrix and :math:`\vec{r}` is the vector 
+where :math:`\ln \mathcal{L}` is the log-likelihood, :math:`N` is the number of datapoints, :math:`\mathbf{\Sigma}` is a covariance matrix and :math:`\vec{r}` is the vector 
 of the residuals (where each elements is simply our model --- be it a lightcurve model or radial-velocity model --- minus 
 the data). A GP provides a form for the covariance matrix using so-called kernels which define its structure, 
 and allow to efficiently fit for this underlying non-white noise structure. Within ``juliet`` we provide a wide variety of kernels 
@@ -362,14 +362,14 @@ different individual jitter terms for each instrument in this case.
 
 In practice, as explained in detail in the Section 2 of the `juliet paper <https://arxiv.org/abs/1812.08549>`_, the difference between a **global** model 
 and an **instrument-by-instrument** model is that for the former a unique covariance matrix (and set of GP hyperparameters) is defined for the problem. 
-This means that the likelihood of a **global** model is written as presented at the introduction of this tutorial, i.e.,
+This means that the log-likelihood of a **global** model is written as presented at the introduction of this tutorial, i.e.,
 
   :math:`\mathcal{L} =  -\frac{1}{2}\left[N\ln 2\pi + \ln\left|\mathbf{\Sigma}\right|  + \vec{r}^T \mathbf{\Sigma}^{-1}\vec{r} \right].`
 
 Here, :math:`N` is the total number of datapoints considering all the instruments in the problem, :math:`\mathbf{\Sigma}` is the covariance matrix for 
 that same full dataset and :math:`\vec{r}` is the vector of residuals for the same dataset. In the **instrument-by-instrument** type of models, however, a 
 different covariance matrix (and thus different GP hyperparameters --- which might be shared, as we'll see in a moment!) is defined for each instrument. 
-The total likelihood of the problem is, thus, given by:
+The total log-likelihood of the problem is, thus, given by:
 
   :math:`\mathcal{L} =  \sum_{i} -\frac{1}{2}\left[N_i\ln 2\pi + \ln\left|\mathbf{\Sigma}_i\right|  + \vec{r}_i^T \mathbf{\Sigma}_i^{-1}\vec{r}_i \right],`
 
