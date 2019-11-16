@@ -720,6 +720,14 @@ class load(object):
             else:
                 raise Exception('INPUT ERROR: Prior file (priors.dat) not found in folder '+self.input_folder+'.'+\
                                 'Create it and try again. For details, check juliet.load?')
+            # If there is an input folder and no out_folder, then simply set the out_folder as the input_folder
+            # for ease in the later functions (more for replotting purposes)
+            # So, one can simply do this to obtain the posteriors:
+            # > dataset = juliet.load(input_folder=folder) # to reload the priors, data, etc.
+            # > results = dataset.fit() # to obtain the results already found in the input_folder
+            # > posteriors = results.posteriors
+            if out_folder is None:
+                self.out_folder = self.input_folder 
         else:
             self.input_folder = None
 
