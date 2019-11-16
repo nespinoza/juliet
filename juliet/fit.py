@@ -1117,12 +1117,12 @@ class fit(object):
             if (self.use_dynesty) and (self.out_folder is not None):
                 if self.dynamic:
                     if os.path.exists(self.out_folder+'_dynesty_DNS_posteriors.pkl'):
-                        if data.self.verbose:
+                        if self.data.verbose:
                             print('Detected (dynesty) Dynamic NS output files --- extracting...')
                         out = pickle.load(open(self.out_folder+'_dynesty_DNS_posteriors.pkl','rb'))
                 else:
                     if os.path.exists(self.out_folder+'_dynesty_NS_posteriors.pkl'):
-                        if data.self.verbose:
+                        if self.data.verbose:
                             print('Detected (dynesty) NS output files --- extracting...')
                         out = pickle.load(open(self.out_folder+'_dynesty_NS_posteriors.pkl','rb'))
             elif self.out_folder is not None:
