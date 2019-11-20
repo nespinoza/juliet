@@ -500,7 +500,7 @@ class load(object):
             dictionary['global_model'] = {}
             if GP_regressors is not None:
                 dictionary['global_model']['GPDetrend'] = True
-                dictionary['global_model']['noise_model'] = gaussian_process(self, model_type = dictype,instrument = dictype)
+                dictionary['global_model']['noise_model'] = gaussian_process(self, model_type = dictype,instrument = dictype, matern_eps = self.matern_eps)
                 if not dictionary['global_model']['noise_model'].isInit:
                     # If not initiated, most likely kernel is a celerite one. Reorder times, values, etc. This is OK --- is expected:
                     if dictype == 'lc':
@@ -508,7 +508,7 @@ class load(object):
                     elif dictype == 'rv':
                         self.sort_GP('rv')
                     # Try again:
-                    dictionary['global_model']['noise_model'] = gaussian_process(self, model_type = dictype,instrument = dictype)
+                    dictionary['global_model']['noise_model'] = gaussian_process(self, model_type = dictype,instrument = dictype, matern_eps = self.matern_eps)
                     if not dictionary['global_model']['noise_model'].isInit:
                         # Check, blame the user:
                         raise Exception('INPUT ERROR: GP initialization for object for '+dictype+' global kernel failed.')
@@ -519,7 +519,7 @@ class load(object):
                 instrument = inames[i]    
                 if (GP_regressors is not None) and (instrument in GP_regressors.keys()):
                     dictionary[instrument]['GPDetrend'] = True
-                    dictionary[instrument]['noise_model'] =  gaussian_process(self, model_type = dictype, instrument = instrument)
+                    dictionary[instrument]['noise_model'] =  gaussian_process(self, model_type = dictype, instrument = instrument, matern_eps = self.matern_eps)
                     if not dictionary[instrument]['noise_model'].isInit:
                         # Blame the user, although perhaps we could simply solve this as for the global modelling?:
                         raise Exception('INPUT ERROR: GP regressors for instrument '+instrument+' use celerite, and are not in ascending or descending order. Please, give the input in those orders --- it will not work othersie.')
@@ -653,13 +653,16 @@ class load(object):
                  out_folder = None, lcfilename = None, rvfilename = None, GPlceparamfile = None,\
                  GPrveparamfile = None, lctimedef = 'TDB', rvtimedef = 'UTC',\
                  ld_laws = 'quadratic', priorfile = None, lc_n_supersamp = None, lc_exptime_supersamp = None, \
-                 lc_instrument_supersamp = None, mag_to_flux = True, verbose = False):
+                 lc_instrument_supersamp = None, mag_to_flux = True, verbose = False, matern_eps = 0.01):
 
         self.lcfilename = lcfilename
         self.rvfilename = rvfilename
         self.GPlceparamfile = GPlceparamfile
         self.GPrveparamfile = GPrveparamfile
         self.verbose = verbose
+
+        # GP options:
+        self.matern_eps = matern_eps # Epsilon parameter for celerite Matern32Term
 
         # Initialize data options for lightcurves:
         self.t_lc = None
@@ -2089,7 +2092,12 @@ class model(object):
                 residuals = self.data[instrument] - self.model[instrument]['deterministic']
                 if self.dictionary[instrument]['GPDetrend']:
                     self.dictionary[instrument]['noise_model'].set_parameter_vector(parameter_values)
-                    log_like += self.dictionary[instrument]['noise_model'].GP.log_likelihood(residuals)
+                    # Catch possible GP evaluation errors:
+                    try:
+                        log_like += self.dictionary[instrument]['noise_model'].GP.log_likelihood(residuals)
+                    except:
+                        log_like = -np.inf
+                        break
                 else:
                     log_like += self.gaussian_log_likelihood(residuals,self.model[instrument]['deterministic_variances'])
             return log_like 
@@ -2446,7 +2454,7 @@ class gaussian_process(object):
                 self.parameter_vector[3] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
         self.GP.set_parameter_vector(self.parameter_vector) 
 
-    def __init__(self, data, model_type, instrument, george_hodlr = True):
+    def __init__(self, data, model_type, instrument, george_hodlr = True, matern_eps = 0.01):
         self.isInit = False
         self.model_type = model_type.lower()
         # Perform changes that define the model_type. For example, the juliet input sigmas (both jitters and GP amplitudes) are 
@@ -2581,7 +2589,7 @@ class gaussian_process(object):
             self.use_celerite = True
         elif self.kernel_name == 'CeleriteMaternKernel':
             # Generate matern kernel:
-            matern_kernel = terms.Matern32Term(log_sigma=np.log(10.), log_rho=np.log(10.))
+            matern_kernel = terms.Matern32Term(log_sigma=np.log(10.), log_rho=np.log(10.), eps = matern_eps)
             # Jitter term:
             kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
             # Wrap GP kernel and object:
@@ -2593,7 +2601,7 @@ class gaussian_process(object):
             self.use_celerite = True
         elif self.kernel_name == 'CeleriteMaternExpKernel':
             # Generate matern and exponential kernels:
-            matern_kernel = terms.Matern32Term(log_sigma=np.log(10.), log_rho=np.log(10.))
+            matern_kernel = terms.Matern32Term(log_sigma=np.log(10.), log_rho=np.log(10.), eps = matern_eps)
             exp_kernel = terms.RealTerm(log_a=np.log(10.), log_c=np.log(10.))
             # Jitter term:
             kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
