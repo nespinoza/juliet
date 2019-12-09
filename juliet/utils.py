@@ -29,6 +29,67 @@ def get_TESS_data(filename, fluxtype = 'PDCSAP_FLUX'):
     return data['TIME'][idx],data[fluxtype][idx]/np.median(data[fluxtype][idx]), \
            data[fluxtype+'_ERR'][idx]/np.median(data[fluxtype][idx])
 
+import os
+from astroquery.mast import Observations
+def get_all_TESS_data(object_name, radius = ".02 deg", get_PDC = True, get_all = False):
+    """ 
+    Given a planet name, this function returns a dictionary of times, fluxes and 
+    errors on fluxes in a juliet-friendly format for usage. The function does an 
+    astroquery to MAST using a default radius of .02 deg around the target name. If get_PDC is True, 
+    this function returns PDC fluxes. False returns SAP fluxes. If get_all is true, this function 
+    returns a dictionary that in addition to the times, fluxes and errors, returns other 
+    metadata.
+    """
+    obs_table = Observations.query_object(object_name,radius=radius)
+    out_dict = {}
+    times = {}
+    fluxes = {}
+    fluxes_errors = {}
+    for i in range(len(obs_table['dataURL'])):
+        if 's_lc.fits' in obs_table['dataURL'][i]:
+            fname = obs_table['dataURL'][i].split('/')[-1]
+            metadata = fname.split('-')
+            if len(metadata) == 5:
+                # Extract metadata:
+                sector = np.int(metadata[1].split('s')[-1])
+                ticid = np.int(metadata[2])
+                # Download files:
+                data_products = Observations.get_product_list(obs_table[i])
+                manifest = Observations.download_products(data_products)
+                # Read lightcurve file:
+                d,h = fits.getdata('mastDownload/TESS/'+fname[:-8]+'/'+fname,header=True)
+                t,fs,fserr,f,ferr = d['TIME']+h['BJDREFI'],d['SAP_FLUX'],d['SAP_FLUX_ERR'],\
+                                    d['PDCSAP_FLUX'],d['PDCSAP_FLUX_ERR']
+                idx_goodpdc = np.where((f != 0.)&(~np.isnan(f)))[0]
+                idx_goodsap = np.where((fs != 0.)&(~np.isnan(fs)))[0]
+                # Save to output dictionary:
+                if 'TIC' not in out_dict.keys():
+                    out_dict['TIC'] = ticid
+                out_dict[sector] = {}
+                out_dict[sector]['TIME_PDCSAP_FLUX'] = t[idx_goodpdc]
+                out_dict[sector]['PDCSAP_FLUX'] = f[idx_goodpdc]
+                out_dict[sector]['PDCSAP_FLUX_ERR'] = ferr[idx_goodpdc]
+                out_dict[sector]['TIME_SAP_FLUX'] = t[idx_goodsap]
+                out_dict[sector]['SAP_FLUX'] = fs[idx_goodsap]
+                out_dict[sector]['SAP_FLUX_ERR'] = fserr[idx_goodsap]
+                if get_PDC:
+                    times['TESS'+str(sector)] = t[idx_goodpdc]
+                    med = np.median(f[idx_goodpdc])
+                    fluxes['TESS'+str(sector)] = f[idx_goodpdc]/med
+                    fluxes_errors['TESS'+str(sector)] = ferr[idx_goodpdc]/med
+                else:
+                    times['TESS'+str(sector)] = t[idx_goodsap]
+                    med = np.median(fs[idx_goodsap])
+                    fluxes['TESS'+str(sector)] = fs[idx_goodsap]/med
+                    fluxes_errors['TESS'+str(sector)] = fserr[idx_goodsap]/med
+                # Remove downloaded folder:
+                os.system('rm -r mastDownload')
+    if get_all:
+        return out_dict, times, fluxes, fluxes_errors
+    else:
+        return times, fluxes, fluxes_errors
+
+
 def reverse_ld_coeffs(ld_law, q1, q2): 
     if ld_law == 'quadratic':
         coeff1 = 2.*np.sqrt(q1)*q2
