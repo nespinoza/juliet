@@ -208,6 +208,12 @@ class load(object):
 
     :param verbose: (optional, boolean)
         If True, all outputs of the code are printed to terminal. Default is False.
+    
+    :param matern_eps: (optional, float)
+        Epsilon parameter for the Matern approximation (see celerite documentation).
+
+    :param pickle_encoding: (optional, string)
+        Define pickle encoding in case fit was done with Python 2.7 and results are read with Python 3.
 
     """
 
@@ -653,13 +659,14 @@ class load(object):
                  out_folder = None, lcfilename = None, rvfilename = None, GPlceparamfile = None,\
                  GPrveparamfile = None, lctimedef = 'TDB', rvtimedef = 'UTC',\
                  ld_laws = 'quadratic', priorfile = None, lc_n_supersamp = None, lc_exptime_supersamp = None, \
-                 lc_instrument_supersamp = None, mag_to_flux = True, verbose = False, matern_eps = 0.01):
+                 lc_instrument_supersamp = None, mag_to_flux = True, verbose = False, matern_eps = 0.01, pickle_encoding = None):
 
         self.lcfilename = lcfilename
         self.rvfilename = rvfilename
         self.GPlceparamfile = GPlceparamfile
         self.GPrveparamfile = GPrveparamfile
         self.verbose = verbose
+        self.pickle_encoding = pickle_encoding
 
         # GP options:
         self.matern_eps = matern_eps # Epsilon parameter for celerite Matern32Term
@@ -966,7 +973,6 @@ class fit(object):
                  log_likelihood += self.rv.get_log_likelihood(self.posteriors)
              else:
                  return -1e101
-      
         # Return total log-likelihood:
         return log_likelihood
 
@@ -1130,16 +1136,25 @@ class fit(object):
                     if os.path.exists(self.out_folder+'_dynesty_DNS_posteriors.pkl'):
                         if self.data.verbose:
                             print('Detected (dynesty) Dynamic NS output files --- extracting...')
-                        out = pickle.load(open(self.out_folder+'_dynesty_DNS_posteriors.pkl','rb'))
+                        if self.data.pickle_encoding is None:
+                            out = pickle.load(open(self.out_folder+'_dynesty_DNS_posteriors.pkl','rb'))
+                        else:
+                            out = pickle.load(open(self.out_folder+'_dynesty_DNS_posteriors.pkl','rb'), encoding = self.data.pickle_encoding)
                 else:
                     if os.path.exists(self.out_folder+'_dynesty_NS_posteriors.pkl'):
                         if self.data.verbose:
                             print('Detected (dynesty) NS output files --- extracting...')
-                        out = pickle.load(open(self.out_folder+'_dynesty_NS_posteriors.pkl','rb'))
+                        if self.data.pickle_encoding is None:
+                            out = pickle.load(open(self.out_folder+'_dynesty_NS_posteriors.pkl','rb'))
+                        else:
+                            out = pickle.load(open(self.out_folder+'_dynesty_NS_posteriors.pkl','rb'), encoding = self.data.pickle_encoding)
             elif self.out_folder is not None:
                 if self.data.verbose:
                     print('Detected (MultiNest) NS output files --- extracting...')
-                out = pickle.load(open(self.out_folder+'posteriors.pkl','rb')) 
+                if self.data.pickle_encoding is None:
+                    out = pickle.load(open(self.out_folder+'posteriors.pkl','rb')) 
+                else:
+                    out = pickle.load(open(self.out_folder+'posteriors.pkl','rb'), encoding = self.data.pickle_encoding)
             if len(out.keys()) == 0:
                 print('Warning: no output generated or extracted. Check the fit options given to juliet.fit().')
             else:
