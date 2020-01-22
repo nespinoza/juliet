@@ -485,9 +485,16 @@ class load(object):
 
         # Now, if generating lightcurve dict, check whether for some photometric instruments only photometry, and not a 
         # transit, will be fit. This is based on whether the user gave limb-darkening coefficients for a given photometric 
-        # instrument or not. If given, transit is fit. If not, no transit is fit:
+        # instrument or not. If given, transit is fit. If not, no transit is fit. At the same time check if user wants to 
+        # fit TTVs for the desired instrument. For this latter, initialize as false for each instrument and only change to 
+        # true if the priors are found:
         if dictype == 'lc':
             for i in range(ninstruments):
+                dictionary[inames[i]]['TTVs'] = {}
+                for pi in numbering_planets:
+                    dictionary[inames[i]]['TTVs'][pi] = {}
+                    dictionary[inames[i]]['TTVs'][pi]['status'] = False
+                    dictionary[inames[i]]['TTVs'][pi]['transit_number'] = []
                 for pri in self.priors.keys():
                     if pri[0:2] == 'q1':
                         if inames[i] in pri.split('_'):
@@ -499,6 +506,11 @@ class load(object):
                         dictionary[inames[i]]['TransitFitCatwoman'] = True
                         if self.verbose:
                             print('\t Transit (catwoman) fit detected for instrument ',inames[i])
+                    if pri[0:2] == 'dt':
+                        planet_number,instrument,ntransit = pri.split('_')[1:]
+                        if inames[i] == instrument:
+                            dictionary[inames[i]]['TTVs'][int(planet_number[1:])]['status'] = True
+                            dictionary[inames[i]]['TTVs'][int(planet_number[1:])]['transit_number'].append(int(ntransit))
 
         # Now, implement noise models for each of the instrument. First check if model should be global or instrument-by-instrument, 
         # based on the input instruments given for the GP regressors.
@@ -2056,12 +2068,47 @@ class model(object):
                                self.model[instrument]['params'].u = [coeff1, coeff2]
                             else:
                                self.model[instrument]['params'].u = [coeff1]
-                            # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
-                            if self.log_like_calc:
-                                self.model[instrument]['M'] += self.model[instrument]['m'].light_curve(self.model[instrument]['params']) - 1.
+                            # If TTVs is on for planet i, compute the expected time of transit, and shift it. For this, use information encoded in the prior 
+                            # name; if, e.g., dt_p1_TESS1_-2, then n = -2 and the time of transit (with TTV) = t0 + n*P + dt_p1_TESS1_-2. Compute transit 
+                            # model assuming that time-of-transit; repeat for all the transits. Generally users will not do TTV analyses, so set this latter 
+                            # case to be the most common one by default in the if-statement:
+                            if not self.dictionary[instrument]['TTVs'][i]['status']:
+                                # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
+                                if self.log_like_calc:
+                                    self.model[instrument]['M'] += self.model[instrument]['m'].light_curve(self.model[instrument]['params']) - 1.
+                                else:
+                                    self.model[instrument]['p'+str(i)] = self.model[instrument]['m'].light_curve(self.model[instrument]['params'])
+                                    self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
                             else:
-                                self.model[instrument]['p'+str(i)] = self.model[instrument]['m'].light_curve(self.model[instrument]['params'])
-                                self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
+                                dummy_time = np.copy(self.times[instrument])
+                                # Shift time-of-transit center to the one defined by dt, compute transit model, add it:
+                                for transit_number in self.dictionary[instrument]['TTVs'][int(i)]['transit_number']:
+                                    transit_time = t0 + transit_number*P + parameter_values['dt_p'+str(i)+'_'+instrument+'_'+str(transit_number)]
+                                    # This implicitly sets maximum transit duration to P/2 days:
+                                    idx = np.where(np.abs(self.times[instrument]-transit_time)<P/4.)[0]
+                                    dummy_time[idx] = self.times[instrument][idx] - parameter_values['dt_p'+str(i)+'_'+instrument+'_'+str(transit_number)]
+                                if not self.dictionary[instrument]['TransitFitCatwoman']:
+                                    if self.dictionary[instrument]['resampling']:
+                                        pm, m = self.init_batman(dummy_time, self.dictionary[instrument]['ldlaw'], \
+                                                                 nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                 etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                    else:
+                                        pm, m = self.init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                else:
+                                    if self.dictionary[instrument]['resampling']:
+                                        pm, m = self.init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'], \
+                                                                 nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                 etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                    else:
+                                        pm, m = self.init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'])
+
+                                # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
+                                if self.log_like_calc:
+                                    self.model[instrument]['M'] += m.light_curve(self.model[instrument]['params']) - 1. 
+                                else:
+                                    self.model[instrument]['p'+str(i)] = m.light_curve(self.model[instrument]['params'])
+                                    self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1. 
+
                         else:
                             self.modelOK = False   
                             return False 
