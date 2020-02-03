@@ -1229,57 +1229,6 @@ class model(object):
         models per planet (i.e., ``self.model['p1']``, ``self.model['p2']``, etc. will not exist). Default is False.
 
     """
-    def init_batman(self, t, ld_law, nresampling = None, etresampling = None):
-         """  
-         This function initializes the batman code.
-         """
-         params = batman.TransitParams()
-         params.t0 = 0.
-         params.per = 1.
-         params.rp = 0.1
-         params.a = 15.
-         params.inc = 87.
-         params.ecc = 0. 
-         params.w = 90.
-         if ld_law == 'linear':
-             params.u = [0.5]
-         else:
-             params.u = [0.1,0.3]
-         params.limb_dark = ld_law
-         if nresampling is None or etresampling is None:
-             m = batman.TransitModel(params, t)
-         else:
-             m = batman.TransitModel(params, t, supersample_factor=nresampling, exp_time=etresampling)
-         return params,m
-
-    def init_catwoman(self, t, ld_law, nresampling = None, etresampling = None):
-         """  
-         This function initializes the catwoman code.
-         """
-         params = batman.TransitParams()
-         params.t0 = 0.
-         params.per = 1.
-         params.rp = 0.1
-         params.rp2 = 0.1
-         params.a = 15.
-         params.inc = 87.
-         params.ecc = 0.
-         params.w = 90.
-         params.phi = 90.
-         if ld_law == 'linear':
-             params.u = [0.5]
-         else:
-             params.u = [0.1,0.3]
-         params.limb_dark = ld_law
-         if nresampling is None or etresampling is None:
-             m = catwoman.TransitModel(params, t)
-         else:
-             m = catwoman.TransitModel(params, t, supersample_factor=nresampling, exp_time=etresampling)
-         return params,m
-
-    def init_radvel(self, nplanets=1):
-        return radvel.model.Parameters(nplanets,basis='per tc e w k')  
-
     def generate_rv_model(self, parameter_values, evaluate_global_errors = True):
         self.modelOK = True
         # Before anything continues, check the periods are chronologically ordered (this is to avoid multiple modes due to 
@@ -1437,11 +1386,11 @@ class model(object):
 
         if (resampling is not None) and (self.modeltype == 'lc') and (instrument is not None):
             if resampling:
-                self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
                                                                                                  nresampling = nresampling,\
                                                                                                  etresampling = etresampling)
             else:
-                self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
 
         # Save the original inames in the case of non-global models, and set self.inames to the input model. This is because if the model 
         # is not global, we don't care about generating the models for the other instruments (and in the lightcurve and RV evaluation part, 
@@ -1518,21 +1467,21 @@ class model(object):
                             for ginstrument in instruments:
                                 if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']:
                                     if not self.dictionary[ginstrument]['TransitFitCatwoman']:
-                                        supersample_params[ginstrument],supersample_m[ginstrument] = self.init_batman(t, self.dictionary[ginstrument]['ldlaw'])
-                                        sample_params[ginstrument],sample_m[ginstrument] = self.init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
+                                        supersample_params[ginstrument],supersample_m[ginstrument] = init_batman(t, self.dictionary[ginstrument]['ldlaw'])
+                                        sample_params[ginstrument],sample_m[ginstrument] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
                                     else:
-                                        supersample_params[ginstrument],supersample_m[ginstrument] = self.init_catwoman(t, self.dictionary[ginstrument]['ldlaw'])
-                                        sample_params[ginstrument],sample_m[ginstrument] = self.init_catwoman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
+                                        supersample_params[ginstrument],supersample_m[ginstrument] = init_catwoman(t, self.dictionary[ginstrument]['ldlaw'])
+                                        sample_params[ginstrument],sample_m[ginstrument] = init_catwoman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
                         else:
                             # If model is not global, the variables saved are not dictionaries but simply the objects, as we are just going to evaluate the 
                             # model for one dataset (the one of the input instrument):
                             if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman']:
                                 if not self.dictionary[instrument]['TransitFitCatwoman']:
-                                    supersample_params,supersample_m = self.init_batman(t, self.dictionary[instrument]['ldlaw'])
-                                    sample_params,sample_m = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                                    supersample_params,supersample_m = init_batman(t, self.dictionary[instrument]['ldlaw'])
+                                    sample_params,sample_m = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
                                 else:
-                                    supersample_params,supersample_m = self.init_catwoman(t, self.dictionary[instrument]['ldlaw'])
-                                    sample_params,sample_m = self.init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                                    supersample_params,supersample_m = init_catwoman(t, self.dictionary[instrument]['ldlaw'])
+                                    sample_params,sample_m = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
                     else:
                         # If we are trying to evaluate radial-velocities, we don't need to generate objects because radvel receives the times as inputs 
                         # on each call. In this case then we save the original times (self.t has *all* the times of all the instruments) and instrument 
@@ -1774,7 +1723,7 @@ class model(object):
                             self.ndatapoints_per_instrument[instrument] = nt_original
                         
                     counter += 1
-                # If return_error is on, return upper and lower sigma (68% CI) of the model(s):
+                # If return_error is on, return upper and lower sigma (alpha x 100% CI) of the model(s):
                 if return_err:
                     m_output_model, u_output_model, l_output_model = np.zeros(output_model_samples.shape[1]),\
                                                                      np.zeros(output_model_samples.shape[1]),\
@@ -1900,7 +1849,7 @@ class model(object):
             x = self.evaluate_model(instrument = instrument, parameter_values = self.posteriors, resampling = resampling, \
                                               nresampling = nresampling, etresampling = etresampling, all_samples = all_samples, \
                                               nsamples = nsamples, return_samples = return_samples, t = t, GPregressors = GPregressors, \
-                                              LMregressors = LMregressors, return_err = return_err, return_components = return_components)
+                                              LMregressors = LMregressors, return_err = return_err, return_components = return_components, alpha = alpha)
             if return_samples:
                 if return_err:
                     if return_components:
@@ -1927,11 +1876,11 @@ class model(object):
         if (resampling is not None) and (self.modeltype == 'lc') and (instrument is not None): 
              # get lc, return, then turn all back to normal:
              if self.dictionary[instrument]['resampling']:
-                 self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                 self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
                                                                                                   nresampling = self.dictionary[instrument]['nresampling'],\
                                                                                                   etresampling = self.dictionary[instrument]['exptimeresampling'])
              else:
-                 self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                 self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
 
         if not self.global_model:
             # Return original inames back in case of non-global models:
@@ -2089,18 +2038,18 @@ class model(object):
                                     dummy_time[idx] = self.times[instrument][idx] - parameter_values['dt_p'+str(i)+'_'+instrument+'_'+str(transit_number)]
                                 if not self.dictionary[instrument]['TransitFitCatwoman']:
                                     if self.dictionary[instrument]['resampling']:
-                                        pm, m = self.init_batman(dummy_time, self.dictionary[instrument]['ldlaw'], \
+                                        pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'], \
                                                                  nresampling = self.dictionary[instrument]['nresampling'], \
                                                                  etresampling = self.dictionary[instrument]['exptimeresampling'])
                                     else:
-                                        pm, m = self.init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                        pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
                                 else:
                                     if self.dictionary[instrument]['resampling']:
-                                        pm, m = self.init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'], \
+                                        pm, m = init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'], \
                                                                  nresampling = self.dictionary[instrument]['nresampling'], \
                                                                  etresampling = self.dictionary[instrument]['exptimeresampling'])
                                     else:
-                                        pm, m = self.init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                        pm, m = init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'])
 
                                 # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
                                 if self.log_like_calc:
@@ -2257,19 +2206,19 @@ class model(object):
                     # First, take the opportunity to initialize transit lightcurves for each instrument:
                     if self.dictionary[instrument]['resampling']:
                         if not self.dictionary[instrument]['TransitFitCatwoman']:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                            self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
                                                                                                          nresampling = self.dictionary[instrument]['nresampling'],\
                                                                                                          etresampling = self.dictionary[instrument]['exptimeresampling'])
                         else:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = self.init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                            self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
                                                                                                          nresampling = self.dictionary[instrument]['nresampling'],\
                                                                                                          etresampling = self.dictionary[instrument]['exptimeresampling'])
                     else:
                         if not self.dictionary[instrument]['TransitFitCatwoman']:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = self.init_batman(self.times[instrument], \
+                            self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], \
                                                                                                              self.dictionary[instrument]['ldlaw'])
                         else:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = self.init_catwoman(self.times[instrument], \
+                            self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], \
                                                                                                                self.dictionary[instrument]['ldlaw'])
                     # Individual transit lightcurves for each planet:
                     for i in self.numbering:
@@ -2335,7 +2284,7 @@ class model(object):
                 self.model['global'] = np.zeros(len(self.t))
                 self.model['global_variances'] = np.zeros(len(self.t))
             # Initialize radvel:
-            self.model['radvel'] = self.init_radvel(nplanets=self.nplanets)
+            self.model['radvel'] = init_radvel(nplanets=self.nplanets)
             # First go around all planets to compute the full RV models:
             for i in self.numbering:
                 self.model['p'+str(i)] = np.ones(len(self.t))

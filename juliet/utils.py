@@ -1,6 +1,65 @@
 import numpy as np
 from astropy.io import fits
 import pickle
+import batman
+import radvel
+# Try to import catwoman:
+try: 
+    import catwoman
+    have_catwoman = True 
+except:
+    have_catwoman = False
+
+def init_batman(t, ld_law, nresampling = None, etresampling = None):
+     """  
+     This function initializes the batman code.
+     """
+     params = batman.TransitParams()
+     params.t0 = 0. 
+     params.per = 1. 
+     params.rp = 0.1
+     params.a = 15.
+     params.inc = 87.
+     params.ecc = 0. 
+     params.w = 90.
+     if ld_law == 'linear':
+         params.u = [0.5]
+     else:
+         params.u = [0.1,0.3]
+     params.limb_dark = ld_law
+     if nresampling is None or etresampling is None:
+         m = batman.TransitModel(params, t)
+     else:
+         m = batman.TransitModel(params, t, supersample_factor=nresampling, exp_time=etresampling)
+     return params,m
+
+def init_catwoman(t, ld_law, nresampling = None, etresampling = None):
+     """  
+     This function initializes the catwoman code.
+     """
+     params = batman.TransitParams()
+     params.t0 = 0. 
+     params.per = 1. 
+     params.rp = 0.1
+     params.rp2 = 0.1
+     params.a = 15.
+     params.inc = 87.
+     params.ecc = 0. 
+     params.w = 90.
+     params.phi = 90.
+     if ld_law == 'linear':
+         params.u = [0.5]
+     else:
+         params.u = [0.1,0.3]
+     params.limb_dark = ld_law
+     if nresampling is None or etresampling is None:
+         m = catwoman.TransitModel(params, t)
+     else:
+         m = catwoman.TransitModel(params, t, supersample_factor=nresampling, exp_time=etresampling)
+     return params,m
+
+def init_radvel(nplanets=1):
+    return radvel.model.Parameters(nplanets,basis='per tc e w k')  
 
 def mag_to_flux(m,merr):
     """ 
