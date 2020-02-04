@@ -180,6 +180,14 @@ class load(object):
     :param GPrveparamfile: (optional, string)          
         Same as ``GPlceparamfile`` but for the radial-velocities. If a global model wants to be used, set the instrument names of all regressors to ``rv``.
 
+    :param LMlceparamfile: (optional, string)          
+        If a path to a file is given, the columns of that file will be used as linear regressors for the lightcurve fit. The file format is a pure ascii file 
+        where regressors are given in different columns, and the last column holds the instrument name. The order of this file has to be consistent with 
+        ``t_lc`` and/or the ``lcfilename`` file. If a global model wants to be used, set the instrument names of all regressors to ``lc``.
+
+    :param LMrveparamfile: (optional, string)          
+        Same as ``LMlceparamfile`` but for the radial-velocities. If a global model wants to be used, set the instrument names of all regressors to ``rv``.
+
     :param lctimedef: (optional, string)               
         Time definitions for each of the lightcurve instruments. Default is to assume all instruments (in lcs and rvs) have the same time definitions. If more than one instrument is given, this string 
         should have instruments and time-definitions separated by commas, e.g., ``TESS-TDB, LCOGT-UTC``, etc.
@@ -669,7 +677,7 @@ class load(object):
                  t_rv = None, y_rv = None, yerr_rv = None, GP_regressors_lc = None, linear_regressors_lc = None, \
                  GP_regressors_rv = None, linear_regressors_rv = None, 
                  out_folder = None, lcfilename = None, rvfilename = None, GPlceparamfile = None,\
-                 GPrveparamfile = None, lctimedef = 'TDB', rvtimedef = 'UTC',\
+                 GPrveparamfile = None, LMlceparamfile = None, LMrveparamfile = None, lctimedef = 'TDB', rvtimedef = 'UTC',\
                  ld_laws = 'quadratic', priorfile = None, lc_n_supersamp = None, lc_exptime_supersamp = None, \
                  lc_instrument_supersamp = None, mag_to_flux = True, verbose = False, matern_eps = 0.01, pickle_encoding = None):
 
@@ -677,6 +685,8 @@ class load(object):
         self.rvfilename = rvfilename
         self.GPlceparamfile = GPlceparamfile
         self.GPrveparamfile = GPrveparamfile
+        self.LMlceparamfile = LMlceparamfile
+        self.LMrveparamfile = LMrveparamfile
         self.verbose = verbose
         self.pickle_encoding = pickle_encoding
 
@@ -737,6 +747,10 @@ class load(object):
                 GPlceparamfile = self.input_folder+'GP_lc_regressors.dat'
             if os.path.exists(self.input_folder+'GP_rv_regressors.dat'):
                 GPrveparamfile = self.input_folder+'GP_rv_regressors.dat'
+            if os.path.exists(self.input_folder+'LM_lc_regressors.dat'):
+                LMlceparamfile = self.input_folder+'LM_lc_regressors.dat'
+            if os.path.exists(self.input_folder+'LM_rv_regressors.dat'):
+                LMrveparamfile = self.input_folder+'LM_rv_regressors.dat'
             if os.path.exists(self.input_folder+'priors.dat'):
                 priors = self.input_folder+'priors.dat'
             else:
@@ -816,6 +830,20 @@ class load(object):
         elif GP_regressors_rv is not None:
             self.GP_rv_arguments = GP_regressors_rv
             instruments = set(list(self.GP_rv_arguments.keys()))
+
+        # Same thing for linear regressors in case they were given in a separate file:
+        if LMlceparamfile is not None:
+            LM_lc_arguments, dummy_var = readGPeparams(LMlceparamfile)
+            for lmi in list(LM_lc_arguments.keys()):
+                lm_lc_boolean[lmi] = True
+                lm_lc_arguments[lmi] = LM_lc_arguments[lmi]
+
+        # Same thing for RVs:
+        if LMrveparamfile is not None:
+            LM_rv_arguments, dummy_var = readGPeparams(LMrveparamfile)
+            for lmi in list(LM_rv_arguments.keys()):
+                lm_rv_boolean[lmi] = True
+                lm_rv_arguments[lmi] = LM_rv_arguments[lmi]
 
         # If data given through direct arrays (i.e., not data files), generate some useful internal lightcurve arrays: inames_lc, which have the different lightcurve instrument names, 
         # instrument_indexes_lc (dictionary that holds, for each instrument, the indexes that have the time/lightcurve data for that particular instrument), lm_lc_boolean (dictionary of 
