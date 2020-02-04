@@ -287,7 +287,7 @@ class load(object):
             errors[instrument] = yerr[instrument_indexes[instrument]]
         return times,data,errors
 
-    def save_regressors(self,fname, GP_arguments, global_model):
+    def save_regressors(self,fname, GP_arguments):
         """
         This function saves the GP regressors to fname.
         """
@@ -652,12 +652,23 @@ class load(object):
                 if self.GPlceparamfile is not None:
                     os.system('cp '+self.GPlceparamfile+' '+self.out_folder+'GP_lc_regressors.dat')
                 elif self.GP_lc_arguments is not None:
-                    self.save_regressors(self.out_folder+'GP_lc_regressors.dat', self.GP_lc_arguments, self.global_lc_model)
+                    self.save_regressors(self.out_folder+'GP_lc_regressors.dat', self.GP_lc_arguments)
             if (not os.path.exists(self.out_folder+'GP_rv_regressors.dat')):
                 if self.GPrveparamfile is not None:
                     os.system('cp '+self.GPrveparamfile+' '+self.out_folder+'GP_rv_regressors.dat')
                 elif self.GP_rv_arguments is not None:
-                    self.save_regressors(self.out_folder+'GP_rv_regressors.dat', self.GP_rv_arguments, self.global_rv_model)
+                    self.save_regressors(self.out_folder+'GP_rv_regressors.dat', self.GP_rv_arguments)
+            # Finally, save LM regressors if any:
+            if (not os.path.exists(self.out_folder+'LM_lc_regressors.dat')):
+                if self.LMlceparamfile is not None:
+                    os.system('cp '+self.LMlceparamfile+' '+self.out_folder+'LM_lc_regressors.dat')
+                elif self.LM_lc_arguments is not None:
+                    self.save_regressors(self.out_folder+'LM_lc_regressors.dat', self.LM_lc_arguments)
+            if (not os.path.exists(self.out_folder+'LM_rv_regressors.dat')):
+                if self.LMrveparamfile is not None:
+                    os.system('cp '+self.LMrveparamfile+' '+self.out_folder+'LM_rv_regressors.dat')
+                elif self.LM_rv_arguments is not None:
+                    self.save_regressors(self.out_folder+'LM_rv_regressors.dat', self.LM_rv_arguments)
             if (not os.path.exists(self.out_folder+'priors.dat')):
                 self.prior_fname = self.out_folder+'priors.dat'
                 self.save_priorfile(self.out_folder+'priors.dat')
