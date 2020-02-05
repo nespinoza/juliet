@@ -715,6 +715,7 @@ class load(object):
         self.lm_lc_boolean = None
         self.lm_lc_arguments = None
         self.GP_lc_arguments = None
+        self.LM_lc_arguments = None
         self.lctimedef = lctimedef
         self.ld_laws = ld_laws
         self.lc_n_supersamp = lc_n_supersamp
@@ -735,6 +736,7 @@ class load(object):
         self.lm_rv_boolean = None
         self.lm_rv_arguments = None
         self.GP_rv_arguments = None
+        self.LM_rv_arguments = None
         self.rvtimedef = rvtimedef
         self.rv_data = False
         self.global_rv_model = False
@@ -1077,7 +1079,7 @@ class fit(object):
         # For each of the variables in the prior that is not fixed, define an internal dictionary that will save the 
         # corresponding transformation function to the prior corresponding to that variable. Idea is that with this one 
         # simply does self.transform_prior[variable_name](value) and you get the transformed value to the 0,1 prior. 
-        # This avoids having to keep track of the prior distribution on each of the interations:
+        # This avoids having to keep track of the prior distribution on each of the interations:[
         self.transform_prior = {} 
         self.set_prior_transform()
 
@@ -1155,16 +1157,43 @@ class fit(object):
                 out['lnZ'] = results.logz[-1]
                 out['lnZerr'] = results.logzerr[-1]
         if runMultiNest or runDynesty:
+            # Save posterior samples as outputted by Multinest/Dynesty:
             out['posterior_samples'] = {}
             out['posterior_samples']['unnamed'] = posterior_samples
-            # Extract parameters:
+
+            # Save log-likelihood of each of the samples:
+            out['posterior_samples']['loglike'] = np.zeros(posterior_samples.shape[0])
+            for i in range(posterior_samples.shape[0]):
+                out['posterior_samples']['loglike'][i] = self.loglike(posterior_samples[i,:])
+
             pcounter = 0
             for pname in self.model_parameters:
                 if data.priors[pname]['distribution'] != 'fixed':
                     self.posteriors[pname] = np.median(posterior_samples[:,pcounter])
                     out['posterior_samples'][pname] = posterior_samples[:,pcounter]
                     pcounter += 1
-            
+
+            # Go through the posterior samples to see if dt, the TTV parameter, is present. If it is, add to the posterior dictionary 
+            # (.pkl) and file (.dat) the corresponding time-of-transit center, which is the actual observable folks doing dynamics usually want:
+            fitted_parameters = list(out['posterior_samples'].keys())
+            for posterior_parameter in fitted_parameters:
+                pvector = posterior_parameter.split('_')
+                if pvector[0] == 'dt':
+                    # Extract planet number (pnum, e.g., 'p1'), instrument (ins, e.g., 'TESS') and transit number (tnum, e.g., '-1'):
+                    pnum,ins,tnum = pvector[1:]
+                    # Extract the period; check if it was fitted. If not, assume it was fixed:
+                    if 'P_'+pnum in fitted_parameters:
+                        P = out['posterior_samples']['P_'+pnum]
+                    else:
+                        P = data.priors['P_'+pnum]['hyperparameters']
+                    # Same for t0:
+                    if 't0_'+pnum in fitted_parameters:
+                        t0 = out['posterior_samples']['t0_'+pnum]
+                    else:
+                        t0 = data.priors['t0_'+pnum]['hyperparameters']
+                    # Having extracted P and t0, generate the time-of-transit center for the current transit:
+                    out['posterior_samples']['T_'+pnum+'_'+ins+'_'+tnum] = t0 + np.double(tnum)*P + out['posterior_samples'][posterior_parameter]
+
             if self.data.t_lc is not None:
                 if True in self.data.lc_options['efficient_bp']:
                     out['pu'] = self.pu
@@ -1226,6 +1255,7 @@ class fit(object):
                     self.Ar = (self.pu - self.pl)/(2. + self.pl + self.pu)
                 if 'ta' in out.keys():
                     self.ta = out['ta']
+
         # Either fit done or extracted. If doesn't exist, create the posteriors.dat file:
         if self.out_folder is not None:
             if not os.path.exists(self.out_folder+'posteriors.dat'):

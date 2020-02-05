@@ -470,7 +470,7 @@ def writepp(fout,posteriors, priors):
 
     fout.write('# {0:18} \t \t {1:12} \t \t {2:12} \t \t {3:12}\n'.format('Parameter Name','Median','Upper 68 CI','Lower 68 CI'))
     for pname in posteriors['posterior_samples'].keys():
-      if pname != 'unnamed':
+      if pname != 'unnamed' and pname != 'loglike':
         val,valup,valdown = get_quantiles(posteriors['posterior_samples'][pname])
         usigma = valup-val
         dsigma = val - valdown
@@ -591,3 +591,10 @@ def convert_time(conv_string,t):
         # return new_t
     else:
         return t
+
+def generate_priors(params,dists,hyperps):
+    priors = {}
+    for param, dist, hyperp in zip(params, dists, hyperps):
+        priors[param] = {}
+        priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
+    return priors

@@ -50,6 +50,7 @@ sending us an email or `opening an issue <https://github.com/nespinoza/juliet/is
    tutorials/jointfits
    tutorials/linearmodels
    tutorials/gps
+   tutorials/ttvs
    tutorials/multithreading
 
 
