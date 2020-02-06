@@ -108,6 +108,7 @@ Let us, however, explore the posterior distribution of the parameters, which wil
 First of all, the `posteriors.dat` file for this fit shows the following summary statistics of the posterior distributions of the parameters:
 
 .. code-block:: bash 
+
     # Parameter Name                 Median                  Upper 68 CI             Lower 68 CI 
     r1_p1                            0.5416863162            0.1568514219            0.1434447471
     r2_p1                            0.1111807484            0.0034296154            0.0035118401
