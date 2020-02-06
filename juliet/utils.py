@@ -89,7 +89,12 @@ def get_TESS_data(filename, fluxtype = 'PDCSAP_FLUX'):
            data[fluxtype+'_ERR'][idx]/np.median(data[fluxtype][idx])
 
 import os
-from astroquery.mast import Observations
+try:
+    has_astroquery = True
+    from astroquery.mast import Observations
+except:
+    has_astroquery = False
+
 def get_all_TESS_data(object_name, radius = ".02 deg", get_PDC = True, get_all = False):
     """ 
     Given a planet name, this function returns a dictionary of times, fluxes and 
@@ -99,6 +104,8 @@ def get_all_TESS_data(object_name, radius = ".02 deg", get_PDC = True, get_all =
     returns a dictionary that in addition to the times, fluxes and errors, returns other 
     metadata.
     """
+    if not has_astroquery:
+        print("Error on using juliet function `get_all_TESS_data`: astroquery.mast not found.")
     obs_table = Observations.query_object(object_name,radius=radius)
     out_dict = {}
     times = {}
