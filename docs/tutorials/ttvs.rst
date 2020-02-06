@@ -38,6 +38,7 @@ on :math:`t_0` and :math:`P` (i.e., `t0_p1` and `P_p1`), and add the priors for 
 of 0.1 days (i.e., about 2.4 hours) for the planet. We define these along the other priors previously defined for HATS-46 b as follows:
 
 .. code-block:: python
+
     import juliet
 
     # First, load original dataset we used in the previous tutorial:
@@ -69,6 +70,7 @@ Note how we have defined transit-times only for :math:`n=0,1,3,4`. We skipped th
 happens on every TESS sector to download the data back at Earth). We now put everything together into the `priors` dictionary, and re-fit the data:
 
 .. code-block:: python
+
     # Build the prior dictionary with the above information:
     priors = juliet.utils.generate_priors(params,dists,hyperps)
 
@@ -81,6 +83,7 @@ happens on every TESS sector to download the data back at Earth). We now put eve
 The resulting fit looks as good as the original one shown in the :ref:`transitfit` section:
 
 .. code-block:: python
+
    import matplotlib.pyplot as plt
 
    # Extract median model and the ones that cover the 68% credibility band around it:
@@ -130,6 +133,7 @@ minus the predicted (assuming the transits were exactly periodic, i.e., :math:`t
 (amplitude) of TTVs our data constrain. We can plot this so-called "O-C" plot as follows:
 
 .. code-block:: python
+
     # To extract O-C data from the posterior distributions, first define some variables:
     transit_numbers = np.array([0,1,3,4])
     OC = np.zeros(len(transit_numbers))
