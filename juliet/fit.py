@@ -502,6 +502,7 @@ class load(object):
                 for pi in numbering_planets:
                     dictionary[inames[i]]['TTVs'][pi] = {}
                     dictionary[inames[i]]['TTVs'][pi]['status'] = False
+                    dictionary[inames[i]]['TTVs'][pi]['parametrization'] = 'dt'
                     dictionary[inames[i]]['TTVs'][pi]['transit_number'] = []
                 for pri in self.priors.keys():
                     if pri[0:2] == 'q1':
@@ -514,12 +515,16 @@ class load(object):
                         dictionary[inames[i]]['TransitFitCatwoman'] = True
                         if self.verbose:
                             print('\t Transit (catwoman) fit detected for instrument ',inames[i])
-                    if pri[0:2] == 'dt':
+                    if pri[0:2] == 'dt' or pri[0:2] == 'T_':
+                        if pri[0:2] == 'T_':
+                            dictionary[inames[i]]['TTVs'][pi]['parametrization'] = 'T'
                         planet_number,instrument,ntransit = pri.split('_')[1:]
                         if inames[i] == instrument:
                             dictionary[inames[i]]['TTVs'][int(planet_number[1:])]['status'] = True
                             dictionary[inames[i]]['TTVs'][int(planet_number[1:])]['transit_number'].append(int(ntransit))
-
+        for pi in numbering_planets:
+            if dictionary[inames[i]]['TTVs'][pi]['status']:
+                dictionary[inames[i]]['TTVs'][pi]['totalTTVtransits'] = len(dictionary[inames[i]]['TTVs'][pi]['transit_number'])
         # Now, implement noise models for each of the instrument. First check if model should be global or instrument-by-instrument, 
         # based on the input instruments given for the GP regressors.
         if global_model:
@@ -1173,9 +1178,12 @@ class fit(object):
                     out['posterior_samples'][pname] = posterior_samples[:,pcounter]
                     pcounter += 1
 
-            # Go through the posterior samples to see if dt, the TTV parameter, is present. If it is, add to the posterior dictionary 
-            # (.pkl) and file (.dat) the corresponding time-of-transit center, which is the actual observable folks doing dynamics usually want:
+            # Go through the posterior samples to see if dt or T, the TTV parameters, are present. If it is, add to the posterior dictionary 
+            # (.pkl) and file (.dat) the corresponding time-of-transit center, if the dt parametrization is being used, which is the actual 
+            # observable folks doing dynamics usually want. If the T parametrization is being used, write down the period and t0 implied by 
+            # those T's:
             fitted_parameters = list(out['posterior_samples'].keys())
+            firstTime, Tparametrization = True, False
             for posterior_parameter in fitted_parameters:
                 pvector = posterior_parameter.split('_')
                 if pvector[0] == 'dt':
@@ -1193,7 +1201,31 @@ class fit(object):
                         t0 = data.priors['t0_'+pnum]['hyperparameters']
                     # Having extracted P and t0, generate the time-of-transit center for the current transit:
                     out['posterior_samples']['T_'+pnum+'_'+ins+'_'+tnum] = t0 + np.double(tnum)*P + out['posterior_samples'][posterior_parameter]
-
+                if pvector[0] == 'T':
+                    if firstTime:
+                        Tparametrization = True
+                        Tdict = {}
+                        firstTime = False
+                    # Extract planet number (pnum, e.g., 'p1'), instrument (ins, e.g., 'TESS') and transit number (tnum, e.g., '-1'):
+                    pnum,ins,tnum = pvector[1:]
+                    if pnum not in list(Tdict.keys()):
+                        Tdict[pnum] = {}
+                    Tdict[pnum][int(tnum)] = out['posterior_samples'][posterior_parameter]
+            if Tparametrization:
+                for pnum in list(Tdict.keys()):
+                    all_ns = np.array(list(Tdict[pnum].keys()))
+                    Nsamples = len(Tdict[pnum][all_ns[0]])
+                    out['posterior_samples']['P_'+pnum], out['posterior_samples']['t0_'+pnum] = np.zeros(Nsamples),np.zeros(Nsamples)
+                    N = len(all_ns)
+                    for i in range(Nsamples):
+                        all_Ts = np.zeros(N)
+                        for j in range(len(all_ns)):
+                            all_Ts[j] = Tdict[pnum][all_ns[j]][i]
+                        XY,Y,X,X2 = np.sum(all_Ts*all_ns)/N,np.sum(all_Ts)/N,np.sum(all_ns)/N, np.sum(all_ns**2)/N
+                        # Get slope:
+                        out['posterior_samples']['P_'+pnum][i] = (XY - X*Y)/(X2 - (X**2))
+                        # Intercept:
+                        out['posterior_samples']['t0_'+pnum][i] = Y - out['posterior_samples']['P_'+pnum][i]*X
             if self.data.t_lc is not None:
                 if True in self.data.lc_options['efficient_bp']:
                     out['pu'] = self.pu
@@ -1980,20 +2012,6 @@ class model(object):
 
     def generate_lc_model(self, parameter_values, evaluate_global_errors = True):
         self.modelOK = True
-        # Before anything continues, check the periods are chronologically ordered (this is to avoid multiple modes due to 
-        # periods "jumping" between planet numbering):
-        first_time = True
-        for i in self.numbering:
-            if first_time:
-                cP = parameter_values['P_p'+str(i)]
-                first_time = False
-            else:
-                if cP < parameter_values['P_p'+str(i)]:
-                    cP = parameter_values['P_p'+str(i)]
-                else:
-                    self.modelOK = False
-                    return False
-
         # Start loop to populate the self.model[instrument]['deterministic_model'] array, which will host the complete lightcurve for a given 
         # instrument (including flux from all the planets). Do the for loop per instrument for the parameter extraction, so in the 
         # future we can do, e.g., wavelength-dependant rp/rs.
@@ -2011,15 +2029,66 @@ class model(object):
 
                 # Now loop through all the planets, getting the model for each:
                 for i in self.numbering:
+                    cP = {}
+                    # Check if we will be fitting for TTVs. If not, all goes as usual. If we are, check which parametrization (dt or T):
+                    if not self.dictionary[instrument]['TTVs'][i]['status']:
+                        t0, P = parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)]
+                        cP[i] = P
+                    else:
+                        # If TTVs is on for planet i, compute the expected time of transit, and shift it. For this, use information encoded in the prior
+                        # name; if, e.g., dt_p1_TESS1_-2, then n = -2 and the time of transit (with TTV) = t0 + n*P + dt_p1_TESS1_-2 in the case of the dt 
+                        # parametrization. In the case of the T-parametrization, the time of transit with TTV would be T_p1_TESS1_-2, and the period and t0 
+                        # will be derived from there from the least-squares slope and intercept, respectively, to the T's. Compute transit
+                        # model assuming that time-of-transit; repeat for all the transits. Generally users will not do TTV analyses, so set this latter
+                        # case to be the most common one by default in the if-statement:
+                        dummy_time = np.copy(self.times[instrument])
+                        if self.dictionary[instrument]['TTVs'][i]['parametrization'] == 'dt':
+                            t0, P = parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)]
+                            cP[i] = P
+                            for transit_number in self.dictionary[instrument]['TTVs'][int(i)]['transit_number']:
+                                transit_time = t0 + transit_number*P + parameter_values['dt_p'+str(i)+'_'+instrument+'_'+str(transit_number)]
+                                # This implicitly sets maximum transit duration to P/2 days:
+                                idx = np.where(np.abs(self.times[instrument]-transit_time)<P/4.)[0]
+                                dummy_time[idx] = self.times[instrument][idx] - parameter_values['dt_p'+str(i)+'_'+instrument+'_'+str(transit_number)]
+                        else:
+                            all_Ts, all_ns = np.array([]), np.array([])
+                            # Get t0 and P from transit times:
+                            for transit_number in self.dictionary[instrument]['TTVs'][int(i)]['transit_number']:
+                                all_Ts = np.append(all_Ts, parameter_values['T_p'+str(i)+'_'+instrument+'_'+str(transit_number)])
+                                all_ns = np.append(all_ns, transit_number)
+                            N = self.dictionary[instrument]['TTVs'][int(i)]['totalTTVtransits']
+                            XY,Y,X,X2 = np.sum(all_Ts*all_ns)/N,np.sum(all_Ts)/N,np.sum(all_ns)/N, np.sum(all_ns**2)/N
+                            # Get slope:
+                            P = (XY - X*Y)/(X2 - (X**2))
+                            # Intercept:
+                            t0 = Y - P*X
+                            for transit_number in self.dictionary[instrument]['TTVs'][int(i)]['transit_number']:
+                                dt = parameter_values['T_p'+str(i)+'_'+instrument+'_'+str(transit_number)] - (t0 + transit_number*P)
+                                # This implicitly sets maximum transit duration to P/2 days:
+                                idx = np.where(np.abs(self.times[instrument]-parameter_values['T_p'+str(i)+'_'+instrument+'_'+str(transit_number)])<P/4.)[0]
+                                dummy_time[idx] = self.times[instrument][idx] - dt
+                            cP[i] = P
+                    # Before anything continues, check the periods are chronologically ordered (this is to avoid multiple modes due to 
+                    # periods "jumping" between planet numbering):
+                    first_time = True 
+                    for i in self.numbering:
+                        if first_time:
+                            ccP = cP[i]#parameter_values['P_p'+str(i)]
+                            first_time = False
+                        else:
+                            if ccP < cP[i]:#parameter_values['P_p'+str(i)]:
+                                ccP = cP[i]#parameter_values['P_p'+str(i)]
+                            else:
+                                self.modelOK = False
+                                return False
+
                     if self.dictionary['efficient_bp'][i]:
                         if not self.dictionary['fitrho']:
-                            a,r1,r2,t0,P = parameter_values['a_p'+str(i)], parameter_values['r1_p'+str(i)],\
-                                           parameter_values['r2_p'+str(i)], parameter_values['t0_p'+str(i)],\
-                                           parameter_values['P_p'+str(i)]
+                            a,r1,r2   = parameter_values['a_p'+str(i)], parameter_values['r1_p'+str(i)],\
+                                        parameter_values['r2_p'+str(i)]
                         else:
-                            rho,r1,r2,t0,P = parameter_values['rho'], parameter_values['r1_p'+str(i)],\
-                                             parameter_values['r2_p'+str(i)], parameter_values['t0_p'+str(i)],\
-                                             parameter_values['P_p'+str(i)] 
+                            rho,r1,r2 = parameter_values['rho'], parameter_values['r1_p'+str(i)],\
+                                        parameter_values['r2_p'+str(i)]
                             a = ((rho*G*((P*24.*3600.)**2))/(3.*np.pi))**(1./3.)
                         if r1 > self.Ar:
                             b,p = (1+self.pl)*(1. + (r1-1.)/(1.-self.Ar)),\
@@ -2030,24 +2099,20 @@ class model(object):
                     else:
                        if not self.dictionary['fitrho']:
                            if not self.dictionary[instrument]['TransitFitCatwoman']:
-                               a,b,p,t0,P = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
-                                            parameter_values['p_p'+str(i)], parameter_values['t0_p'+str(i)],\
-                                            parameter_values['P_p'+str(i)]
+                               a,b,p = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
+                                       parameter_values['p_p'+str(i)]
                            else:
-                               a,b,p1,p2,t0,P,phi = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
+                               a,b,p1,p2,phi = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
                                             parameter_values['p1_p'+str(i)], parameter_values['p2_p'+str(i)], \
-                                            parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)], \
                                             parameter_values['phi_p'+str(i)]
                                p = np.min([p1,p2])
                        else:
                            if not self.dictionary[instrument]['TransitFitCatwoman']:
-                                rho,b,p,t0,P = parameter_values['rho'], parameter_values['b_p'+str(i)],\
-                                               parameter_values['p_p'+str(i)], parameter_values['t0_p'+str(i)],\
-                                               parameter_values['P_p'+str(i)]
+                                rho,b,p = parameter_values['rho'], parameter_values['b_p'+str(i)],\
+                                          parameter_values['p_p'+str(i)]
                            else:
-                                rho,b,p1,p2,t0,P,phi = parameter_values['rho'], parameter_values['b_p'+str(i)],\
+                                rho,b,p1,p2,phi = parameter_values['rho'], parameter_values['b_p'+str(i)],\
                                                parameter_values['p1_p'+str(i)], parameter_values['p2_p'+str(i)],\
-                                               parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)],\
                                                parameter_values['phi_p'+str(i)]
                                 p = np.min([p1,p2])
                            a = ((rho*G*((P*24.*3600.)**2))/(3.*np.pi))**(1./3.)
@@ -2098,13 +2163,16 @@ class model(object):
                                     self.model[instrument]['p'+str(i)] = self.model[instrument]['m'].light_curve(self.model[instrument]['params'])
                                     self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
                             else:
-                                dummy_time = np.copy(self.times[instrument])
+                                """
                                 # Shift time-of-transit center to the one defined by dt, compute transit model, add it:
                                 for transit_number in self.dictionary[instrument]['TTVs'][int(i)]['transit_number']:
                                     transit_time = t0 + transit_number*P + parameter_values['dt_p'+str(i)+'_'+instrument+'_'+str(transit_number)]
+                                    all_t0s.append(transit_time)
+                                    all_ns.append(transit_number)
                                     # This implicitly sets maximum transit duration to P/2 days:
                                     idx = np.where(np.abs(self.times[instrument]-transit_time)<P/4.)[0]
                                     dummy_time[idx] = self.times[instrument][idx] - parameter_values['dt_p'+str(i)+'_'+instrument+'_'+str(transit_number)]
+                                """
                                 if not self.dictionary[instrument]['TransitFitCatwoman']:
                                     if self.dictionary[instrument]['resampling']:
                                         pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'], \
@@ -2119,7 +2187,6 @@ class model(object):
                                                                  etresampling = self.dictionary[instrument]['exptimeresampling'])
                                     else:
                                         pm, m = init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'])
-
                                 # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
                                 if self.log_like_calc:
                                     self.model[instrument]['M'] += m.light_curve(self.model[instrument]['params']) - 1. 
