@@ -168,3 +168,64 @@ minus the predicted (assuming the transits were exactly periodic, i.e., :math:`t
 
 Beautiful! From this plot we can see that any possible TTV amplitudes are constrained to be below ~a couple of minutes if they exist within the observed time-frame of the 
 HATS-46 b observations in this sector.
+
+Fitting for transit timing perturbations
+----------------------------------------
+
+Suppose a colleague of yours (or a referee) finds that transit number 3 above is "interesting", as it is more than one sigma away from the dashed line (i.e., 1-sigma away from 
+showing "no deviation from a perfectly periodic transit"). You answer back that, assuming the errors are more or less gaussian, having 1 out of 4 datapoints not matching at 1-sigma 
+is expected. However, they are still intrigued: is there evidence in the data for that transit being special in terms of its transit timing? Could it be that a hint from TTVs 
+showed up on that particular transit? Answering questions like this one is when fitting for the TTV perturbations defined above, the :math:`\delta t_n`, becomes handy. 
+
+Let's assume that all the other transits are periodic except for transit number 3. To fit for an extra perturbation in that transit, within ``juliet`` we use the ``dt_p1_instrument_n`` 
+parameters --- here, ``instrument`` defines the instrument where that transit occurs (e.g.,``TESS``), ``n`` the transit epoch and, in this case, we are fitting the transit-time perturbation 
+to planet ``p1``. Again, ``juliet`` is able to handle different perturbations for different planets. In our case, then, we will be adding a parameter ``dt_p1_TESS_3``, and will in addition 
+be providing priors for the time-of-transit center (``t0_p1``) and period (``P_p1``) in the system, which will be in turn constrained by the other transits. To do this with ``juliet`` we 
+would to the following. First, we set the usual priors (the same as the original fit done in the :ref:`transitfit` section):
+
+
+.. code-block:: python
+
+    # Name of the parameters to be fit:
+    params = ['P_p1','t0_p1','r1_p1','r2_p1','q1_TESS','q2_TESS','ecc_p1','omega_p1',\
+                  'rho', 'mdilution_TESS', 'mflux_TESS', 'sigma_w_TESS']
+
+    # Distributions:
+    dists = ['normal','normal','uniform','uniform','uniform','uniform','fixed','fixed',\
+                     'loguniform', 'fixed', 'normal', 'loguniform']
+
+    # Hyperparameters
+    hyperps = [[4.7,0.1], [1358.4,0.1], [0.,1], [0.,1.], [0., 1.], [0., 1.], 0.0, 90.,\
+                       [100., 10000.], 1.0, [0.,0.1], [0.1, 1000.]]
+
+    # Populate the priors dictionary:
+    for param, dist, hyperp in zip(params, dists, hyperps):
+        priors[param] = {}
+        priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
+
+However, we now add the perturbation to the third transit. We wrap up the ``priors`` dictionary and perform the fit:
+
+.. code-block:: python
+
+    params = params + ['dt_p1_TESS_3']
+    dists = dists + ['normal']
+    hyperps = hyperps + [[0.0,0.1]]
+
+    # Populate the priors dictionary:
+    priors = juliet.utils.generate_priors(params,dists,hyperps)
+
+    # Load and fit dataset with juliet:
+    dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, \
+                       yerr_lc = fluxes_error, out_folder = 'hats46-ttvs-perturbations', verbose = True)
+
+    results = dataset.fit(n_live_points)
+
+The resulting posterior on the timing perturbation looks as follows:
+
+.. figure:: delta_3_pdf.png
+   :alt: Posterior distribution on the timing perturbation of the third transit.
+
+Is this convincing evidence for something special happening in transit 3? Luckily, ``juliet`` reports the bayesian evidence of this fit, which is :math:`\ln Z_{per} = 64199`. The corresponding 
+evidence for the fit done in the :ref:`transitfit` section (with no perturbation) is :math:`\ln Z_{per} = 64202.1` --- so a :math:`\Delta \ln Z = 3` in favour of **no** perturbation. The model 
+without this timing perturbation is *about 20 times more likely given the data at hand* than the one with the perturbation. A pretty good bet against something special happening on transit 
+number 3 for me (and probably you, your colleague and the referee!).
