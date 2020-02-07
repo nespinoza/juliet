@@ -3,13 +3,12 @@
 Incorporating transit-timing variations
 =======================================
 
-The transit fits that have been presented so far in the tutorials assume that the transit times, :math:`T$` are exactly periodic, i.e., 
+The transit fits that have been presented so far in the tutorials assume that the transit times, :math:`T` are exactly periodic, i.e., 
 they can be predicted by the simple relationship
 
 :math:`T(n) = t_0 + n P`,
 
-where :math:`t_0` is the time-of-transit center, :math:`P` is the period of the orbit and :math:`n` is the so-called transit epoch, 
-counted from the time-of-transit center, :math:`t_0` (i.e., :math:`T(0) = t_0`). In some particular cases, however, this simple relationship might not be satisfied. 
+where :math:`t_0` is the time-of-transit center at epoch zero (:math:`n=0`), :math:`P` is the period of the orbit and :math:`n` is the transit epoch. In some particular cases, however, this simple relationship might not be satisfied. 
 Because of gravitational/dynamical interactions with additional bodies in the system, the exoplanet under study might undergo what we usually refer to 
 as "_transit timing variations_" (TTVs), where the transit times are not exactly periodic and vary due to these (in principle unknown) interactions. If we define 
 those variations as extra perturbations :math:`\delta t_n` to the above defined timing equation, we can write the time-of-transit centers as:
