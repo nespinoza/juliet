@@ -10,19 +10,19 @@ they can be predicted by the simple relationship
 
 where :math:`t_0` is the time-of-transit center at epoch zero (:math:`n=0`), :math:`P` is the period of the orbit and :math:`n` is the transit epoch. In some particular cases, however, this simple relationship might not be satisfied. 
 Because of gravitational/dynamical interactions with additional bodies in the system, the exoplanet under study might undergo what we usually refer to 
-as _transit timing variations_ (TTVs), where the transit times are not exactly periodic and vary due to these (in principle unknown) interactions. If we define 
+as *transit timing variations* (TTVs), where the transit times are not exactly periodic and vary due to these (in principle unknown) interactions. If we define 
 those variations as extra perturbations :math:`\delta t_n` to the above defined timing equation, we can write the time-of-transit centers as:
 
 :math:`T(n) = t_0 + n P + \delta t_n`.
 
 Within `juliet`, there are two ways to fit for these perturbations. One way is to fit for each of the :math:`T(n)` directly, while there is also an option 
-to fit for _some_ perturbations :math:`\delta t_n`. In this tutorial, we explore why those two possible parametrizations are allowed, and what they imply 
+to fit for *some* perturbations :math:`\delta t_n`. In this tutorial, we explore why those two possible parametrizations are allowed, and what they imply 
 for the fits we perform. We will use the HATS-46 b TESS dataset, which we already analyzed in the :ref:`transitfit` section, as a case-study in this tutorial.
 
 Fitting for the transit times directly
 --------------------------------------
 
-If we choose to fit for the transit times :math:`T(n)` directly, `juliet` will expect priors for these but it is expected that you will _not_ supply priors for 
+If we choose to fit for the transit times :math:`T(n)` directly, `juliet` will expect priors for these but it is expected that you will *not* supply priors for 
 :math:`t_0` and :math:`P` (e.g., `t0_p1` and `P_p1`). The reason for this is that these latter parameters will be computed directly from each sample of the 
 :math:`T(n)` as the intercept (:math:`t_0`) and slope (:math:`P`) that best-fits (in a least-squares sense) the sampled :math:`T(n)`. This is, of course, a 
 matter of definition --- we are assuming that what we refer to when we speak of :math:`P` and :math:`t_0` in a TTV fit are the slope and intercept, respectively, 
@@ -116,16 +116,16 @@ First of all, the `posteriors.dat` file for this fit shows the following summary
     inc_p1                           88.9071308890           0.7710955693            1.0698162411
     q1_TESS                          0.2692194780            0.3474123320            0.1815095451
     q2_TESS                          0.3763637953            0.3601869056            0.2406970909
-    rho                              3681.1771806645                 728.0596617015                  1160.9706095575
+    rho                              3681.1771806645         728.0596617015          1160.9706095575
     mflux_TESS                       -0.0000894483           0.0000568777            0.0000560349
     sigma_w_TESS                     4.4343278327            57.2232056206           4.1133207064
-    T_p1_TESS_0                      1358.3561072664                 0.0018110928            0.0021025622
-    T_p1_TESS_1                      1363.1001349693                 0.0020743972            0.0019741023
-    T_p1_TESS_3                      1372.5833491831                 0.0017507552            0.0019396261
-    T_p1_TESS_4                      1377.3292128814                 0.0016890000            0.0014434932
+    T_p1_TESS_0                      1358.3561072664         0.0018110928            0.0021025622
+    T_p1_TESS_1                      1363.1001349693         0.0020743972            0.0019741023
+    T_p1_TESS_3                      1372.5833491831         0.0017507552            0.0019396261
+    T_p1_TESS_4                      1377.3292128814         0.0016890000            0.0014434932
     P_p1                             4.7429737505            0.0005494323            0.0005702781
     a_p1                             16.3556306970           1.0182669217            1.9356637282
-    t0_p1                            1358.3562648736                 0.0016147678            0.0016588470
+    t0_p1                            1358.3562648736         0.0016147678            0.0016588470
 
 First of all, note how `juliet` spits out not only the posterior distributions for the `T` parameters (i.e., the :math:`T(n)` in our notation above), but also for the 
 corresponding slope (`P_p1`) and intercept (`t0_p1`) that best fits the transit times. These are actually pretty useful to plot the observed (i.e., the :math:`T(n)`) 
