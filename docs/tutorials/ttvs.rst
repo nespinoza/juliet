@@ -15,25 +15,25 @@ those variations as extra perturbations :math:`\delta t_n` to the above defined 
 
 :math:`T(n) = t_0 + n P + \delta t_n`.
 
-Within `juliet`, there are two ways to fit for these perturbations. One way is to fit for each of the :math:`T(n)` directly, while there is also an option 
+Within ``juliet``, there are two ways to fit for these perturbations. One way is to fit for each of the :math:`T(n)` directly, while there is also an option 
 to fit for *some* perturbations :math:`\delta t_n`. In this tutorial, we explore why those two possible parametrizations are allowed, and what they imply 
 for the fits we perform. We will use the HATS-46 b TESS dataset, which we already analyzed in the :ref:`transitfit` section, as a case-study in this tutorial.
 
 Fitting for the transit times directly
 --------------------------------------
 
-If we choose to fit for the transit times :math:`T(n)` directly, `juliet` will expect priors for these but it is expected that you will *not* supply priors for 
-:math:`t_0` and :math:`P` (e.g., `t0_p1` and `P_p1`). The reason for this is that these latter parameters will be computed directly from each sample of the 
+If we choose to fit for the transit times :math:`T(n)` directly, ``juliet`` will expect priors for these but it is expected that you will *not* supply priors for 
+:math:`t_0` and :math:`P` (e.g., ``t0_p1`` and ``P_p1``). The reason for this is that these latter parameters will be computed directly from each sample of the 
 :math:`T(n)` as the intercept (:math:`t_0`) and slope (:math:`P`) that best-fits (in a least-squares sense) the sampled :math:`T(n)`. This is, of course, a 
 matter of definition --- we are assuming that what we refer to when we speak of :math:`P` and :math:`t_0` in a TTV fit are the slope and intercept, respectively, 
 of a last-squares fit to the transit times.
 
-Within `juliet`, the transit times are defined through the parameter `T_p1_instrument_n` --- here, `instrument` defines the instrument where that transit occurs (e.g., 
-`TESS`), `n` the transit epoch and, in this case, we are fitting the transit-times to planet `p1`; `juliet` is able to handle different perturbations for different planets 
+Within `juliet`, the transit times are defined through the parameter ``T_p1_instrument_n`` --- here, ``instrument`` defines the instrument where that transit occurs (e.g., 
+``TESS``), ``n`` the transit epoch and, in this case, we are fitting the transit-times to planet ``p1``; ``juliet`` is able to handle different perturbations for different planets 
 in the system. 
 
 Let's try finding how big the perturbations are on the HATS-46 b TESS dataset. For this, we use the same priors used in section :ref:`transitfit`, but we remove the priors 
-on :math:`t_0` and :math:`P` (i.e., `t0_p1` and `P_p1`), and add the priors for each time of transit. We will assume normal, zero-mean gaussian priors with a standard deviation 
+on :math:`t_0` and :math:`P` (i.e., ``t0_p1`` and ``P_p1``), and add the priors for each time of transit. We will assume normal, zero-mean gaussian priors with a standard deviation 
 of 0.1 days (i.e., about 2.4 hours) for the planet. We define these along the other priors previously defined for HATS-46 b as follows:
 
 .. code-block:: python
@@ -66,7 +66,7 @@ of 0.1 days (i.e., about 2.4 hours) for the planet. We define these along the ot
     hyperps = hyperps + [[1358.4,0.1],[1363.1,0.1], [1372.5,0.1], [1377.2,0.1]]
 
 Note how we have defined transit-times only for :math:`n=0,1,3,4`. We skipped the transit with :math:`n=2` as this one falls just where there is a gap in the data (which 
-happens on every TESS sector to download the data back at Earth). We now put everything together into the `priors` dictionary, and re-fit the data:
+happens on every TESS sector to download the data back at Earth). We now put everything together into the ``priors`` dictionary, and re-fit the data:
 
 .. code-block:: python
 
@@ -104,7 +104,7 @@ The resulting fit looks as good as the original one shown in the :ref:`transitfi
    :alt: Best-fit TTV model to the HATS-46 b dataset. 
 
 Let us, however, explore the posterior distribution of the parameters, which will enlighten us in understanding the constraints this puts on the HATS-46 b system. 
-First of all, the `posteriors.dat` file for this fit shows the following summary statistics of the posterior distributions of the parameters:
+First of all, the ``posteriors.dat`` file for this fit shows the following summary statistics of the posterior distributions of the parameters:
 
 .. code-block:: bash 
 
@@ -127,8 +127,8 @@ First of all, the `posteriors.dat` file for this fit shows the following summary
     a_p1                             16.3556306970           1.0182669217            1.9356637282
     t0_p1                            1358.3562648736         0.0016147678            0.0016588470
 
-First of all, note how `juliet` spits out not only the posterior distributions for the `T` parameters (i.e., the :math:`T(n)` in our notation above), but also for the 
-corresponding slope (`P_p1`) and intercept (`t0_p1`) that best fits the transit times. These are actually pretty useful to plot the observed (i.e., the :math:`T(n)`) 
+First of all, note how ``juliet`` spits out not only the posterior distributions for the ``T`` parameters (i.e., the :math:`T(n)` in our notation above), but also for the 
+corresponding slope (``P_p1``) and intercept (``t0_p1``) that best fits the transit times. These are actually pretty useful to plot the observed (i.e., the :math:`T(n)`) 
 minus the predicted (assuming the transits were exactly periodic, i.e., :math:`t0 + nP`) variations from our data, which is actually what allows us to see what level 
 (amplitude) of TTVs our data constrain. We can plot this so-called "O-C" plot as follows:
 
