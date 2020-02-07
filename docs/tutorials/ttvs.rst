@@ -181,7 +181,7 @@ Let's assume that all the other transits are periodic except for transit number 
 parameters --- here, ``instrument`` defines the instrument where that transit occurs (e.g., ``TESS``), ``n`` the transit epoch and, in this case, we are fitting the transit-time perturbation 
 to planet ``p1``. Again, ``juliet`` is able to handle different perturbations for different planets. In our case, then, we will be adding a parameter ``dt_p1_TESS_3``, and will in addition 
 be providing priors for the time-of-transit center (``t0_p1``) and period (``P_p1``) in the system, which will be in turn constrained by the other transits. To do this with ``juliet`` we 
-would to the following. First, we set the usual priors (the same as the original fit done in the :ref:`transitfit` section):
+would do the following. First, we set the usual priors (the same as the original fit done in the :ref:`transitfit` section):
 
 
 .. code-block:: python
@@ -226,6 +226,6 @@ The resulting posterior on the timing perturbation looks as follows:
    :alt: Posterior distribution on the timing perturbation of the third transit.
 
 Is this convincing evidence for something special happening in transit 3? Luckily, ``juliet`` reports the bayesian evidence of this fit, which is :math:`\ln Z_{per} = 64199`. The corresponding 
-evidence for the fit done in the :ref:`transitfit` section (with no perturbation) is :math:`\ln Z_{per} = 64202.1` --- so a :math:`\Delta \ln Z = 3` in favour of **no** perturbation. The model 
+evidence for the fit done in the :ref:`transitfit` section (with no perturbation) is :math:`\ln Z_{no-per} = 64202.1` --- so a :math:`\Delta \ln Z = 3` in favour of **no** perturbation. The model 
 without this timing perturbation is *about 20 times more likely given the data at hand* than the one with the perturbation. A pretty good bet against something special happening on transit 
 number 3 for me (and probably you, your colleague and the referee!).
