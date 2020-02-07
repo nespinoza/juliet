@@ -178,7 +178,7 @@ is expected. However, they are still intrigued: is there evidence in the data fo
 showed up on that particular transit? Answering questions like this one is when fitting for the TTV perturbations defined above, the :math:`\delta t_n`, becomes handy. 
 
 Let's assume that all the other transits are periodic except for transit number 3. To fit for an extra perturbation in that transit, within ``juliet`` we use the ``dt_p1_instrument_n`` 
-parameters --- here, ``instrument`` defines the instrument where that transit occurs (e.g.,``TESS``), ``n`` the transit epoch and, in this case, we are fitting the transit-time perturbation 
+parameters --- here, ``instrument`` defines the instrument where that transit occurs (e.g., ``TESS``), ``n`` the transit epoch and, in this case, we are fitting the transit-time perturbation 
 to planet ``p1``. Again, ``juliet`` is able to handle different perturbations for different planets. In our case, then, we will be adding a parameter ``dt_p1_TESS_3``, and will in addition 
 be providing priors for the time-of-transit center (``t0_p1``) and period (``P_p1``) in the system, which will be in turn constrained by the other transits. To do this with ``juliet`` we 
 would to the following. First, we set the usual priors (the same as the original fit done in the :ref:`transitfit` section):
