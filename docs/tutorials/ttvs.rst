@@ -229,3 +229,10 @@ Is this convincing evidence for something special happening in transit 3? Luckil
 evidence for the fit done in the :ref:`transitfit` section (with no perturbation) is :math:`\ln Z_{no-per} = 64202.1` --- so a :math:`\Delta \ln Z = 3` in favour of **no** perturbation. The model 
 without this timing perturbation is *about 20 times more likely given the data at hand* than the one with the perturbation. A pretty good bet against something special happening on transit 
 number 3 for me (and probably you, your colleague and the referee!).
+
+.. note::
+
+        The implementation discussed here was enormously beneffited by the discussions presented in the literature, both on the `EXOFASTv2 paper <https://arxiv.org/abs/1907.09480>`_ (Section 18)
+        and the discussion on the ``exoplanet`` package `about their TTV implementation <https://exoplanet-docs.readthedocs.io/en/stable/tutorials/ttv/>`_. We refer the users to these sources to 
+        learn more about this particular implementation of TTVs, and note that this is an approximation to the real dynamical problem that TTVs impose on 
+        transiting exoplanetary systems, as we are not considering changes to the other transit parameters. Photodynamical models are not yet supported within ``juliet``.
