@@ -1495,7 +1495,7 @@ class model(object):
                 self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
 
         # Save the original inames in the case of non-global models, and set self.inames to the input model. This is because if the model 
-        # is not global, we don't care about generating the models for the other instruments (and in the lightcurve and RV evaluation part, 
+        # is not global, in general we don't care about generating the models for the other instruments (and in the lightcurve and RV evaluation part, 
         # self.inames is used to iterate through the instruments one wants to evaluate the model):
 
         if not self.global_model:
@@ -1684,9 +1684,9 @@ class model(object):
 
                     # Evaluate rv/lightcurve at the current parameter values, calculate residuals, save them:
                     if self.modeltype == 'lc':
-                        self.generate_lc_model(current_parameter_values)
+                        self.generate_lc_model(current_parameter_values, evaluate_lc = True)
                     else:
-                        self.generate_rv_model(current_parameter_values, evaluate_global_errors = True)
+                        self.generate_rv_model(current_parameter_values, evaluate_global_errors = True, evaluate_lc = True)
 
                     # Save residuals (and global errors, in the case of global models):
                     if self.global_model:
@@ -1718,7 +1718,7 @@ class model(object):
                                 self.model[instrument]['ones'] = np.ones(nt)
                                 self.ndatapoints_per_instrument[instrument] = nt 
                             # Generate lightcurve model:
-                            self.generate_lc_model(current_parameter_values, evaluate_global_errors = False)    
+                            self.generate_lc_model(current_parameter_values, evaluate_global_errors = False, evaluate_lc = True)    
                         else:
                             # As with the lc case, RV model set-up depends on whether the model is global or not: 
                             self.t = t
@@ -1895,7 +1895,7 @@ class model(object):
                             components['mu'] = np.median(components['mu'], axis=0)
             else:
                 if self.modeltype == 'lc':
-                    self.generate_lc_model(parameter_values)
+                    self.generate_lc_model(parameter_values,evaluate_lc = True)
                 else:
                     self.generate_rv_model(parameter_values)
 
@@ -2011,7 +2011,7 @@ class model(object):
                 else:
                     return output_model
 
-    def generate_lc_model(self, parameter_values, evaluate_global_errors = True):
+    def generate_lc_model(self, parameter_values, evaluate_global_errors = True, evaluate_lc = False):
         self.modelOK = True
         # If TTV parametrization is 'T' for planet i, store transit times. Check only if the noTflag is False (which implies 
         # at least one planet uses the T-parametrization):
@@ -2025,11 +2025,17 @@ class model(object):
                         for transit_number in self.dictionary[instrument]['TTVs'][int(i)]['transit_number']:
                             all_Ts[i] = np.append(all_Ts[i], parameter_values['T_p'+str(i)+'_'+instrument+'_'+str(transit_number)])
                             all_ns[i] = np.append(all_ns[i], transit_number)
-                    XY,Y,X,X2 = np.sum(all_Ts[i]*all_ns[i])/self.N_TTVs[i],np.sum(all_Ts[i])/self.N_TTVs[i],np.sum(all_ns[i])/self.N_TTVs[i], np.sum(all_ns[i]**2)/self.N_TTVs[i]
-                    # Get slope:
-                    planet_P[i] = (XY - X*Y)/(X2 - (X**2))
-                    # Intercept:
-                    planet_t0[i] = Y - planet_P[i]*X
+                    # If evaluate_lc flag is on, this means user is evaluating lightcurve. Here we do some tricks as to only evaluate 
+                    # models in the user-defined instrument (to speed up evaluation), so in that case we use the posterior t0 and P 
+                    # actually taken from the T-samples:
+                    if not evaluate_lc:
+                        XY,Y,X,X2 = np.sum(all_Ts[i]*all_ns[i])/self.N_TTVs[i],np.sum(all_Ts[i])/self.N_TTVs[i],np.sum(all_ns[i])/self.N_TTVs[i], np.sum(all_ns[i]**2)/self.N_TTVs[i]
+                        # Get slope:
+                        planet_P[i] = (XY - X*Y)/(X2 - (X**2))
+                        # Intercept:
+                        planet_t0[i] = Y - planet_P[i]*X
+                    else:
+                        planet_t0[i], planet_P[i] = parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)]
         # Start loop to populate the self.model[instrument]['deterministic_model'] array, which will host the complete lightcurve for a given 
         # instrument (including flux from all the planets). Do the for loop per instrument for the parameter extraction, so in the 
         # future we can do, e.g., wavelength-dependant rp/rs.
