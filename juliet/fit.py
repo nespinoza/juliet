@@ -1686,7 +1686,7 @@ class model(object):
                     if self.modeltype == 'lc':
                         self.generate_lc_model(current_parameter_values, evaluate_lc = True)
                     else:
-                        self.generate_rv_model(current_parameter_values, evaluate_global_errors = True, evaluate_lc = True)
+                        self.generate_rv_model(current_parameter_values, evaluate_global_errors = True)
 
                     # Save residuals (and global errors, in the case of global models):
                     if self.global_model:
