@@ -433,6 +433,16 @@ and only plot the HARPS and FEROS data, which are the most constraining for our 
 
 .. code-block:: python
 
+    # Define minimum and maximum times to evaluate the model on:
+    min_time, max_time = np.min(dataset.times_rv['FEROS'])-30,\
+                     np.max(dataset.times_rv['FEROS'])+30
+
+    # Create model times on which we will evaluate the model:
+    model_times = np.linspace(min_time,max_time,5000)
+
+    # Extract full model and components of the RV model:
+    full_model, components = results.rv.evaluate('FEROS', t = model_times, GPregressors = model_times, return_components = True)
+
     import matplotlib.pyplot as plt
     instruments = ['HARPS','FEROS']
     colors = ['red','black']
@@ -443,7 +453,7 @@ and only plot the HARPS and FEROS data, which are the most constraining for our 
                      yerr = dataset.errors_rv[instrument], fmt = 'o', label = instrument+' data',mfc='white', mec = color, ecolor = color, \
                      elinewidth=1)
 
-    plt.plot(model_times-2454705,keplerian,label='Full model',color='black')
+    plt.plot(model_times-2454705,full_model - components['mu']['FEROS'],label='Full model',color='black')
     plt.plot(model_times-2454705,results.rv.model['deterministic'],label = 'Keplerian component', color = 'steelblue')
     plt.plot(model_times-2454705,results.rv.model['GP'], label = 'GP component',color='red')
     plt.xlim([3701,3715])
