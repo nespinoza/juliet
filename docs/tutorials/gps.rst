@@ -428,6 +428,8 @@ examples. To define a global GP model, for radial-velocity fits, one has to simp
     dataset = juliet.load(priors = priors, rvfilename='rvs_toi141.dat', out_folder = 'toi141_rvs', \
                           GPrveparamfile='GP_regressors_rv.dat')
 
+    results = dataset.fit(n_live_points = 300)
+
 Once done, let's plot the results. We'll plot a portion of the time-series so we can check what the different components of the model are doing, 
 and only plot the HARPS and FEROS data, which are the most constraining for our dataset:
 
