@@ -205,3 +205,5 @@ Which will give us a nice plot of the data and the ``juliet`` fit:
 
 .. figure:: juliet_transit_fit.png
    :alt: Juliet fit of TOI-141b.
+
+.. WARNING:: When using MultiNest, make sure that the ``out_folder`` full path is less than 69 characters long. This is because MultiNest internally has a character limit for the full output path of 100 characters (`see this fun discussion <https://github.com/JohannesBuchner/PyMultiNest/issues/107>`_). Because the largest MultiNest output ``juliet`` produces (produced by MultiNest itself) is called ``jomnest_post_equal_weights.dat``, which has 30 characters, this leaves the possible total character length of the folder to be 69 characters not counting the backlash at the end. Bottom line: when using MultiNest, stick to small ``out_folder`` lengths.
