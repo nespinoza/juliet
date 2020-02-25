@@ -2051,13 +2051,15 @@ class model(object):
                 else:
                     coeff1 = parameter_values['q1_'+self.ld_iname[instrument]]
 
-                # Now loop through all the planets, getting the model for each:
+                # First (1) check if TTV mode is activated. If it is not, simply save the sampled planet periods and time-of transit centers for check 
+                # in the next round of iteration (see below). If it is, depending on the parametrization, either shift the time-indexes accordingly (see below 
+                # comments for details).
                 for i in self.numbering:
-                    cP = {}
+                    cP, ct0 = {}, {}
                     # Check if we will be fitting for TTVs. If not, all goes as usual. If we are, check which parametrization (dt or T):
                     if not self.dictionary[instrument]['TTVs'][i]['status']:
                         t0, P = parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)]
-                        cP[i] = P
+                        cP[i], ct0[i] = P, t0
                     else:
                         # If TTVs is on for planet i, compute the expected time of transit, and shift it. For this, use information encoded in the prior
                         # name; if, e.g., dt_p1_TESS1_-2, then n = -2 and the time of transit (with TTV) = t0 + n*P + dt_p1_TESS1_-2 in the case of the dt 
@@ -2068,7 +2070,7 @@ class model(object):
                         dummy_time = np.copy(self.times[instrument])
                         if self.dictionary[instrument]['TTVs'][i]['parametrization'] == 'dt':
                             t0, P = parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)]
-                            cP[i] = P
+                            cP[i], ct0[i] = P, t0
                             for transit_number in self.dictionary[instrument]['TTVs'][int(i)]['transit_number']:
                                 transit_time = t0 + transit_number*P + parameter_values['dt_p'+str(i)+'_'+instrument+'_'+str(transit_number)]
                                 # This implicitly sets maximum transit duration to P/2 days:
@@ -2081,21 +2083,25 @@ class model(object):
                                 # This implicitly sets maximum transit duration to P/2 days:
                                 idx = np.where(np.abs(self.times[instrument]-parameter_values['T_p'+str(i)+'_'+instrument+'_'+str(transit_number)])<P/4.)[0]
                                 dummy_time[idx] = self.times[instrument][idx] - dt
-                            cP[i] = P
-                    # Before anything continues, check the periods are chronologically ordered (this is to avoid multiple modes due to 
-                    # periods "jumping" between planet numbering):
-                    first_time = True 
-                    for i in self.numbering:
-                        if first_time:
-                            ccP = cP[i]#parameter_values['P_p'+str(i)]
-                            first_time = False
-                        else:
-                            if ccP < cP[i]:#parameter_values['P_p'+str(i)]:
-                                ccP = cP[i]#parameter_values['P_p'+str(i)]
-                            else:
-                                self.modelOK = False
-                                return False
+                            cP[i], ct0[i] = P, t0
 
+                # Whether there are TTVs or not, and before anything continues, check the periods are chronologically ordered (this is to avoid multiple modes 
+                # due to periods "jumping" between planet numbering):
+                first_time = True 
+                for i in self.numbering:
+                    if first_time:
+                        ccP = cP[i]#parameter_values['P_p'+str(i)]
+                        first_time = False
+                    else:
+                        if ccP < cP[i]:#parameter_values['P_p'+str(i)]:
+                            ccP = cP[i]#parameter_values['P_p'+str(i)]
+                        else:
+                            self.modelOK = False
+                            return False
+
+                # Once all is OK with the periods and time-of-transit centers, loop through all the planets, getting the lightcurve model for each:
+                for i in self.numbering:
+                    P, t0 = cP[i], ct0[i]
                     if self.dictionary['efficient_bp'][i]:
                         if not self.dictionary['fitrho']:
                             a,r1,r2   = parameter_values['a_p'+str(i)], parameter_values['r1_p'+str(i)],\
