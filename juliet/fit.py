@@ -2557,7 +2557,7 @@ class gaussian_process(object):
             if X is None:
                 self.GP.compute(self.X)   
             else:
-                self.GP.compute(X, yerr = self.yerr)
+                self.GP.compute(X)
 
     def set_input_instrument(self,input_variables):
         # This function sets the "input instrument" (self.input_instrument) name for each variable (self.variables). 
