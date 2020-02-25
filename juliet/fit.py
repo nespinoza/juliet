@@ -491,6 +491,33 @@ class load(object):
                 dictionary[instrument_supersamp[i]]['nresampling'] = n_supersamp[i]
                 dictionary[instrument_supersamp[i]]['exptimeresampling'] = exptime_supersamp[i]
 
+        # Check that user gave periods in chronological order. If not, raise an exception, tell the user and stop this madness.
+        # Note we only check if fixed or normal/truncated normal. In the uniform or log-uniform cases, we trust the user knows 
+        # what they are doing. We don't touch the Beta case because that would be nuts to put in a prior anyways most of the time.
+        cp_pnumber = np.array([])
+        cp_period = np.array([])
+        for pri in self.priors.keys():
+            if pri[0:2] == 'P_':
+                if self.priors[pri]['distribution'].lower() in ['normal','truncated normal']:
+                    cp_pnumber = np.append(cp_pnumber,int(pri.split('_')[-1][1:]))
+                    cp_period = np.append(cp_period, self.priors[pri]['hyperparameters'][0])
+                elif self.priors[pri]['distribution'].lower() == 'fixed':
+                    cp_pnumber = np.append(cp_pnumber,int(pri.split('_')[-1][1:]))
+                    cp_period = np.append(cp_period, self.priors[pri]['hyperparameters'][0])
+        if len(cp_period)>1:
+            idx = np.argsort(cp_pnumber)
+            cP = cp_period[idx[0]]
+            cP_idx = cp_pnumber[idx[0]]
+            for cidx in idx[1:]:
+                P = cp_period[cidx]
+                if P > cP:
+                    cP = P
+                    cP_idx = cp_pnumber[cidx]
+                else:
+                    print('\n')
+                    raise Exception('INPUT ERROR: planetary periods in the priors are not ordered in chronological order. '+\
+                                    'Planet p{0:} has a period of {1:} days, while planet p{2:} has a period of {3:} days (P_p{0:}<P_p{2:}).'.format(int(cp_pnumber[cidx]),P,int(cP_idx),cP))
+
         # Now, if generating lightcurve dict, check whether for some photometric instruments only photometry, and not a 
         # transit, will be fit. This is based on whether the user gave limb-darkening coefficients for a given photometric 
         # instrument or not. If given, transit is fit. If not, no transit is fit. At the same time check if user wants to 
