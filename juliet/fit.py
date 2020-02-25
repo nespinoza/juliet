@@ -2054,8 +2054,8 @@ class model(object):
                 # First (1) check if TTV mode is activated. If it is not, simply save the sampled planet periods and time-of transit centers for check 
                 # in the next round of iteration (see below). If it is, depending on the parametrization, either shift the time-indexes accordingly (see below 
                 # comments for details).
+                cP, ct0 = {}, {}
                 for i in self.numbering:
-                    cP, ct0 = {}, {}
                     # Check if we will be fitting for TTVs. If not, all goes as usual. If we are, check which parametrization (dt or T):
                     if not self.dictionary[instrument]['TTVs'][i]['status']:
                         t0, P = parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)]
@@ -2084,7 +2084,6 @@ class model(object):
                                 idx = np.where(np.abs(self.times[instrument]-parameter_values['T_p'+str(i)+'_'+instrument+'_'+str(transit_number)])<P/4.)[0]
                                 dummy_time[idx] = self.times[instrument][idx] - dt
                             cP[i], ct0[i] = P, t0
-
                 # Whether there are TTVs or not, and before anything continues, check the periods are chronologically ordered (this is to avoid multiple modes 
                 # due to periods "jumping" between planet numbering):
                 first_time = True 
