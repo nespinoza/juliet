@@ -1736,6 +1736,10 @@ class model(object):
                                     self.model[ginstrument]['ones'] = np.ones(nt)
                                     self.ndatapoints_per_instrument[ginstrument] = nt
                                     self.instrument_indexes[ginstrument] = dummy_indexes
+                                original_inames = np.copy(self.inames)
+                                self.inames = [instrument]
+                                self.generate_lc_model(current_parameter_values, evaluate_global_errors = False, evaluate_lc = True)
+                                self.inames = original_inames
                             else:
                                 # If not, set them only for the instrument of interest:
                                 if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman']:
@@ -1744,8 +1748,8 @@ class model(object):
                                     self.lm_arguments[instrument] = LMregressors
                                 self.model[instrument]['ones'] = np.ones(nt)
                                 self.ndatapoints_per_instrument[instrument] = nt 
-                            # Generate lightcurve model:
-                            self.generate_lc_model(current_parameter_values, evaluate_global_errors = False, evaluate_lc = True)    
+                                # Generate lightcurve model:
+                                self.generate_lc_model(current_parameter_values, evaluate_global_errors = False, evaluate_lc = True)    
                         else:
                             # As with the lc case, RV model set-up depends on whether the model is global or not: 
                             self.t = t
@@ -1759,12 +1763,18 @@ class model(object):
                                         self.lm_arguments[ginstrument] = LMregressors[ginstrument]
                                     self.times[ginstrument] = t
                                     self.instrument_indexes[ginstrument] = dummy_indexes
+                                # Generate RV model only for the instrument under consideration:
+                                original_inames = np.copy(self.inames)
+                                self.inames = [instrument]
+                                self.generate_rv_model(current_parameter_values, evaluate_global_errors = False)
+                                self.inames = original_inames
                             else:
                                 self.times[instrument] = t
                                 self.instrument_indexes[instrument] = dummy_indexes
                                 if self.lm_boolean[instrument]:
                                     self.lm_arguments[instrument] = LMregressors
-                            self.generate_rv_model(current_parameter_values, evaluate_global_errors = False)
+                                # Generate RV model:
+                                self.generate_rv_model(current_parameter_values, evaluate_global_errors = False)
 
                     if self.global_model:
                         if self.dictionary['global_model']['GPDetrend']:
