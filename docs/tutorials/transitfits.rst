@@ -291,53 +291,6 @@ sampling is expected to sample --- the triangle englobes all the physically plau
 limb-darkening coefficients (positive, decreasing-to-the-limb limb-darkening profiles). For details, 
 see `Kipping (2013) <https://ui.adsabs.harvard.edu/abs/2013MNRAS.435.2152K/abstract>`_.
 
-Accounting for Transit Timing Variations (TTVs)
------------------------------------------------
-
-The transit fits just performed assume (the usual case in which) the transit times, :math:`T$` are exactly periodic, i.e., they 
-can be predicted by the simple relationship
-
-:math:`T(n) = t_0 + n P`,
-
-where :math:`t_0` is the time-of-transit center, :math:`P` is the period of the orbit and :math:`n` is the so-called transit epoch, 
-counted from the time-of-transit center, :math:`t_0`. In some particular cases, however, this simple relationship might not be satisfied. 
-Because of gravitational/dynamical interactions with additional bodies in the system, the exoplanet under study might undergo what we usually refer to 
-as "transit timing variations" (TTVs), where the transit times are not exactly periodic and vary due to these (in principle unknown) interactions. Within 
-`juliet` we model those variations as extra perturbations :math:`\delta t_n` to the above defined timing equation of the form
-
-:math:`T(n) = t_0 + n P + \delta t_n`,
-
-where :math:`\delta t_n` are free parameters of the fit. Within `juliet`, these parameters are defined as `dt_p1_instrument_n` --- `instrument` defines the 
-instrument one is adding those perturbations those, `n` the transit epoch and, in this case, we are adding those perturbations to planet `p1`; `juliet` is able 
-to handle different perturbations for different planets in the system. 
-
-Let's try finding how big those perturbations are on the HATS-46 b TESS dataset! For this, we use the same priors used in the previous fit, but we add the priors 
-for the perturbations :math:`\delta t_n`, which we will assume normal, zero-mean and with a standard deviation of 0.1 days (i.e., about 2.4 hours). We define the 
-priors for those extra perturbations and add them to the previously defined priors for HATS-46b as follows:
-
-.. code-block:: python
-
-    params = params + ['dt_p1_TESS_1', 'dt_p1_TESS_3', 'dt_p1_TESS_4']
-
-    dists = dists + ['normal','normal','normal']
-
-    hyperps = hyperps + [[0.0,0.1], [0.0,0.1], [0.0,0.1]]
-
-Note how we have defined perturbations only for :math:`n=1,3,4`. We skipped the transit with :math:`n=2` as this one fell just where there is a gap in the data (which 
-happens on every TESS sector to download the data back at Earth). We now put everything together into the `priors` dictionary, and re-fit the data:
-
-.. code-block:: python
-
-    for param, dist, hyperp in zip(params, dists, hyperps):
-        priors[param] = {}
-        priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
-
-    # Load and fit dataset with juliet:
-    dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, \
-                       yerr_lc = fluxes_error, out_folder = 'hats46-ttvs')
-
-    results = dataset.fit()
-
 
 Fitting multiple datasets
 -------------------------
