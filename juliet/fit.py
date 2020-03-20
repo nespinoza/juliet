@@ -503,7 +503,7 @@ class load(object):
                     cp_period = np.append(cp_period, self.priors[pri]['hyperparameters'][0])
                 elif self.priors[pri]['distribution'].lower() == 'fixed':
                     cp_pnumber = np.append(cp_pnumber,int(pri.split('_')[-1][1:]))
-                    cp_period = np.append(cp_period, self.priors[pri]['hyperparameters'][0])
+                    cp_period = np.append(cp_period, self.priors[pri]['hyperparameters'])
         if len(cp_period)>1:
             idx = np.argsort(cp_pnumber)
             cP = cp_period[idx[0]]
