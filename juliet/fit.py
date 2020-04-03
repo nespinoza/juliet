@@ -706,14 +706,14 @@ class load(object):
                 self.prior_fname = self.out_folder+'priors.dat'
                 self.save_priorfile(self.out_folder+'priors.dat')
 
-    def fit(self, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
+    def fit(self, use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
             n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0):
         """
         Perhaps the most important function of the juliet data object. This function fits your data using the nested 
         sampler of choice. This returns a results object which contains all the posteriors information.
         """
         # Note this return call creates a fit *object* with the current data object. The fit class definition is below.
-        return fit(self, use_dynesty = use_dynesty, dynamic = dynamic, dynesty_bound = dynesty_bound, dynesty_sample = dynesty_sample, \
+        return fit(self, use_ultranest = use_ultranest, use_dynesty = use_dynesty, dynamic = dynamic, dynesty_bound = dynesty_bound, dynesty_sample = dynesty_sample, \
                    dynesty_nthreads = dynesty_nthreads, n_live_points = n_live_points, ecclim = ecclim, delta_z_lim = delta_z_lim, \
                    pl = pl, pu = pu)
 
@@ -1025,15 +1025,15 @@ class fit(object):
         pcounter = 0
         for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] != 'fixed':
-                if self.use_dynesty:
+                if self.use_dynesty or self.use_ultranest:
                     self.transformed_priors[pcounter] = self.transform_prior[pname](cube[pcounter], \
                                                                              self.data.priors[pname]['hyperparameters']) 
                 else:
                     cube[pcounter] = self.transform_prior[pname](cube[pcounter], \
                                                           self.data.priors[pname]['hyperparameters'])
                 pcounter += 1
-        if self.use_dynesty:
-            return self.transformed_priors
+        if self.use_dynesty or self.use_ultranest:
+            return np.copy(self.transformed_priors)
 
     def loglike(self, cube, ndim=None, nparams=None):
         # Evaluate the joint log-likelihood. For this, first extract all inputs:
@@ -1062,12 +1062,13 @@ class fit(object):
         # Return total log-likelihood:
         return log_likelihood
 
-    def __init__(self, data, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
+    def __init__(self, data, use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
                        n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0, ta = 2458460.):
 
         # Define output results object:
         self.results = None
         # Save sampler inputs:
+        self.use_ultranest = use_ultranest
         self.use_dynesty = use_dynesty
         self.dynamic = dynamic
         self.dynesty_bound = dynesty_bound
@@ -1097,6 +1098,8 @@ class fit(object):
                 self.sampler_prefix = 'dynamic_dynesty_'
             else:
                 self.sampler_prefix = 'dynesty_'
+        elif self.use_ultranest:
+            self.sampler_prefix = 'ultranest_'
         else:
             self.sampler_prefix = 'multinest_'
 
@@ -1134,7 +1137,28 @@ class fit(object):
         out = {}
         runMultiNest = False
         runDynesty = False
-        if not self.use_dynesty:
+        runUltraNest = False
+        if self.use_ultranest:
+            runUltraNest = True
+            if self.out_folder is None:
+                self.out_folder = os.getcwd() + '/'
+            paramnames = [pname for pname in self.model_parameters
+                if self.data.priors[pname]['distribution'] != 'fixed']
+
+            from ultranest import ReactiveNestedSampler
+            sampler = ReactiveNestedSampler(paramnames, self.loglike, transform=self.prior, 
+                log_dir=self.out_folder, resume=True)
+            results = sampler.run(frac_remain=0.1, min_num_live_points=self.n_live_points, max_num_improvement_loops=1)
+            sampler.print_results()
+            sampler.plot()
+            
+            out['ultranest_output'] = results
+            # Get weighted posterior:
+            posterior_samples = results['samples']
+            # Get lnZ:
+            out['lnZ'] = results['logz']
+            out['lnZerr'] = results['logzerr']
+        elif not self.use_dynesty:
             if self.out_folder is None:
                 self.out_folder = os.getcwd()+'/'
                 runMultiNest = True
@@ -1189,7 +1213,7 @@ class fit(object):
                 # Get lnZ:
                 out['lnZ'] = results.logz[-1]
                 out['lnZerr'] = results.logzerr[-1]
-        if runMultiNest or runDynesty:
+        if runMultiNest or runDynesty or runUltraNest:
             # Save posterior samples as outputted by Multinest/Dynesty:
             out['posterior_samples'] = {}
             out['posterior_samples']['unnamed'] = posterior_samples
