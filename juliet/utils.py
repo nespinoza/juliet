@@ -238,6 +238,10 @@ def transform_truncated_normal(x,hyperparameters):
     ar, br = (a - mu) / sigma, (b - mu) / sigma
     return truncnorm.ppf(x,ar,br,loc=mu,scale=sigma)
 
+def transform_modifiedjeffreys(x,hyperparameters):
+    turn, hi = hyperparameters
+    return turn * (np.exp( (x + 1e-10) * np.log(hi/turn + 1)) - 1)
+
 def input_error_catcher(t,y,yerr,datatype):
     if datatype == 'lightcurve':
         dname = 'lc'
