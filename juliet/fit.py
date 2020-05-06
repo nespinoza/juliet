@@ -1925,18 +1925,22 @@ class model(object):
                                 components[k] = np.median(components[k],axis=0)
                     else:
                         for i in self.numbering:
-                            m, u, l = get_model_quantiles(components['p'+str(i)], alpha = alpha)
-                            components['p'+str(i)] = m
-                            components['p'+str(i)+'_upper'] = u[alpha]
-                            components['p'+str(i)+'_lower'] = l[alpha]
-                            #components['p'+str(i)] = np.median(components['p'+str(i)], axis = 0)
-                        #components['trend'] = np.median(components['trend'], axis = 0)
-                        for key in ['trend', 'keplerian']:
-                            m, u, l = get_model_quantiles(components[key], alpha = alpha)
-                            components[key] = m
-                            components[key+'_upper'] = u[alpha]
-                            components[key+'_lower'] = l[alpha]
-                        components['keplerian'] = np.median(components['keplerian'], axis = 0) 
+                            if return_err:
+                                m, u, l = get_model_quantiles(components['p'+str(i)], alpha = alpha)
+                                components['p'+str(i)] = m
+                                components['p'+str(i)+'_upper'] = u[alpha]
+                                components['p'+str(i)+'_lower'] = l[alpha]
+                            else:
+                                components['p'+str(i)] = np.median(components['p'+str(i)], axis = 0)
+                        if return_err:
+                            for key in ['trend', 'keplerian']:
+                                m, u, l = get_model_quantiles(components[key], alpha = alpha)
+                                components[key] = m
+                                components[key+'_upper'] = u[alpha]
+                                components[key+'_lower'] = l[alpha]
+                        else:
+                            components['trend'] = np.median(components['trend'], axis = 0)
+                            components['keplerian'] = np.median(components['keplerian'], axis = 0) 
                         if self.global_model:
                             for ginstrument in instruments:
                                 components['mu'][ginstrument] = np.median(components['mu'][ginstrument])
