@@ -358,7 +358,12 @@ def readpriors(priorname):
             if line[0] != '#':
                 if not input_dict:
                     out = line.split()
-                    parameter,prior_name,vals = line.split()
+                    try:
+                        parameter,prior_name,vals = line.split()
+                    except:
+                        print('Format error with line {}.'.format(line))
+                        print('It splits into:',line.split())
+                        parameter,prior_name,vals = line.split()
                     parameter = parameter.split()[0]
                     # For retro-compatibility, if parameter is of the form sigma_w_rv_instrument change to
                     # sigma_w_instrument:
@@ -430,34 +435,102 @@ def get_phases(t,P,t0):
             phase = phase - 1.0
     return phase
 
-def get_quantiles(dist,alpha = 0.68, method = 'median'):
+def get_model_quantiles(model_samples, alpha = 0.68, method = 'median')
     """
-    get_quantiles function
-    DESCRIPTION
-        This function returns, in the default case, the parameter median and the error% 
-        credibility around it. This assumes you give a non-ordered 
-        distribution of parameters.
-    OUTPUTS
-        Median of the parameter,upper credibility bound, lower credibility bound
+    This function receives a matrix with samples of a model in each row, and calculates the median models using the 
+    get_quantiles function.
+
+    Parameters
+    ----------
+    model_samples : np.array
+         NxM numpy array containing N samples of a model samples on M time-stamps.
+    alpha: float, list or np.array
+         Credibility area that wants to be returned. Several can be passed in an array (e.g., [0.68, 0.95])
+    method: string
+         'median' is currently the only method
+
+    Returns
+    -------
+    mmodel : np.array
+        Median model
+    umodel : dict
+        Dictionary whose keys are the elements of alpha (or alpha, if it is a float). Upper credibility band for each alpha.
+    lmodel : dict
+        Dictionary whose keys are the elements of alpha (or alpha, if it is a float). Lower credibility band for each alpha.
     """
-    ordered_dist = dist[np.argsort(dist)]
-    param = 0.0
-    # Define the number of samples from posterior
-    nsamples = len(dist)
-    nsamples_at_each_side = int(nsamples*(alpha/2.)+1)
-    if(method == 'median'):
-       med_idx = 0
-       if(nsamples%2 == 0.0): # Number of points is even
-          med_idx_up = int(nsamples/2.)+1
-          med_idx_down = med_idx_up-1
-          param = (ordered_dist[med_idx_up]+ordered_dist[med_idx_down])/2.
-          return param,ordered_dist[med_idx_up+nsamples_at_each_side],\
-                 ordered_dist[med_idx_down-nsamples_at_each_side]
-       else:
-          med_idx = int(nsamples/2.)
-          param = ordered_dist[med_idx]
-          return param,ordered_dist[med_idx+nsamples_at_each_side],\
-                 ordered_dist[med_idx-nsamples_at_each_side]
+    M = model_samples.shape[1]
+    mmodel = np.zeros(M)
+    umodel, lmodel = {}, {}
+    if (alpha is list) or (alpha is np.ndarray):
+        for a in alpha:
+            umodel[a], lmodel[a] = np.zeros(M), np.zeros(M)
+        for i in range(M):
+            mmodel[i], u, l = get_quantiles(model_samples[:,i], alpha=alpha)
+            for a in alpha:
+                umodel[a][i] = u[a]
+                lmodel[a][i] = l[a]
+        return mmodel, umodel, lmodel
+    else:
+        umodel[alpha], lmodel[alpha] = np.zeros(M), np.zeros(M)
+        for i in range(M):
+            mmodel[i], umodel[alpha][i], lmodel[alpha][i] = get_quantiles(model_samples[:,i], alpha=alpha)
+        return mmodel, umodel, lmodel
+            
+
+def get_quantiles(dist,alpha = 0.68, method = 'median', isordered = False, nsamples = None):
+    """
+    This function returns, in the default case, the parameter median and the error% credibility around it. This assumes you give 
+    a non-ordered distribution of parameters.
+
+    Parameters
+    ----------
+    dist : np.array
+        Vector storing the samples from the distribution
+    alpha: float, list or np.array
+        Credibility band(s)
+    method: string
+        'median' is currently the only method.
+    isordered : bool
+        If True, assume dist is an ordered distribution (via argsort)
+    nsamples : int
+        Number of samples of dist
+
+    Returns
+    -------
+    mmodel : np.array
+        Median of the parameter
+    umodel : dict
+        Dictionary whose keys are the elements of alpha, if alpha is not float, and upper credibility band for each alpha. If alpha is float, 
+        upper credibility band for that alpha.
+    lmodel : dict
+        Dictionary whose keys are the elements of alpha if alpha is not float, and lower credibility band for each alpha. If alpha is float,
+        lower credibility band for that alpha.
+    """
+    if not isordered:
+        ordered_dist = dist[np.argsort(dist)]
+    if nsamples is None:
+        nsamples = len(dist)
+    if (alpha is list) or (alpha is np.ndarray):
+        umodel = {}
+        lmodel = {}
+        for a in alpha:
+            param, umodel[a], lmodel[a] = get_quantiles(ordered_dist, a, isordered = True, nsamples = nsamples)
+        return param, umodel, lmodel
+    else:
+        nsamples_at_each_side = int(nsamples*(alpha/2.)+1)
+        if(method == 'median'):
+           med_idx = 0
+           if(nsamples%2 == 0.0): # Number of points is even
+              med_idx_up = int(nsamples/2.)+1
+              med_idx_down = med_idx_up-1
+              param = (ordered_dist[med_idx_up]+ordered_dist[med_idx_down])/2.
+              return param,ordered_dist[med_idx_up+nsamples_at_each_side],\
+                     ordered_dist[med_idx_down-nsamples_at_each_side]
+           else:
+              med_idx = int(nsamples/2.)
+              param = ordered_dist[med_idx]
+              return param,ordered_dist[med_idx+nsamples_at_each_side],\
+                     ordered_dist[med_idx-nsamples_at_each_side]
 
 def bin_data(x,y,n_bin):
     x_bins = []
