@@ -435,7 +435,7 @@ def get_phases(t,P,t0):
             phase = phase - 1.0
     return phase
 
-def get_model_quantiles(model_samples, alpha = 0.68, method = 'median')
+def get_model_quantiles(model_samples, alpha = 0.68, method = 'median'):
     """
     This function receives a matrix with samples of a model in each row, and calculates the median models using the 
     get_quantiles function.
