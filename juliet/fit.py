@@ -1685,7 +1685,9 @@ class model(object):
                 # to the GP objet to generate samples from the GP. This latter is not true for the linear model, because it 
                 # is a determinisitc model an needs to be evaluated on each iteration on both the input regressors of the 
                 # fit (to generate the residuals) and on the input regressors to this function (to generate predictions):
+                extrapolating = False
                 if t is not None:
+                    extrapolating = True
                     if self.global_model:
                         original_lm_arguments  = np.copy(self.lm_arguments)
                         if self.dictionary['global_model']['GPDetrend']:
@@ -1695,6 +1697,7 @@ class model(object):
                                 raise Exception("\t Gobal model has a GP, and requires a GPregressors to be inputted to be evaluated.")
                     else:
                         if self.dictionary[instrument]['GPDetrend']:
+                            self.original_GPregressors = np.copy(self.dictionary[instrument]['noise_model'].X)
                             self.dictionary[instrument]['noise_model'].X = GPregressors
                             if GPregressors is None:
                                 raise Exception("\t Model for instrument "+instrument+" has a GP, and requires a GPregressors to be inputted to be evaluated.")
@@ -1922,14 +1925,33 @@ class model(object):
                                 components[k] = np.median(components[k],axis=0)
                     else:
                         for i in self.numbering:
-                            components['p'+str(i)] = np.median(components['p'+str(i)], axis = 0)
-                        components['trend'] = np.median(components['trend'], axis = 0)
+                            m, u, l = get_model_quantiles(components['p'+str(i)], alpha = alpha)
+                            components['p'+str(i)] = m
+                            components['p'+str(i)+'_upper'] = u[alpha]
+                            components['p'+str(i)+'_lower'] = l[alpha]
+                            #components['p'+str(i)] = np.median(components['p'+str(i)], axis = 0)
+                        #components['trend'] = np.median(components['trend'], axis = 0)
+                        for key in ['trend', 'keplerian']:
+                            m, u, l = get_model_quantiles(components[key], alpha = alpha)
+                            components[key] = m
+                            components[key+'_upper'] = u[alpha]
+                            components[key+'_lower'] = l[alpha]
                         components['keplerian'] = np.median(components['keplerian'], axis = 0) 
                         if self.global_model:
                             for ginstrument in instruments:
                                 components['mu'][ginstrument] = np.median(components['mu'][ginstrument])
                         else:
                             components['mu'] = np.median(components['mu'], axis=0)
+                # If extrapolating, roll-back GP regressors to their original values (this is so user can evaluate model again 
+                # in future calls):
+                if extrapolating:
+                    if self.global_model:
+                        if self.dictionary['global_model']['GPDetrend']:
+                            self.dictionary['global_model']['noise_model'].X = self.original_GPregressors
+                    else:
+                        if self.dictionary[instrument]['GPDetrend']:
+                            self.dictionary[instrument]['noise_model'].X = self.original_GPregressors
+
             else:
                 if self.modeltype == 'lc':
                     self.generate_lc_model(parameter_values,evaluate_lc = True)
