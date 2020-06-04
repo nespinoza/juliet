@@ -3,12 +3,53 @@ from astropy.io import fits
 import pickle
 import batman
 import radvel
+# Import starry, if installed:
+try:
+    import starry
+    starry.config.lazy = False
+    starry.config.quiet = True 
+    have_starry = True 
+except:
+    have_starry = False
+
 # Try to import catwoman:
 try: 
     import catwoman
     have_catwoman = True 
 except:
     have_catwoman = False
+
+G = 6.67408e-11 # Gravitational constant, mks
+def init_starry(t, ld_law, nresampling = None, etresampling = None, numbering = None, order = 0):
+     """
+     This function initializes the starry code.
+     """
+     # Define dictionaries that will save the system properties (for flux evaluation) and primary and secondary objects:
+     out1,out2 = {}, {}
+
+     if ld_law == 'quadratic':
+         # Define stellar properties. Only quadratic law allowed for now --- need to implement the rest:
+         star = starry.Primary(starry.Map(udeg=2))
+         star.map[1] = 0.40
+         star.map[2] = 0.26
+     else:
+         raise Exception("starry-in-juliet error: only quadratic limb-darkening law implemented for now in juliet when using starry. Change your law from {} to quadratic to use starry, or use batman model instead.".format(ld_law))
+     # Define the planets. If no numbering, define it to p1:
+     if numbering is None:
+        numbering = [1]
+     planets = []
+     planets_dict = {}
+     for planet in numbering:
+         planets_dict[planet] = starry.kepler.Secondary(starry.Map(amp=0), m=0, porb=1., inc=90., r=0.1)
+         planets.append(planets_dict[planet])
+     # If resampling, apply resampling properties. If not, don't.
+     if nresampling is None:
+          starry.System(star, *planets)
+     else:
+         # If resampling is on, resample according to user's input model. Order by default is zero (which is Riemann sum, a-la Kipping 2010): 
+          starry.System(star, *planets, texp = etresampling, oversample = nresampling, order = order)
+     # Return starry system (so we can run system.flux(times)), star (so we can vary limb-darkening), and planet dict (so we can change propertie of planets via, e.g., planets_dict['p1'].t0 = newt0):
+     return system, star, planets_dict
 
 def init_batman(t, ld_law, nresampling = None, etresampling = None):
      """  
