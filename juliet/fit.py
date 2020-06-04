@@ -6,6 +6,14 @@ try:
     have_catwoman = True
 except:
     have_catwoman = False
+# Import starry, if installed:
+try:
+    import starry
+    starry.config.lazy = False
+    starry.config.quiet = True
+    have_starry = True
+except:
+    have_starry = False
 # Import radvel, for RV models:
 import radvel
 # Import george for detrending:
@@ -1063,8 +1071,11 @@ class fit(object):
         return log_likelihood
 
     def __init__(self, data, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
-                       n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0, ta = 2458460.):
+                       n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0, ta = 2458460., lc_model_algorithm = 'batman', rv_model_algorithm = 'radvel'):
 
+        if lc_model_algorithm == 'starry' or rv_model_algorithm == 'starry':
+            if not have_starry:
+                raise Exception('starry install Error: starry selected as lightcurve or RV model, but it is not installed in this system/python version. Install it (e.g., via pip install starry) and try again.')
         # Define output results object:
         self.results = None
         # Save sampler inputs:
@@ -1079,14 +1090,10 @@ class fit(object):
         self.pl = pl
         self.pu = pu
         self.ta = ta
+        self.lc_model_algorithm = lc_model_algorithm
+        self.rv_model_algorithm = rv_model_algorithm
         # Inhert data object:
         self.data = data
-        # Inhert some other fit options:
-        #if self.data.t_lc is not None:
-        #    if True in self.data.lc_dict['efficient_bp']:
-        #        self.pu = pu
-        #        self.pl = pl
-        #        self.Ar = (self.pu - self.pl)/(2. + self.pl + self.pu)
         # Inhert the output folder:
         self.out_folder = data.out_folder
         self.transformed_priors = np.zeros(self.data.nparams)
@@ -1118,9 +1125,9 @@ class fit(object):
 
         # Generate light-curve and radial-velocity models:
         if self.data.t_lc is not None:
-            self.lc = model(self.data, modeltype = 'lc', pl = self.pl, pu = self.pu, ecclim = self.ecclim, log_like_calc = True)
+            self.lc = model(self.data, modeltype = 'lc', pl = self.pl, pu = self.pu, ecclim = self.ecclim, log_like_calc = True, model_algorithm = self.lc_model_algorithm)
         if self.data.t_rv is not None:
-            self.rv = model(self.data, modeltype = 'rv', ecclim = self.ecclim, ta = self.ta, log_like_calc = True)
+            self.rv = model(self.data, modeltype = 'rv', ecclim = self.ecclim, ta = self.ta, log_like_calc = True, model_algorithm = self.rv_model_algorithm)
 
         # Before starting, check if force_dynesty or force_pymultinest is on; change options accordingly:
         if force_dynesty and (not self.use_dynesty):
@@ -1514,12 +1521,28 @@ class model(object):
                 raise Exception("Input error: an instrument has to be defined for non-global models in order to evaluate the model.")
 
         if (resampling is not None) and (self.modeltype == 'lc') and (instrument is not None):
-            if resampling:
-                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                 nresampling = nresampling,\
-                                                                                                 etresampling = etresampling)
+            if self.model_algorithm == 'batman':
+                if not self.dictionary[instrument]['TransitFitCatwoman']:
+                    if resampling:
+                        self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                                         nresampling = nresampling,\
+                                                                                                         etresampling = etresampling)
+                    else:
+                        self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                else:
+                    if resampling:
+                        self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                                         nresampling = nresampling,\
+                                                                                                         etresampling = etresampling)
+                    else:
+                        self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+            elif self.model_algorithm == 'starry':
+                self.model[instrument]['system'], self.model[instrument]['star'], self.model[instrument]['planets'] = init_starry(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                            nresampling = nresampling,\
+                                                                                            etresampling = etresampling, \
+                                                                                            numbering = self.numbering)
             else:
-                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                raise Exception('\t Lightcurve generation algorithm {} not recognized. juliet currently supports "starry" and "batman".'.format(self.model_algorithm))
 
         # Save the original inames in the case of non-global models, and set self.inames to the input model. This is because if the model 
         # is not global, in general we don't care about generating the models for the other instruments (and in the lightcurve and RV evaluation part, 
@@ -1593,14 +1616,17 @@ class model(object):
                             # If global model, then iterate through all the instruments of the fit. If the TransitFit or TransitFitCatwoman is true, 
                             # then generate the model-generating objects for those instruments using both the input times and the model-fit times. Save 
                             # those in dictionaries:
+                            if self.model_algorithm == 'batman':
+                                supersample_params, supersample_m, sample_params, sample_m = {}, {}, {}, {}
                             for ginstrument in instruments:
                                 if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']:
-                                    if not self.dictionary[ginstrument]['TransitFitCatwoman']:
-                                        supersample_params[ginstrument],supersample_m[ginstrument] = init_batman(t, self.dictionary[ginstrument]['ldlaw'])
-                                        sample_params[ginstrument],sample_m[ginstrument] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
-                                    else:
-                                        supersample_params[ginstrument],supersample_m[ginstrument] = init_catwoman(t, self.dictionary[ginstrument]['ldlaw'])
-                                        sample_params[ginstrument],sample_m[ginstrument] = init_catwoman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
+                                    if self.model_algorithm == 'batman':
+                                        if not self.dictionary[ginstrument]['TransitFitCatwoman']:
+                                            supersample_params[ginstrument],supersample_m[ginstrument] = init_batman(t, self.dictionary[ginstrument]['ldlaw'])
+                                            sample_params[ginstrument],sample_m[ginstrument] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
+                                        else:
+                                            supersample_params[ginstrument],supersample_m[ginstrument] = init_catwoman(t, self.dictionary[ginstrument]['ldlaw'])
+                                            sample_params[ginstrument],sample_m[ginstrument] = init_catwoman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
                         else:
                             # If model is not global, the variables saved are not dictionaries but simply the objects, as we are just going to evaluate the 
                             # model for one dataset (the one of the input instrument):
@@ -2191,59 +2217,94 @@ class model(object):
                         ecc_factor = (1. + ecc*np.sin(omega * np.pi/180.))/(1. - ecc**2)
                         inc_inv_factor = (b/a)*ecc_factor
                         if not (b>1.+p or inc_inv_factor >=1.):
-                            self.model[instrument]['params'].t0 = t0
-                            self.model[instrument]['params'].per = P
-                            self.model[instrument]['params'].a = a
-                            self.model[instrument]['params'].inc = np.arccos(inc_inv_factor)*180./np.pi
-                            self.model[instrument]['params'].ecc = ecc 
-                            self.model[instrument]['params'].w = omega
-                            if not self.dictionary[instrument]['TransitFitCatwoman']:
-                                self.model[instrument]['params'].rp = p
-                            else:
-                                self.model[instrument]['params'].rp = p1
-                                self.model[instrument]['params'].rp2 = p2
-                                self.model[instrument]['params'].phi = phi
-                            if self.dictionary[instrument]['ldlaw'] != 'linear':
-                               self.model[instrument]['params'].u = [coeff1, coeff2]
-                            else:
-                               self.model[instrument]['params'].u = [coeff1]
-                            # If TTVs is on for planet i, compute the expected time of transit, and shift it. For this, use information encoded in the prior 
-                            # name; if, e.g., dt_p1_TESS1_-2, then n = -2 and the time of transit (with TTV) = t0 + n*P + dt_p1_TESS1_-2. Compute transit 
-                            # model assuming that time-of-transit; repeat for all the transits. Generally users will not do TTV analyses, so set this latter 
-                            # case to be the most common one by default in the if-statement:
-                            if not self.dictionary[instrument]['TTVs'][i]['status']:
-                                # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
-                                if self.log_like_calc:
-                                    self.model[instrument]['M'] += self.model[instrument]['m'].light_curve(self.model[instrument]['params']) - 1.
-                                else:
-                                    self.model[instrument]['p'+str(i)] = self.model[instrument]['m'].light_curve(self.model[instrument]['params'])
-                                    self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
-                            else:
+                            # If model_algorithm is batman, evaluation is more complicated (also, planet-planet transits are not handled, as explained in the juliet paper). 
+                            # If starry, evaluation is straightforward (and overall faster!). As a TODO: perhaps some refactoring of this code can 
+                            # speed things up even further. Currently we test the model_algorithm statement on each for loop --- we could perhaps have an external function that 
+                            # performs the evaluation, and that function be defined before (perhaps even before this generate_lc_model call) so we don't have to do this every time. 
+                            if self.model_algorithm == 'batman':
+                                self.model[instrument]['params'].t0 = t0
+                                self.model[instrument]['params'].per = P
+                                self.model[instrument]['params'].a = a
+                                self.model[instrument]['params'].inc = np.arccos(inc_inv_factor)*180./np.pi
+                                self.model[instrument]['params'].ecc = ecc 
+                                self.model[instrument]['params'].w = omega
                                 if not self.dictionary[instrument]['TransitFitCatwoman']:
-                                    if self.dictionary[instrument]['resampling']:
-                                        pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'], \
-                                                                 nresampling = self.dictionary[instrument]['nresampling'], \
-                                                                 etresampling = self.dictionary[instrument]['exptimeresampling'])
-                                    else:
-                                        pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                    self.model[instrument]['params'].rp = p
                                 else:
-                                    if self.dictionary[instrument]['resampling']:
-                                        pm, m = init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'], \
-                                                                 nresampling = self.dictionary[instrument]['nresampling'], \
-                                                                 etresampling = self.dictionary[instrument]['exptimeresampling'])
-                                    else:
-                                        pm, m = init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'])
-                                # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
-                                if self.log_like_calc:
-                                    self.model[instrument]['M'] += m.light_curve(self.model[instrument]['params']) - 1. 
+                                    self.model[instrument]['params'].rp = p1
+                                    self.model[instrument]['params'].rp2 = p2
+                                    self.model[instrument]['params'].phi = phi
+                                if self.dictionary[instrument]['ldlaw'] != 'linear':
+                                   self.model[instrument]['params'].u = [coeff1, coeff2]
                                 else:
-                                    self.model[instrument]['p'+str(i)] = m.light_curve(self.model[instrument]['params'])
-                                    self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1. 
-
+                                   self.model[instrument]['params'].u = [coeff1]
+                                # If TTVs is on for planet i, compute the expected time of transit, and shift it. For this, use information encoded in the prior 
+                                # name; if, e.g., dt_p1_TESS1_-2, then n = -2 and the time of transit (with TTV) = t0 + n*P + dt_p1_TESS1_-2. Compute transit 
+                                # model assuming that time-of-transit; repeat for all the transits. Generally users will not do TTV analyses, so set this latter 
+                                # case to be the most common one by default in the if-statement:
+                                if not self.dictionary[instrument]['TTVs'][i]['status']:
+                                    # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
+                                    if self.log_like_calc:
+                                        self.model[instrument]['M'] += self.model[instrument]['m'].light_curve(self.model[instrument]['params']) - 1.
+                                    else:
+                                        self.model[instrument]['p'+str(i)] = self.model[instrument]['m'].light_curve(self.model[instrument]['params'])
+                                        self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
+                                else:
+                                    if not self.dictionary[instrument]['TransitFitCatwoman']:
+                                        if self.dictionary[instrument]['resampling']:
+                                            pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'], \
+                                                                     nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                     etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                        else:
+                                            pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                    else:
+                                        if self.dictionary[instrument]['resampling']:
+                                            pm, m = init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'], \
+                                                                     nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                     etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                        else:
+                                            pm, m = init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                    # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
+                                    if self.log_like_calc:
+                                        self.model[instrument]['M'] += m.light_curve(self.model[instrument]['params']) - 1. 
+                                    else:
+                                        self.model[instrument]['p'+str(i)] = m.light_curve(self.model[instrument]['params'])
+                                        self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1. 
+                            elif self.model_algorithm == 'starry':
+                                # Change ephemerides:
+                                self.model[instrument]['planet'][i].t0 = t0
+                                self.model[instrument]['planet'][i].porb = P
+                                # To "evaluate" a/Rs, starry does it through Kepler's law by changing the stellar density, with unitary radius. Hence, change the mass 
+                                # for this to work:
+                                self.model[instrument]['star'].m = (a**3)*(4.*(np.pi**2))/((P**2)*starry._constants.G_grav)
+                                # Inclination, planetary radius, eccentricity, omega:
+                                self.model[instrument]['planet'][i].r = p
+                                self.model[instrument]['planet'][i].inc = np.arccos(inc_inv_factor)*180./np.pi
+                                self.model[instrument]['planet'][i].ecc = ecc
+                                self.model[instrument]['planet'][i].omega = omega
+                                # Limb-darkening coefficients:
+                                self.model[instrument]['star'].map[1], self.model[instrument]['star'].map[2] = coeff1, coeff2
+                                # Note for starry we don't evaluate the flux here --- we do it outside the loop. This saves a ton of time.
                         else:
                             self.modelOK = False   
-                            return False 
-                    
+                            return False
+
+            # If model is starry, note we don't evaluate the flux in the loop above, we do it here:
+            if self.model_algorithm == 'starry':
+                if not self.dictionary[instrument]['TTVs'][i]['status']:
+                    if self.log_like_calc:
+                        self.model[instrument]['M'] = self.model[instrument]['system'].flux(self.times[instrument])
+                    else:
+                        self.model[instrument]['M'] = self.model[instrument]['system'].flux(self.times[instrument])
+                        #### Add flux evaluation for each planet #####
+                else:
+                    if self.log_like_calc:
+                        self.model[instrument]['M'] = self.model[instrument]['system'].flux(dummy_time)
+                    else:
+                        self.model[instrument]['M'] = self.model[instrument]['system'].flux(dummy_time)
+                        #### Add flux evaluation for each planet #####
+
+
             # Once either the transit model is generated or after populating the full_model with ones if no transit fit is on, 
             # convert the lightcurve so it complies with the juliet model accounting for the dilution and the mean out-of-transit flux:
             D, M = parameter_values['mdilution_'+self.mdilution_iname[instrument]], parameter_values['mflux_'+instrument]
@@ -2309,7 +2370,7 @@ class model(object):
         except:
             print('Warning: model evaluated at the posterior median did not compute properly.')
 
-    def __init__(self, data, modeltype, pl = 0.0, pu = 1.0, ecclim = 1., ta = 2458460., log_like_calc = False):
+    def __init__(self, data, modeltype, pl = 0.0, pu = 1.0, ecclim = 1., ta = 2458460., log_like_calc = False, model_algorithm = None):
         # Inhert the priors dictionary from data:
         self.priors = data.priors
         # Define the ecclim value:
@@ -2327,6 +2388,11 @@ class model(object):
         # Number of datapoints per instrument variable:
         self.ndatapoints_per_instrument = {}
         if modeltype == 'lc':
+            if model_algorithm is None:
+                # Default lightcurve model is batman:
+                self.model_algorithm = 'batman'
+            else:
+                self.model_algorithm = model_algorithm.lower()
             self.modeltype = 'lc'
             # Inhert times, fluxes, errors, indexes, etc. from data.
             # FYI, in case this seems confusing: self.t, self.y and self.yerr save what we internally call 
@@ -2402,20 +2468,39 @@ class model(object):
                     # First, take the opportunity to initialize transit lightcurves for each instrument:
                     if self.dictionary[instrument]['resampling']:
                         if not self.dictionary[instrument]['TransitFitCatwoman']:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                         nresampling = self.dictionary[instrument]['nresampling'],\
-                                                                                                         etresampling = self.dictionary[instrument]['exptimeresampling'])
+                            if self.model_algorithm == 'batman':
+                                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                                             nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                             etresampling = self.dictionary[instrument]['exptimeresampling'])
+                            elif self.model_algorithm == 'starry':
+                                self.model[instrument]['system'], self.model[instrument]['star'], self.model[instrument]['planets'] = init_starry(self.times[instrument], self.dictionary[instrument]['ldlaw'],\ 
+                                                                                                            nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                            etresampling = self.dictionary[instrument]['exptimeresampling'], \
+                                                                                                            numbering = self.numbering)
+                            else:
+                                raise Exception('\t Lightcurve generation algorithm {} not recognized. juliet currently supports "starry" and "batman".'.format(self.model_algorithm))
                         else:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                         nresampling = self.dictionary[instrument]['nresampling'],\
-                                                                                                         etresampling = self.dictionary[instrument]['exptimeresampling'])
+                            if self.model_algorithm != 'batman':
+                                raise Exception('\t The semi-circle lightcurve model has not been implemented in {} yet. Use "batman" if this is what you want to use.'.format({self.model_algorithm}))
+                            else:
+                                self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                                             nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                             etresampling = self.dictionary[instrument]['exptimeresampling'])
                     else:
                         if not self.dictionary[instrument]['TransitFitCatwoman']:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], \
-                                                                                                             self.dictionary[instrument]['ldlaw'])
+                            if self.model_algorithm == 'batman':
+                                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], \
+                                                                                                                 self.dictionary[instrument]['ldlaw'])
+                            elif self.model_algorithm == 'starry':
+                                self.model[instrument]['system'], self.model[instrument]['star'], self.model[instrument]['planets'] = init_starry(self.times[instrument],\
+                                                                                                                 self.dictionary[instrument]['ldlaw'],\
+                                                                                                                 numbering = self.numbering)
                         else:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], \
-                                                                                                               self.dictionary[instrument]['ldlaw'])
+                            if self.model_algorithm != 'batman':
+                                raise Exception('\t The semi-circle lightcurve model has not been implemented in {} yet. Use "batman" if this is what you want to use.'.format({self.model_algorithm}))
+                            else:
+                                self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], \
+                                                                                                                   self.dictionary[instrument]['ldlaw'])
                     # Individual transit lightcurves for each planet:
                     for i in self.numbering:
                         self.model[instrument]['p'+str(i)] = np.ones(len(self.instrument_indexes[instrument]))
@@ -2453,6 +2538,11 @@ class model(object):
             self.evaluate = self.evaluate_model
             self.generate = self.generate_lc_model
         elif modeltype == 'rv':
+            if model_algorithm is None:
+                # Default RV model is radvel:
+                self.model_algorithm = 'radvel'
+            else:
+                self.model_algorithm = model_algorithm.lower()
             self.modeltype = 'rv'
             # Inhert times, RVs, errors, indexes, etc. from data:
             self.t = data.t_rv
