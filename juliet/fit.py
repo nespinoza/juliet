@@ -2272,16 +2272,16 @@ class model(object):
                                         self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1. 
                             elif self.model_algorithm == 'starry':
                                 # Change ephemerides:
-                                self.model[instrument]['planet'][i].t0 = t0
-                                self.model[instrument]['planet'][i].porb = P
+                                self.model[instrument]['planets'][i].t0 = t0
+                                self.model[instrument]['planets'][i].porb = P
                                 # To "evaluate" a/Rs, starry does it through Kepler's law by changing the stellar density, with unitary radius. Hence, change the mass 
                                 # for this to work:
                                 self.model[instrument]['star'].m = (a**3)*(4.*(np.pi**2))/((P**2)*starry._constants.G_grav)
                                 # Inclination, planetary radius, eccentricity, omega:
-                                self.model[instrument]['planet'][i].r = p
-                                self.model[instrument]['planet'][i].inc = np.arccos(inc_inv_factor)*180./np.pi
-                                self.model[instrument]['planet'][i].ecc = ecc
-                                self.model[instrument]['planet'][i].omega = omega
+                                self.model[instrument]['planets'][i].r = p
+                                self.model[instrument]['planets'][i].inc = np.arccos(inc_inv_factor)*180./np.pi
+                                self.model[instrument]['planets'][i].ecc = ecc
+                                self.model[instrument]['planets'][i].omega = omega
                                 # Limb-darkening coefficients:
                                 self.model[instrument]['star'].map[1], self.model[instrument]['star'].map[2] = coeff1, coeff2
                                 # Note for starry we don't evaluate the flux here --- we do it outside the loop. This saves a ton of time.
