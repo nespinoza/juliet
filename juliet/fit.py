@@ -2473,9 +2473,9 @@ class model(object):
                                                                                                              nresampling = self.dictionary[instrument]['nresampling'],\
                                                                                                              etresampling = self.dictionary[instrument]['exptimeresampling'])
                             elif self.model_algorithm == 'starry':
-                                self.model[instrument]['system'], self.model[instrument]['star'], self.model[instrument]['planets'] = init_starry(self.times[instrument], self.dictionary[instrument]['ldlaw'],\ 
-                                                                                                            nresampling = self.dictionary[instrument]['nresampling'],\
-                                                                                                            etresampling = self.dictionary[instrument]['exptimeresampling'], \
+                                self.model[instrument]['system'], self.model[instrument]['star'], self.model[instrument]['planets'] = init_starry(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                                            nresampling = self.dictionary[instrument]['nresampling'], 
+                                                                                                            etresampling = self.dictionary[instrument]['exptimeresampling'], 
                                                                                                             numbering = self.numbering)
                             else:
                                 raise Exception('\t Lightcurve generation algorithm {} not recognized. juliet currently supports "starry" and "batman".'.format(self.model_algorithm))
