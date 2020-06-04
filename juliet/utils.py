@@ -44,10 +44,10 @@ def init_starry(t, ld_law, nresampling = None, etresampling = None, numbering = 
          planets.append(planets_dict[planet])
      # If resampling, apply resampling properties. If not, don't.
      if nresampling is None:
-          starry.System(star, *planets)
+          system = starry.System(star, *planets)
      else:
          # If resampling is on, resample according to user's input model. Order by default is zero (which is Riemann sum, a-la Kipping 2010): 
-          starry.System(star, *planets, texp = etresampling, oversample = nresampling, order = order)
+          system = starry.System(star, *planets, texp = etresampling, oversample = nresampling, order = order)
      # Return starry system (so we can run system.flux(times)), star (so we can vary limb-darkening), and planet dict (so we can change propertie of planets via, e.g., planets_dict['p1'].t0 = newt0):
      return system, star, planets_dict
 
