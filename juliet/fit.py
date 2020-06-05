@@ -1753,10 +1753,12 @@ class model(object):
                     if t is not None:
                         if self.modeltype == 'lc':
                             if self.global_model:
-                                # If global model, set all super-sample objects to evaluate at the input times:
+                                # If global model, set all super-sample objects to evaluate at the input times if batman model is used. Starry evaluates directly the times, so change them:
                                 for ginstrument in instruments:
-                                    if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']:
+                                    if self.model_algorithm == 'batman' and (self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']):
                                         self.model[ginstrument]['params'], self.model[ginstrument]['m'] = supersample_params[ginstrument],supersample_m[ginstrument]
+                                    elif self.model_algorithm == 'starry':
+                                        self.times[ginstrument] = t
                                     if self.lm_boolean[ginstrument]:
                                         self.lm_arguments[ginstrument] = LMregressors[ginstrument]
                                     self.model[ginstrument]['ones'] = np.ones(nt)
@@ -1766,16 +1768,23 @@ class model(object):
                                 self.inames = [instrument]
                                 self.generate_lc_model(current_parameter_values, evaluate_global_errors = False, evaluate_lc = True)
                                 self.inames = original_inames
+                                if self.model_algorithm == 'starry':
+                                    self.times[ginstrument] = original_instrument_times[ginstrument] 
                             else:
                                 # If not, set them only for the instrument of interest:
-                                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman']:
+                                if self.model_algorithm == 'batman' and (self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman']):
                                     self.model[instrument]['params'], self.model[instrument]['m'] = supersample_params,supersample_m
+                                elif self.model_algorithm == 'starry':
+                                    self.times[instrument] = t
                                 if self.lm_boolean[instrument]:
                                     self.lm_arguments[instrument] = LMregressors
                                 self.model[instrument]['ones'] = np.ones(nt)
                                 self.ndatapoints_per_instrument[instrument] = nt 
                                 # Generate lightcurve model:
                                 self.generate_lc_model(current_parameter_values, evaluate_global_errors = False, evaluate_lc = True)    
+                                # Rollback times if starry:
+                                if self.model_algorithm == 'starry':
+                                    self.times[instrument] = original_instrument_times
                         else:
                             # As with the lc case, RV model set-up depends on whether the model is global or not: 
                             self.t = t
@@ -2287,7 +2296,7 @@ class model(object):
                                 # Note for starry we don't evaluate the flux here --- we do it outside the loop. This saves a ton of time.
                         else:
                             self.modelOK = False   
-                            return False
+                            #return False
 
             # If model is starry, note we don't evaluate the flux in the loop above, we do it here:
             if self.model_algorithm == 'starry':
@@ -2303,7 +2312,6 @@ class model(object):
                     else:
                         self.model[instrument]['M'] = self.model[instrument]['system'].flux(dummy_time)
                         #### Add flux evaluation for each planet #####
-
 
             # Once either the transit model is generated or after populating the full_model with ones if no transit fit is on, 
             # convert the lightcurve so it complies with the juliet model accounting for the dilution and the mean out-of-transit flux:
