@@ -425,7 +425,7 @@ examples. To define a global GP model, for radial-velocity fits, one has to simp
         priors[param] = {}
         priors[param]['distribution'], priors[param]['hyperparameters'] = dist, hyperp
 
-    dataset = juliet.load(priors = priors, rvfilename='rvs_toi141.dat', out_folder = 'toi141_rvs', \
+    dataset = juliet.load(priors = priors, rvfilename='rvs_toi141.dat', out_folder = 'toi141_rvs-global', \
                           GPrveparamfile='GP_regressors_rv.dat')
 
     results = dataset.fit(n_live_points = 300)
