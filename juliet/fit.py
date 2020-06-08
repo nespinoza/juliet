@@ -2305,13 +2305,17 @@ class model(object):
                         self.model[instrument]['M'] = self.model[instrument]['system'].flux(self.times[instrument])
                     else:
                         self.model[instrument]['M'] = self.model[instrument]['system'].flux(self.times[instrument])
-                        #### Add flux evaluation for each planet #####
+                        # Evaluate lightcurve of each planet:
+                        for i in self.numbering:
+                            self.model[instrument]['p'+str(i)] = self.model[instrument]['p'+str(i)+'_only'].flux(self.times[instrument])
                 else:
                     if self.log_like_calc:
                         self.model[instrument]['M'] = self.model[instrument]['system'].flux(dummy_time)
                     else:
                         self.model[instrument]['M'] = self.model[instrument]['system'].flux(dummy_time)
-                        #### Add flux evaluation for each planet #####
+                        # Evaluate lightcurve of each planet:
+                        for i in self.numbering:
+                             self.model[instrument]['p'+str(i)] = self.model[instrument]['p'+str(i)+'_only'].flux(dummy_time)
 
             # Once either the transit model is generated or after populating the full_model with ones if no transit fit is on, 
             # convert the lightcurve so it complies with the juliet model accounting for the dilution and the mean out-of-transit flux:
