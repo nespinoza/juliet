@@ -40,7 +40,10 @@ def init_starry(t, ld_law, nresampling = None, etresampling = None, numbering = 
      planets = []
      planets_dict = {}
      for planet in numbering:
+         # Add to the planets_dict[planet] dictionary the Secondary starry object so we can change its properties:
          planets_dict[planet] = starry.kepler.Secondary(starry.Map(amp=0), m=0, porb=1., inc=90., r=0.1)
+         # Add to the same dictionary a dictionary that saves the system that holds an hypothetical exoplanet system with *that star+planet only*:
+         planets_dict['p'+str(planet)_'only'] = starry.System(star, planets_dict[planet])
          planets.append(planets_dict[planet])
      # If resampling, apply resampling properties. If not, don't.
      if nresampling is None:
