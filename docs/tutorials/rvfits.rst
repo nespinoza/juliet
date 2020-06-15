@@ -203,7 +203,7 @@ which are the most constraining ones:
     hyperps3pl = hyperps + [[1.,40.],[2458325.,2458355.],[0.,100.], 0., 90.]
 
     # Repopulate priors dictionary:
-    priors3pl = np.copy(priors)
+    priors3pl = {}
 
     for param, dist, hyperp in zip(params3pl, dists3pl, hyperps3pl):
         priors3pl[param] = {}
@@ -277,14 +277,14 @@ and perform the fit:
     hyperpsLT = hyperps + [[-100.,100.],[-100., 100.]]
 
     # Repopulate priors dictionary:
-    priorsLT = np.copy(priors)
+    priorsLT = {}
 
     for param, dist, hyperp in zip(paramsLT, distsLT, hyperpsLT):
         priorsLT[param] = {}
         priorsLT[param]['distribution'], priorsLT[param]['hyperparameters'] = dist, hyperp
 
     # Run juliet:
-    dataset = juliet.load(priors = priorsLT, rvfilename='rvs_toi141.dat', out_folder = 'toi141_rvs_3planets')
+    dataset = juliet.load(priors = priorsLT, rvfilename='rvs_toi141.dat', out_folder = 'toi141_rvs_lineartrend')
     results = dataset.fit(n_live_points = 300)
 
 Before plotting the results, note that when we evaluate the model using ``results.rv.evaluate`` we will get back the *full* model --- 
