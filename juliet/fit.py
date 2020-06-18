@@ -1168,19 +1168,19 @@ class fit(object):
                     runDynesty = True
             if runDynesty:
                 if self.dynesty_nthreads is None:
-                    sampler = dynesty.DynamicNestedSampler(self.loglike, self.prior, self.data.nparams, nlive = self.n_live_points, \
+                    sampler = dynesty.DynamicNestedSampler(self.loglike, self.prior, self.data.nparams, \
                                                            bound = self.dynesty_bound, sample = self.dynesty_sample)
                     # Run and get output:
-                    sampler.run_nested()
+                    sampler.run_nested(nlive_init = self.n_live_points)
                     results = sampler.results
                 else:
                     from multiprocessing import Pool
                     import contextlib
                     nthreads = int(self.dynesty_nthreads)
                     with contextlib.closing(Pool(processes=nthreads-1)) as executor:
-                        sampler = dynesty.DynamicNestedSampler(self.loglike, self.prior, self.data.nparams, nlive = self.n_live_points, \
+                        sampler = dynesty.DynamicNestedSampler(self.loglike, self.prior, self.data.nparams, \
                                                               bound = self.dynesty_bound, sample = self.dynesty_sample, pool=executor, queue_size=nthreads)
-                        sampler.run_nested()
+                        sampler.run_nested(nlive_init = self.n_live_points)
                         results = sampler.results
                 out['dynesty_output'] = results
                 # Get weighted posterior:
