@@ -1023,17 +1023,19 @@ class fit(object):
 
     def prior(self, cube, ndim = None, nparams = None):
         pcounter = 0
+        if self.use_dynesty:
+            transformed_priors = np.copy(self.transformed_priors)
         for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] != 'fixed':
                 if self.use_dynesty:
-                    self.transformed_priors[pcounter] = self.transform_prior[pname](cube[pcounter], \
+                    transformed_priors[pcounter] = self.transform_prior[pname](cube[pcounter], \
                                                                              self.data.priors[pname]['hyperparameters']) 
                 else:
                     cube[pcounter] = self.transform_prior[pname](cube[pcounter], \
                                                           self.data.priors[pname]['hyperparameters'])
                 pcounter += 1
         if self.use_dynesty:
-            return np.copy(self.transformed_priors)
+            return transformed_priors
 
     def loglike(self, cube, ndim=None, nparams=None):
         # Evaluate the joint log-likelihood. For this, first extract all inputs:
