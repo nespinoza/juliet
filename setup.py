@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='juliet',
-      version='2.0.22',
+      version='2.0.24',
       description='juliet: a versatile modelling tool for transiting exoplanets, radial-velocity systems or both',
       url='http://github.com/nespinoza/juliet',
       author='Nestor Espinoza',
