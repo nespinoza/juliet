@@ -2266,7 +2266,6 @@ class model(object):
                 if evaluate_global_errors:
                     self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
                                                                                           (parameter_values['sigma_w_'+instrument]*1e-6)**2
-
     def gaussian_log_likelihood(self, residuals, variances):
         taus = 1./variances
         return -0.5*(len(residuals)*log2pi+np.sum(-np.log(taus)+taus*(residuals**2)))
@@ -2439,7 +2438,8 @@ class model(object):
                                 if instrument in vec:
                                     self.mdilution_iname[instrument] = '_'.join(vec[1:])
                             else:
-                                self.mdilution_iname[instrument] = vec[1]
+                                if instrument in vec:
+                                    self.mdilution_iname[instrument] = vec[1]
                 else:
                     # Now proceed with instrument namings:
                     for pname in self.priors.keys():
@@ -2449,8 +2449,9 @@ class model(object):
                             if len(vec)>2:
                                 if instrument in vec:
                                     self.mdilution_iname[instrument] = '_'.join(vec[1:])
-                            else:        
-                                self.mdilution_iname[instrument] = vec[1]
+                            else:   
+                                if instrument in vec:
+                                    self.mdilution_iname[instrument] = vec[1]
             # Set the model-type to M(t):
             self.evaluate = self.evaluate_model
             self.generate = self.generate_lc_model
