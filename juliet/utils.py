@@ -527,7 +527,10 @@ def writepp(fout,posteriors, priors):
                 else:
                     a = ((posteriors['posterior_samples']['rho']*G*((priors['P_'+planet]['hyperparameters']*24.*3600.)**2))/(3.*np.pi))**(1./3.)
             else:
-                a = posteriors['posterior_samples']['a_'+planet]
+                if 'a_'+planet in posteriors['posterior_samples']:
+                    a = posteriors['posterior_samples']['a_'+planet]
+                else:
+                    a = priors['a_'+planet]['hyperparameters']
             inc_inv_factor = (b/a)*ecc_factor
             inc = np.arccos(inc_inv_factor)*180./np.pi
             val,valup,valdown = get_quantiles(inc)
