@@ -662,6 +662,10 @@ def save_rv_models(dataset, results, out_folder, time_rv_samples = 1000):
         t,rv,rverr = dataset.times_rv[instrument], dataset.data_rv[instrument], dataset.errors_rv[instrument]
         model = results.rv.evaluate(instrument, all_samples = True)
         mu = np.median(results.posteriors['posterior_samples']['mu_'+instrument])
+        try:
+            sigma_w = np.median(results.posteriors['posterior_samples']['sigma_w_'+instrument]) 
+        except:
+            sigma_w = 0.
         rv -= mu
         model -= mu
         for i in range(len(t)):
