@@ -635,3 +635,35 @@ def read_AIJ_tbl(fname):
         else:
             break
     return out_dict
+
+def save_rv_models(dataset, results, out_folder, time_rv_samples = 1000):
+    # Extract predictions for time v/s RV plot:
+    tmodel = np.linspace(np.min(dataset.t_rv)-10.,np.max(dataset.t_rv)+10., time_rv_samples)
+    rv_model, errup68, errdown68 = results.rv.evaluate(dataset.times_rv.keys()[0], all_samples = True, return_err = True, t=tmodel)
+    rv_model, errup95, errdown95 = results.rv.evaluate(dataset.times_rv.keys()[0], all_samples = True, return_err = True, t=tmodel, alpha = 0.95)
+    rv_model, errup99, errdown99 = results.rv.evaluate(dataset.times_rv.keys()[0], all_samples = True, return_err = True, t=tmodel, alpha = 0.99)
+    mu = np.median(results.posteriors['posterior_samples']['mu_'+dataset.times_rv.keys()[0])
+    rv_model -= mu
+    errup68 -= mu
+    errdown68 -= mu
+    errup95 -= mu
+    errdown95 -= mu
+    errup99 -= mu
+    errdown99 -= mu
+    # Save overall rv-time model:
+    fout = open('{}/rv_model.dat'.format(out_folder),'w')
+    for i in range(tmodel):
+        fout.write('{0:.10f} {1:.10f} {2:.10f} {3:.10f} {4:.10f} {5:.10f} {6:.10f} {7:.10f}\n'.format(tmodel[i],\
+                   rv_model[i],errup68[i],errdown68[i],errup95[i],errdown95[i],errup99[i],errdown99[i]))
+
+    # Save data per instrument + model per instrument (useful for phase-plots):
+    for instrument in list(dataset.times_rv.keys()):
+        fout = open('{}/{}_data.dat'.format(out_folder, instrument),'w')
+        t,rv,rverr = dataset.times_rv[instrument], dataset.data_rv[instrument], dataset.errors_rv[instrument]
+        model = results.rv.evaluate(instrument, all_samples = True)
+        mu = np.median(results.posteriors['posterior_samples']['mu_'+instrument])
+        rv -= mu
+        model -= mu
+        for i in range(len(t)):
+            fout.write('{0:.10f} {1:.10f} {2:.10f} {3:.10f}\n'.format(t[i],rv[i],rverr[i],model[i]))
+        fout.close()
