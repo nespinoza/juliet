@@ -1464,7 +1464,7 @@ class model(object):
 
     def evaluate_model(self, instrument = None, parameter_values = None, resampling = None, nresampling = None, etresampling = None, \
                           all_samples = False, nsamples = 1000, return_samples = False, t = None, GPregressors = None, LMregressors = None, \
-                          return_err = False, alpha = 0.68, return_components = False):
+                          return_err = False, alpha = 0.68, return_components = False, evaluate_transit = False):
         """
         This function evaluates the current lc or rv  model given a set of parameter values. Resampling options can be changed if resampling is a boolean,
         but the object is at the end rolled-back to the default resampling definitions the user defined in the juliet.load object. 
@@ -1510,6 +1510,20 @@ class model(object):
         If True, components of the model are returned
 
         """
+        if evaluate_transit:
+            if self.modeltype != 'lc':
+                raise Exception("Trying to evaluate a transit (evaluate_transit = True) in a non-lightcurve model is not allowed.")
+
+            # Save LM and GP booleans, turn them off:
+            true_lm_boolean = self.lm_boolean[instrument]
+            self.lm_boolean[instrument] = False
+            if self.global_model:
+                true_gp_boolean = self.dictionary['global_model']['GPDetrend']
+                self.dictionary['global_model']['GPDetrend'] = False
+            else:
+                true_gp_boolean = self.dictionary[instrument]['GPDetrend']
+                self.dictionary[instrument]['GPDetrend'] = False
+        
         # If no instrument is given, assume user wants a global model evaluation:
         if instrument is None:
             if not self.global_model:
@@ -1990,7 +2004,8 @@ class model(object):
             x = self.evaluate_model(instrument = instrument, parameter_values = self.posteriors, resampling = resampling, \
                                               nresampling = nresampling, etresampling = etresampling, all_samples = all_samples, \
                                               nsamples = nsamples, return_samples = return_samples, t = t, GPregressors = GPregressors, \
-                                              LMregressors = LMregressors, return_err = return_err, return_components = return_components, alpha = alpha)
+                                              LMregressors = LMregressors, return_err = return_err, return_components = return_components, alpha = alpha, \
+                                              evaluate_transit = evaluate_transit)
             if return_samples:
                 if return_err:
                     if return_components:
@@ -2026,6 +2041,14 @@ class model(object):
         if not self.global_model:
             # Return original inames back in case of non-global models:
             self.inames = original_inames
+
+        if evaluate_transit:
+            # Turn LM and GPs back on:
+            self.lm_boolean[instrument] =true_lm_boolean
+            if self.global_model:
+                self.dictionary['global_model']['GPDetrend'] = true_gp_boolean
+            else:
+                self.dictionary[instrument]['GPDetrend'] = true_gp_boolean 
 
         if return_samples:
             if return_err:
