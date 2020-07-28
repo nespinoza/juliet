@@ -2641,13 +2641,14 @@ class gaussian_process(object):
         # modified directly by changing the self.yerr vector; in the latter, we have to manually add a jitter term in the GP parameter 
         # vector. This base_index is only important for the george kernels though --- an if statement suffices for the celerite ones.
         base_index = 0
-        if self.kernel_name == 'SEKernel':
+        if (self.kernel_name == 'SEKernel') or (self.kernel_name == 'M32Kernel'):
             if not self.global_GP:
                 self.parameter_vector[base_index] = np.log((parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)**2)
                 base_index += 1
             self.parameter_vector[base_index] = np.log((parameter_values['GP_sigma_'+self.input_instrument[0]]*self.sigma_factor)**2.)
+            alpha_name = 'alpha' if self.kernel_name == 'SEKernel' else 'malpha'
             for i in range(self.nX):
-                self.parameter_vector[base_index + 1 + i] = np.log(1./parameter_values['GP_alpha'+str(i)+'_'+self.input_instrument[1+i]])
+                self.parameter_vector[base_index + 1 + i] = np.log(1./parameter_values[f'GP_{alpha_name}'+str(i)+'_'+self.input_instrument[1+i]])
         elif self.kernel_name == 'ExpSineSquaredSEKernel':
             if not self.global_GP:
                 self.parameter_vector[base_index] = np.log((parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)**2)
@@ -2755,8 +2756,10 @@ class gaussian_process(object):
         # Define all possible kernels available by the object:
         self.all_kernel_variables = {}
         self.all_kernel_variables['SEKernel'] = ['sigma'] 
+        self.all_kernel_variables['M32Kernel'] = ['sigma']
         for i in range(self.nX):
             self.all_kernel_variables['SEKernel'] = self.all_kernel_variables['SEKernel'] + ['alpha'+str(i)]
+            self.all_kernel_variables['M32Kernel'] = self.all_kernel_variables['M32Kernel'] + ['malpha'+str(i)]
         self.all_kernel_variables['ExpSineSquaredSEKernel'] = ['sigma','alpha','Gamma','Prot']
         self.all_kernel_variables['CeleriteQPKernel'] = ['B','L','Prot','C']
         self.all_kernel_variables['CeleriteExpKernel'] = ['sigma','timescale']
@@ -2786,6 +2789,10 @@ class gaussian_process(object):
         if self.kernel_name == 'SEKernel':
             # Generate GPExpSquared base kernel:
             self.kernel = 1.*george.kernels.ExpSquaredKernel(np.ones(self.nX),ndim = self.nX, axes = range(self.nX))
+            # (Note no jitter kernel is given, as with george one defines this in the george.GP call):
+        elif self.kernel_name == 'M32Kernel':
+            # Generate GPMatern32 base kernel:
+            self.kernel = 1.*george.kernels.Matern32Kernel(np.ones(self.nX),ndim = self.nX, axes = range(self.nX))
             # (Note no jitter kernel is given, as with george one defines this in the george.GP call):
         elif self.kernel_name == 'ExpSineSquaredSEKernel':
             # Generate the kernels:

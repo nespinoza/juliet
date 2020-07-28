@@ -380,6 +380,10 @@ if lceparamfile is not None:
                 # Detected multi-dimensional squared-exponential GP:
                 lc_dictionary[instrument]['GPType'] = 'SEKernel'
                 break
+            if (vec[0] == 'GP') and ('malpha0' in vec[1]) and (instrument in vec):
+                # Detected multi-dimensional Matern 3/2 GP:
+                lc_dictionary[instrument]['GPType'] = 'M32Kernel'
+                break
             if (vec[0] == 'GP') and ('Gamma' in vec[1]) and (instrument in vec):
                 # Detected exp-sine-squared kernel:
                 lc_dictionary[instrument]['GPType'] = 'ExpSineSquaredSEKernel'
@@ -413,11 +417,12 @@ if lceparamfile is not None:
         print('\t Detected ',lc_dictionary[instrument]['GPType'],'for the GP')
         # For each instrument for which there are external parameters, activate GP:
         lc_dictionary[instrument]['GPDetrend'] = True 
-        # Save variables, standarize them if GP is SEKernel:
+        # Save variables, standarize them if GP is SEKernel or M32Kernel:
         lc_dictionary[instrument]['X'] = GPDict[instrument]['variables']
         lc_dictionary[instrument]['nX'] = lc_dictionary[instrument]['X'].shape[1]
         print('\t (',lc_dictionary[instrument]['nX'],'external parameters)')
-        if lc_dictionary[instrument]['GPType'] == 'SEKernel':
+        if (lc_dictionary[instrument]['GPType'] == 'SEKernel') \
+        or (lc_dictionary[instrument]['GPType'] == 'M32Kernel'):
             for i in range(lc_dictionary[instrument]['nX']):
                 lc_dictionary[instrument]['X'][:,i] = (lc_dictionary[instrument]['X'][:,i] - \
                                                       np.mean(lc_dictionary[instrument]['X'][:,i]))/\
@@ -585,10 +590,12 @@ if lceparamfile is not None:
             else:
                 lc_dictionary[instrument]['GPObject'].compute(lc_dictionary[instrument]['X'],yerr=ferr_lc[instrument_indexes_lc[instrument]])
 
-        if lc_dictionary[instrument]['GPType'] == 'SEKernel':
+        if lc_dictionary[instrument]['GPType'] == 'SEKernel' \
+        or lc_dictionary[instrument]['GPType'] == 'M32Kernel':
+            alpha_name = 'alpha' if lc_dictionary[instrument]['GPType'] == 'SEKernel' else 'malpha'
             GPvariables = ['sigma']
             for ialpha in range(lc_dictionary[instrument]['nX']):
-                GPvariables = GPvariables + ['alpha'+str(ialpha)]
+                GPvariables = GPvariables + [f'{alpha_name}'+str(ialpha)]
             for GPvariable in GPvariables:
                 for pnames in priors.keys():
                     vec = pnames.split('_')
@@ -636,6 +643,10 @@ if rveparamfile is not None:
             # Detected multi-dimensional squared-exponential GP:
             rv_dictionary['GPType'] = 'SEKernel'
             break
+        if (vec[0] == 'GP') and ('malpha0' in vec[1]) and ('rv' in vec[-1].lower()):
+            # Detected multi-dimensional Matern 3/2 GP:
+            rv_dictionary['GPType'] = 'M32Kernel'
+            break
         if (vec[0] == 'GP') and ('Gamma' in vec[1]) and ('rv' in vec[-1].lower()):
             # Detected exp-sine-squared kernel:
             rv_dictionary['GPType'] = 'ExpSineSquaredSEKernel'
@@ -665,17 +676,20 @@ if rveparamfile is not None:
             break
 
     print('\t Detected ',rv_dictionary['GPType'],'for the GP')
-    # Save variables, standarize them if GP is SEKernel:
+    # Save variables, standarize them if GP is SEKernel or M32Kernel:
     rv_dictionary['X'] = GPDict['variables']
     rv_dictionary['nX'] = rv_dictionary['X'].shape[1]
     print('\t (',rv_dictionary['nX'],'external parameters)')
 
-    if rv_dictionary['GPType'] == 'SEKernel':
+    if rv_dictionary['GPType'] == 'SEKernel' \
+    or rv_dictionary['GPType'] == 'M32Kernel':
+        kernel_name = 'SEKernel' if rv_dictionary['GPType'] == 'SEKernel' else 'M32Kernel'
         for i in range(rv_dictionary['nX']):
             rv_dictionary['X'][:,i] = (rv_dictionary['X'][:,i] - \
                                        np.mean(rv_dictionary['X'][:,i]))/\
                                        np.sqrt(np.var(rv_dictionary['X'][:,i]))
-        print('\t Not yet supported SEKernel for RVs (do you really need it?).')
+
+        print(f'\t Not yet supported {kernel_name} for RVs (do you really need it?).')
         import sys
         sys.exit()
 
@@ -1060,14 +1074,18 @@ def loglike(cube, ndim=None, nparams=None):
                                                       ferr_lc[instrument_indexes_lc[instrument]],\
                                                       priors['sigma_w_'+instrument]['cvalue']*1e-6)
         else:
-            if lc_dictionary[instrument]['GPType'] == 'SEKernel':
+            if lc_dictionary[instrument]['GPType'] == 'SEKernel' \
+            or lc_dictionary[instrument]['GPType'] == 'M32Kernel':
+                alpha_name = 'alpha' if lc_dictionary[instrument]['GPType'] == 'SEKernel' else 'malpha'
                 # Save the log(variance) of the jitter term on the current GP vector:
                 lc_dictionary[instrument]['GPVector'][0] = np.log((priors['sigma_w_'+instrument]['cvalue']*1e-6)**2.)
                 # Save pooled variance of the GP process:
                 lc_dictionary[instrument]['GPVector'][1] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']*1e-6)**2.)
                 # Now save (log of) coefficients of each GP term:
                 for i in range(lc_dictionary[instrument]['nX']):
-                    lc_dictionary[instrument]['GPVector'][2+i] = np.log(1./priors['GP_alpha'+str(i)+'_'+lc_dictionary[instrument]['GP_alpha'+str(i)]]['cvalue'])
+                    lc_dictionary[instrument]['GPVector'][2+i] = np.log(
+                            1./priors[f'GP_{alpha_name}'+str(i)+'_'+lc_dictionary[instrument]['GP_{alpha_name}'+str(i)]]['cvalue']
+                    )
             if lc_dictionary[instrument]['GPType'] == 'ExpSineSquaredSEKernel':
                 # Save the log(variance) of the jitter term on the current GP vector:
                 lc_dictionary[instrument]['GPVector'][0] = np.log((priors['sigma_w_'+instrument]['cvalue']*1e-6)**2.)
@@ -2223,14 +2241,18 @@ if lcfilename is not None:
             norm_factors[instrument]['F2'] = np.append(norm_factors[instrument]['F2'],F2)
             if lc_dictionary[instrument]['GPDetrend']:
                 # Set current values to GP Vector:
-                if lc_dictionary[instrument]['GPType'] == 'SEKernel':
+                if lc_dictionary[instrument]['GPType'] == 'SEKernel' \
+                or lc_dictionary[instrument]['GPType'] == 'M32Kernel':
+                    alpha_name = 'alpha' if lc_dictionary[instrument]['GPType'] == 'SEKernel' else 'malpha'
                     # Save the log(variance) of the jitter term on the current GP vector:
                     lc_dictionary[instrument]['GPVector'][0] = np.log((priors['sigma_w_'+instrument]['cvalue']*1e-6)**2.)
                     # Save pooled variance of the GP process:
                     lc_dictionary[instrument]['GPVector'][1] = np.log((priors['GP_sigma_'+lc_dictionary[instrument]['GP_sigma']]['cvalue']*1e-6)**2.)
                     # Now save (log of) coefficients of each GP term:
                     for i in range(lc_dictionary[instrument]['nX']):
-                        lc_dictionary[instrument]['GPVector'][2+i] = np.log(0.5/priors['GP_alpha'+str(i)+'_'+lc_dictionary[instrument]['GP_alpha'+str(i)]]['cvalue'])
+                        lc_dictionary[instrument]['GPVector'][2+i] = np.log(
+                                0.5/priors[f'GP_{alpha_name}'+str(i)+'_'+lc_dictionary[instrument][f'GP_{alpha_name}'+str(i)]]['cvalue']
+                        )
                 if lc_dictionary[instrument]['GPType'] == 'ExpSineSquaredSEKernel':
                     # Save the log(variance) of the jitter term on the current GP vector:
                     lc_dictionary[instrument]['GPVector'][0] = np.log((priors['sigma_w_'+instrument]['cvalue']*1e-6)**2.)
