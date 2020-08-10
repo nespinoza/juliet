@@ -90,10 +90,10 @@ class load(object):
         which contains the hyperparameters of that distribution. 
 
         Example setup of the ``priors`` dictionary:
-            >> priors = {}
-            >> priors['r1_p1'] = {}
-            >> priors['r1_p1']['distribution'] = 'Uniform'
-            >> priors['r1_p1']['hyperparameters'] = [0.,1.]
+            >>> priors = {}
+            >>> priors['r1_p1'] = {}
+            >>> priors['r1_p1']['distribution'] = 'Uniform'
+            >>> priors['r1_p1']['hyperparameters'] = [0.,1.]
 
         If a ``string``, this has to contain the filename to a proper juliet prior file; the prior ``dict`` will 
         then be generated from there. A proper prior file has in the first column the name of the parameter, 
@@ -707,7 +707,7 @@ class load(object):
                 self.save_priorfile(self.out_folder+'priors.dat')
 
     def fit(self, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
-            n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0):
+            n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0, ta = 2458460.):
         """
         Perhaps the most important function of the juliet data object. This function fits your data using the nested 
         sampler of choice. This returns a results object which contains all the posteriors information.
@@ -715,7 +715,7 @@ class load(object):
         # Note this return call creates a fit *object* with the current data object. The fit class definition is below.
         return fit(self, use_dynesty = use_dynesty, dynamic = dynamic, dynesty_bound = dynesty_bound, dynesty_sample = dynesty_sample, \
                    dynesty_nthreads = dynesty_nthreads, n_live_points = n_live_points, ecclim = ecclim, delta_z_lim = delta_z_lim, \
-                   pl = pl, pu = pu)
+                   pl = pl, pu = pu, ta = ta)
 
     def __init__(self,priors = None, input_folder = None, t_lc = None, y_lc = None, yerr_lc = None, \
                  t_rv = None, y_rv = None, yerr_rv = None, GP_regressors_lc = None, linear_regressors_lc = None, \
@@ -961,7 +961,7 @@ class fit(object):
 
                >>> results = juliet.fit(data)
 
-    :params data: (juliet object)
+    :param data: (juliet object)
         An object containing all the information regarding the data to be fitted, including options of the fit. 
         Generated via juliet.load().
 
@@ -1025,17 +1025,19 @@ class fit(object):
 
     def prior(self, cube, ndim = None, nparams = None):
         pcounter = 0
+        if self.use_dynesty:
+            transformed_priors = np.copy(self.transformed_priors)
         for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] != 'fixed':
                 if self.use_dynesty:
-                    self.transformed_priors[pcounter] = self.transform_prior[pname](cube[pcounter], \
+                    transformed_priors[pcounter] = self.transform_prior[pname](cube[pcounter], \
                                                                              self.data.priors[pname]['hyperparameters'])
                 else:
                     cube[pcounter] = self.transform_prior[pname](cube[pcounter], \
                                                           self.data.priors[pname]['hyperparameters'])
                 pcounter += 1
         if self.use_dynesty:
-            return self.transformed_priors
+            return transformed_priors
 
     def loglike(self, cube, ndim=None, nparams=None):
         # Evaluate the joint log-likelihood. For this, first extract all inputs:
@@ -1170,19 +1172,19 @@ class fit(object):
                     runDynesty = True
             if runDynesty:
                 if self.dynesty_nthreads is None:
-                    sampler = dynesty.DynamicNestedSampler(self.loglike, self.prior, self.data.nparams, nlive = self.n_live_points, \
+                    sampler = dynesty.DynamicNestedSampler(self.loglike, self.prior, self.data.nparams, \
                                                            bound = self.dynesty_bound, sample = self.dynesty_sample)
                     # Run and get output:
-                    sampler.run_nested()
+                    sampler.run_nested(nlive_init = self.n_live_points)
                     results = sampler.results
                 else:
                     from multiprocessing import Pool
                     import contextlib
                     nthreads = int(self.dynesty_nthreads)
                     with contextlib.closing(Pool(processes=nthreads-1)) as executor:
-                        sampler = dynesty.DynamicNestedSampler(self.loglike, self.prior, self.data.nparams, nlive = self.n_live_points, \
+                        sampler = dynesty.DynamicNestedSampler(self.loglike, self.prior, self.data.nparams, \
                                                               bound = self.dynesty_bound, sample = self.dynesty_sample, pool=executor, queue_size=nthreads)
-                        sampler.run_nested()
+                        sampler.run_nested(nlive_init = self.n_live_points)
                         results = sampler.results
                 out['dynesty_output'] = results
                 # Get weighted posterior:
@@ -1464,52 +1466,87 @@ class model(object):
 
     def evaluate_model(self, instrument = None, parameter_values = None, resampling = None, nresampling = None, etresampling = None, \
                           all_samples = False, nsamples = 1000, return_samples = False, t = None, GPregressors = None, LMregressors = None, \
-                          return_err = False, alpha = 0.68, return_components = False):
+                          return_err = False, alpha = 0.68, return_components = False, evaluate_transit = False):
         """
-        This function evaluates the current lc or rv  model given a set of parameter values. Resampling options can be changed if resampling is a boolean,
-        but the object is at the end rolled-back to the default resampling definitions the user defined in the juliet.load object. 
-        For now, resampling only is available for lightcurve models. TODO: add resampling for RVs.
+        This function evaluates the current lc or rv model given a set of posterior distribution samples and/or parameter values. Example usage:
 
-        :params instrument: (optional, string)
+                             >>> dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, yerr_lc = fluxes_error)
+                             >>> results = dataset.fit()
+                             >>> transit_model, error68_up, error68_down = results.lc.evaluate('TESS', return_err=True)
+
+        Or:
+
+                             >>> dataset = juliet.load(priors=priors, t_rv = times, y_rv = fluxes, yerr_rv = fluxes_error)
+                             >>> results = dataset.fit()
+                             >>> rv_model, error68_up, error68_down = results.rv.evaluate('FEROS', return_err=True)
+
+        :param instrument: (optional, string)
         Instrument the user wants to evaluate the model on. It is expected to be given for non-global models, not necessary for global models. 
 
-        :params parameter_values: (optional, dict)
-        Dictionary containing samples of the parameter values in it. Each key is a parameter name (e.g. 'p_p1', 'q1_TESS', etc.), and inside each of those 
-        keys an array of N samples is expected (i.e., parameter_values['p_p1'] is an array of length N). The indexes have to be consistent between different 
-        parameters.
+        :param parameter_values: (optional, dict)
+        Dictionary containing samples of the posterior distribution or, more generally, parameter valuesin it. Each key is a parameter name (e.g. 'p_p1', 
+        'q1_TESS', etc.), and inside each of those keys an array of N samples is expected (i.e., parameter_values['p_p1'] is an array of length N). The 
+        indexes have to be consistent between different parameters.
 
-        :params resampling: (optional, boolean)
-        Boolean indicating if the model needs to be resampled or not
+        :param resampling: (optional, boolean)
+        Boolean indicating if the model needs to be resampled or not. Only works for lightcurves.
 
-        :params etresampling: (optional, double)
-        Exposure time of the resampling
+        :param nresampling: (optional, int)
+        Number of points to resample for a given time-stamp. Only used if resampling = True. Only applicable to lightcurves.
 
-        :params all_samples: (optional, boolean)
-        Boolean indicating if all the posterior samples should be used or only a pre-defined number of samples. Default is 1000.
+        :param etresampling: (optional, double)
+        Exposure time of the resampling (same unit as times). Only used if resampling = True. Only applicable to lightcurves.
 
-        :params return_samples: (optional, boolean)
-        Boolean indicating whether the user wants the posterior samples of the model to be returned.
+        :param all_samples: (optional, boolean)
+        If True, all posterior samples will be used to evaluate the model. Default is False.
+        
+        :param nsamples: (optional, int)
+        Number of posterior samples to be used to evaluate the model. Default is 1000 (note each call to this function will sample `nsamples` different samples 
+        from the posterior, so no two calls are exactly the same).
 
-        :params t: (optional, numpy array)
-        Array with the times at which the model wants to be evaluated
+        :param return_samples: (optional, boolean)
+        Boolean indicating whether the user wants the posterior model samples (i.e., the models evaluated in each of the posterior sample draws) to be returned. Default 
+        is False.
 
-        :params GPRegressors: (optional, numpy array)
-        Array containing the GP Regressors onto which evaluate the models (same length as t)
+        :param t: (optional, numpy array)
+        Array with the times at which the model wants to be evaluated.
 
-        :params LMRegressors: (optional, numpy array or dictionary)
-        If the model is not global, this is an array containing the Linear Regressors onto which evaulate the model for the input instrument. 
-        Has to have the same dimension as `t`. If model is global, this needs to be a dictionary, of the same length as input `t`.
+        :param GPRegressors: (optional, numpy array)
+        Array containing the GP Regressors onto which to evaluate the models. Dimensions must be consistent with input `t`. If model is global, this needs to be a dictionary.
 
-        :params return_err: (optional, boolean)
-        If True, this returns the n-sigma error on the evaluated model.
+        :param LMRegressors: (optional, numpy array or dictionary)
+        If the model is not global, this is an array containing the Linear Regressors onto which to evaluate the model for the input instrument. 
+        Dimensions must be consistent with input `t`. If model is global, this needs to be a dictionary.
 
-        :params alpha: (optional, double)
-        Credibility band for return_err. Default is 1-sigma (68%).
+        :param return_err: (optional, boolean)
+        If True, this returns the credibility interval on the evaluated model. Default credibility interval is 68%.
 
-        :params return_components: (optional, boolean)
-        If True, components of the model are returned
+        :param alpha: (optional, double)
+        Credibility interval for return_err. Default is 0.68, i.e., the 68% credibility interval.
+
+        :param return_components: (optional, boolean)
+        If True, each component of the model is returned (i.e., the Gaussian Process component, the Linear Model component, etc.).
+
+        :param evaluate_transit: (optional, boolean)
+        If True, the function evaluates only the transit model and not the Gaussian Process or Linear Model components.
+
+        :returns: By default, the function returns the median model as evaluated with the posterior samples. Depending on the options chosen by the user, this can return up to 5 elements (in that order): `model_samples`, `median_model`, `upper_CI`, `lower_CI` and `components`. The first is an array with all the model samples as evaluated from the posterior. The second is the median model. The third and fourth are the uppper and lower Credibility Intervals, and the latter is a dictionary with the model components.
 
         """
+        if evaluate_transit:
+            if self.modeltype != 'lc':
+                raise Exception("Trying to evaluate a transit (evaluate_transit = True) in a non-lightcurve model is not allowed.")
+
+            # Save LM and GP booleans, turn them off:
+            true_lm_boolean = self.lm_boolean[instrument]
+            self.lm_boolean[instrument] = False
+            if self.global_model:
+                true_gp_boolean = self.dictionary['global_model']['GPDetrend']
+                self.dictionary['global_model']['GPDetrend'] = False
+            else:
+                true_gp_boolean = self.dictionary[instrument]['GPDetrend']
+                self.dictionary[instrument]['GPDetrend'] = False
+        
         # If no instrument is given, assume user wants a global model evaluation:
         if instrument is None:
             if not self.global_model:
@@ -1990,7 +2027,8 @@ class model(object):
             x = self.evaluate_model(instrument = instrument, parameter_values = self.posteriors, resampling = resampling, \
                                               nresampling = nresampling, etresampling = etresampling, all_samples = all_samples, \
                                               nsamples = nsamples, return_samples = return_samples, t = t, GPregressors = GPregressors, \
-                                              LMregressors = LMregressors, return_err = return_err, return_components = return_components, alpha = alpha)
+                                              LMregressors = LMregressors, return_err = return_err, return_components = return_components, alpha = alpha, \
+                                              evaluate_transit = evaluate_transit)
             if return_samples:
                 if return_err:
                     if return_components:
@@ -2026,6 +2064,14 @@ class model(object):
         if not self.global_model:
             # Return original inames back in case of non-global models:
             self.inames = original_inames
+
+        if evaluate_transit:
+            # Turn LM and GPs back on:
+            self.lm_boolean[instrument] =true_lm_boolean
+            if self.global_model:
+                self.dictionary['global_model']['GPDetrend'] = true_gp_boolean
+            else:
+                self.dictionary[instrument]['GPDetrend'] = true_gp_boolean 
 
         if return_samples:
             if return_err:
@@ -2266,7 +2312,6 @@ class model(object):
                 if evaluate_global_errors:
                     self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
                                                                                           (parameter_values['sigma_w_'+instrument]*1e-6)**2
-
     def gaussian_log_likelihood(self, residuals, variances):
         taus = 1./variances
         return -0.5*(len(residuals)*log2pi+np.sum(-np.log(taus)+taus*(residuals**2)))
@@ -2439,7 +2484,8 @@ class model(object):
                                 if instrument in vec:
                                     self.mdilution_iname[instrument] = '_'.join(vec[1:])
                             else:
-                                self.mdilution_iname[instrument] = vec[1]
+                                if instrument in vec:
+                                    self.mdilution_iname[instrument] = vec[1]
                 else:
                     # Now proceed with instrument namings:
                     for pname in self.priors.keys():
@@ -2449,8 +2495,9 @@ class model(object):
                             if len(vec)>2:
                                 if instrument in vec:
                                     self.mdilution_iname[instrument] = '_'.join(vec[1:])
-                            else:        
-                                self.mdilution_iname[instrument] = vec[1]
+                            else:   
+                                if instrument in vec:
+                                    self.mdilution_iname[instrument] = vec[1]
             # Set the model-type to M(t):
             self.evaluate = self.evaluate_model
             self.generate = self.generate_lc_model
