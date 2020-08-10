@@ -1025,7 +1025,7 @@ class fit(object):
 
     def prior(self, cube, ndim = None, nparams = None):
         pcounter = 0
-        if self.use_dynesty:
+        if self.use_dynesty or self.use_ultranest:
             transformed_priors = np.copy(self.transformed_priors)
         for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] != 'fixed':
