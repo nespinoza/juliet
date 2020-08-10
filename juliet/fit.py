@@ -1020,6 +1020,8 @@ class fit(object):
                     self.transform_prior[pname] = transform_beta
                 if self.data.priors[pname]['distribution'] == 'exponential':
                     self.transform_prior[pname] = exponential
+                if self.data.priors[pname]['distribution'] == 'modjeffreys':
+                    self.transform_prior[pname] = transform_modifiedjeffreys
 
     def prior(self, cube, ndim = None, nparams = None):
         pcounter = 0
@@ -1029,7 +1031,7 @@ class fit(object):
             if self.data.priors[pname]['distribution'] != 'fixed':
                 if self.use_dynesty:
                     transformed_priors[pcounter] = self.transform_prior[pname](cube[pcounter], \
-                                                                             self.data.priors[pname]['hyperparameters']) 
+                                                                             self.data.priors[pname]['hyperparameters'])
                 else:
                     cube[pcounter] = self.transform_prior[pname](cube[pcounter], \
                                                           self.data.priors[pname]['hyperparameters'])
