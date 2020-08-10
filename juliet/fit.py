@@ -90,10 +90,10 @@ class load(object):
         which contains the hyperparameters of that distribution. 
 
         Example setup of the ``priors`` dictionary:
-            >> priors = {}
-            >> priors['r1_p1'] = {}
-            >> priors['r1_p1']['distribution'] = 'Uniform'
-            >> priors['r1_p1']['hyperparameters'] = [0.,1.]
+            >>> priors = {}
+            >>> priors['r1_p1'] = {}
+            >>> priors['r1_p1']['distribution'] = 'Uniform'
+            >>> priors['r1_p1']['hyperparameters'] = [0.,1.]
 
         If a ``string``, this has to contain the filename to a proper juliet prior file; the prior ``dict`` will 
         then be generated from there. A proper prior file has in the first column the name of the parameter, 
@@ -961,7 +961,7 @@ class fit(object):
 
                >>> results = juliet.fit(data)
 
-    :params data: (juliet object)
+    :param data: (juliet object)
         An object containing all the information regarding the data to be fitted, including options of the fit. 
         Generated via juliet.load().
 
@@ -1466,59 +1466,69 @@ class model(object):
                           all_samples = False, nsamples = 1000, return_samples = False, t = None, GPregressors = None, LMregressors = None, \
                           return_err = False, alpha = 0.68, return_components = False, evaluate_transit = False):
         """
-        This function evaluates the current lc or rv  model given a set of parameter values. Resampling options can be changed if resampling is a boolean,
-        but the object is at the end rolled-back to the default resampling definitions the user defined in the juliet.load object. 
-        For now, resampling only is available for lightcurve models. TODO: add resampling for RVs.
+        This function evaluates the current lc or rv model given a set of posterior distribution samples and/or parameter values. Example usage:
 
-        :params instrument: (optional, string)
+                             >>> dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, yerr_lc = fluxes_error)
+                             >>> results = dataset.fit()
+                             >>> transit_model, error68_up, error68_down = results.lc.evaluate('TESS', return_err=True)
+
+        Or:
+
+                             >>> dataset = juliet.load(priors=priors, t_rv = times, y_rv = fluxes, yerr_rv = fluxes_error)
+                             >>> results = dataset.fit()
+                             >>> rv_model, error68_up, error68_down = results.rv.evaluate('FEROS', return_err=True)
+
+        :param instrument: (optional, string)
         Instrument the user wants to evaluate the model on. It is expected to be given for non-global models, not necessary for global models. 
 
-        :params parameter_values: (optional, dict)
-        Dictionary containing samples of the posterior distribution in it. Each key is a parameter name (e.g. 'p_p1', 'q1_TESS', etc.), and inside each of those 
-        keys an array of N samples is expected (i.e., parameter_values['p_p1'] is an array of length N). The indexes have to be consistent between different 
-        parameters.
+        :param parameter_values: (optional, dict)
+        Dictionary containing samples of the posterior distribution or, more generally, parameter valuesin it. Each key is a parameter name (e.g. 'p_p1', 
+        'q1_TESS', etc.), and inside each of those keys an array of N samples is expected (i.e., parameter_values['p_p1'] is an array of length N). The 
+        indexes have to be consistent between different parameters.
 
-        :params resampling: (optional, boolean)
+        :param resampling: (optional, boolean)
         Boolean indicating if the model needs to be resampled or not. Only works for lightcurves.
 
-        :params nresampling: (optional, int)
+        :param nresampling: (optional, int)
         Number of points to resample for a given time-stamp. Only used if resampling = True. Only applicable to lightcurves.
 
-        :params etresampling: (optional, double)
+        :param etresampling: (optional, double)
         Exposure time of the resampling (same unit as times). Only used if resampling = True. Only applicable to lightcurves.
 
-        :params all_samples: (optional, boolean)
+        :param all_samples: (optional, boolean)
         If True, all posterior samples will be used to evaluate the model. Default is False.
         
-        :params nsamples: (optional, int)
+        :param nsamples: (optional, int)
         Number of posterior samples to be used to evaluate the model. Default is 1000 (note each call to this function will sample `nsamples` different samples 
         from the posterior, so no two calls are exactly the same).
 
-        :params return_samples: (optional, boolean)
+        :param return_samples: (optional, boolean)
         Boolean indicating whether the user wants the posterior model samples (i.e., the models evaluated in each of the posterior sample draws) to be returned. Default 
         is False.
 
-        :params t: (optional, numpy array)
+        :param t: (optional, numpy array)
         Array with the times at which the model wants to be evaluated.
 
-        :params GPRegressors: (optional, numpy array)
+        :param GPRegressors: (optional, numpy array)
         Array containing the GP Regressors onto which to evaluate the models. Dimensions must be consistent with input `t`. If model is global, this needs to be a dictionary.
 
-        :params LMRegressors: (optional, numpy array or dictionary)
+        :param LMRegressors: (optional, numpy array or dictionary)
         If the model is not global, this is an array containing the Linear Regressors onto which to evaluate the model for the input instrument. 
         Dimensions must be consistent with input `t`. If model is global, this needs to be a dictionary.
 
-        :params return_err: (optional, boolean)
-        If True, this returns the credibility band on the evaluated model. Default credibility band is 68%.
+        :param return_err: (optional, boolean)
+        If True, this returns the credibility interval on the evaluated model. Default credibility interval is 68%.
 
-        :params alpha: (optional, double)
-        Credibility band for return_err. Default is 0.68, i.e., the 68% credibility band.
+        :param alpha: (optional, double)
+        Credibility interval for return_err. Default is 0.68, i.e., the 68% credibility interval.
 
-        :params return_components: (optional, boolean)
+        :param return_components: (optional, boolean)
         If True, each component of the model is returned (i.e., the Gaussian Process component, the Linear Model component, etc.).
 
-        :params evaluate_transit: (optional, boolean)
+        :param evaluate_transit: (optional, boolean)
         If True, the function evaluates only the transit model and not the Gaussian Process or Linear Model components.
+
+        :returns: By default, the function returns the median model as evaluated with the posterior samples. Depending on the options chosen by the user, this can return up to 5 elements (in that order): `model_samples`, `median_model`, `upper_CI`, `lower_CI` and `components`. The first is an array with all the model samples as evaluated from the posterior. The second is the median model. The third and fourth are the uppper and lower Credibility Intervals, and the latter is a dictionary with the model components.
 
         """
         if evaluate_transit:
