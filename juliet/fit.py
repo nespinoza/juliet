@@ -1328,10 +1328,13 @@ class fit(object):
             else:
                 # For retro-compatibility, check for sigma_w_rv_instrument and add an extra variable on out 
                 # for sigma_w_instrument:
+                out_temp = dict()
                 for pname in out['posterior_samples'].keys():
                     if 'sigma_w_rv' == pname[:10]:
                         instrument = pname.split('_')[-1]
-                        out['posterior_samples']['sigma_w_'+instrument] = out['posterior_samples'][pname]
+                        out_temp['sigma_w_'+instrument] = out['posterior_samples'][pname]
+                for pname in out_temp.keys():
+                    out['posterior_samples'][pname] = out_temp[pname]
                 # Extract parameters:
                 for pname in self.posteriors.keys():
                     if data.priors[pname]['distribution'] != 'fixed':
