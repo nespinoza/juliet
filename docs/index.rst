@@ -5,25 +5,25 @@ juliet
     :width: 400pt
     :align: center
 
-`juliet` is a versatile modelling tool for transiting and non-transiting exoplanetary 
+``juliet`` is a versatile modelling tool for transiting and non-transiting exoplanetary 
 systems that allows to perform quick-and-easy fits to data coming from transit photometry, 
 radial velocity or both using bayesian inference and, in particular, using Nested Sampling in 
 order to allow both efficient fitting and proper model comparison.
 
-In this documentation you'll be able to check out the features `juliet` can offer for your 
+In this documentation you'll be able to check out the features ``juliet`` can offer for your 
 research, which range from fitting different datasets simultaneously for both transits and 
 radial-velocities to accounting for systematic trends both using linear models or 
 Gaussian Processes (GP), to even extract information from photometry alone (e.g., stellar rotation 
 periods) with just a few lines of code.
 
-`juliet` builds on the work of "giants" that have made publicly available tools for transit (`batman <https://www.cfa.harvard.edu/~lkreidberg/batman/>`_, 
+``juliet`` builds on the work of "giants" that have made publicly available tools for transit (`batman <https://www.cfa.harvard.edu/~lkreidberg/batman/>`_, 
 `starry <https://rodluger.github.io/starry/>`_), radial-velocity (`radvel <https://radvel.readthedocs.io/en/latest/>`_), GP modelling 
 (`george <https://george.readthedocs.io/en/latest/>`_, `celerite <https://celerite.readthedocs.io/en/stable/>`_) and Nested Samplers (`MultiNest` via 
-`pymultinest <https://github.com/JohannesBuchner/PyMultiNest>`_, `dynesty <https://dynesty.readthedocs.io>`_, `ultranest <https://johannesbuchner.github.io/UltraNest/>_`)  and thus can be seen as a wrapper of all 
+`pymultinest <https://github.com/JohannesBuchner/PyMultiNest>`_, `dynesty <https://dynesty.readthedocs.io>`_, `ultranest <https://johannesbuchner.github.io/UltraNest/>`_)  and thus can be seen as a wrapper of all 
 of those in one. Somewhat like an `Infinity Gauntlet <https://cdn.shopify.com/s/files/1/0882/5118/products/Infinity-Gauntlet-by-Jim-Starlin-1306917_1024x1024.jpeg?v=1438791299>`_ 
 for exoplanets.
 
-`juliet` is in active development in its `public repository on GitHub
+The library is in active development in its `public repository on GitHub
 <https://github.com/nespinoza/juliet>`_. If you discover any bugs or have requests for us, please consider 
 sending us an email or `opening an issue <https://github.com/nespinoza/juliet/issues>`_.
 
@@ -96,7 +96,7 @@ Additional citations
 
 In addition to the citation above, and depending on the methods and samplers used in your research, please make sure to cite the appropiate sources:
 
-* **If transit fits were performed**, cite `batman`:
+* **If transit fits were performed**, cite ``batman``:
 
 .. code-block:: tex  
 
@@ -117,7 +117,52 @@ In addition to the citation above, and depending on the methods and samplers use
           adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
 
-* **If radial-velocity fits were performed**, cite `radvel`:
+In addition, ``juliet`` allows to sample limb-darkening coefficients using the method outlined in `Kipping (2013) <https://ui.adsabs.harvard.edu/abs/2013MNRAS.435.2152K/abstract>`_. If using it, please cite:
+
+.. code-block:: tex  
+
+    @ARTICLE{2013MNRAS.435.2152K,
+           author = {{Kipping}, David M.},
+            title = "{Efficient, uninformative sampling of limb darkening coefficients for two-parameter laws}",
+          journal = {\mnras},
+         keywords = {methods: analytical, stars: atmospheres, Astrophysics - Solar and Stellar Astrophysics, Astrophysics - Earth and Planetary Astrophysics},
+             year = 2013,
+            month = nov,
+           volume = {435},
+           number = {3},
+            pages = {2152-2160},
+              doi = {10.1093/mnras/stt1435},
+    archivePrefix = {arXiv},
+           eprint = {1308.0009},
+     primaryClass = {astro-ph.SR},
+           adsurl = {https://ui.adsabs.harvard.edu/abs/2013MNRAS.435.2152K},
+          adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+    }
+
+If using the uninformative sample for radius and impact parameters outlined in `Espinoza (2018) <https://ui.adsabs.harvard.edu/abs/2018RNAAS...2..209E/exportcitation>`_, cite:
+
+.. code-block:: tex
+
+    @ARTICLE{2018RNAAS...2..209E,
+           author = {{Espinoza}, N{\'e}stor},
+            title = "{Efficient Joint Sampling of Impact Parameters and Transit Depths in Transiting Exoplanet Light Curves}",
+          journal = {Research Notes of the American Astronomical Society},
+         keywords = {Astrophysics - Earth and Planetary Astrophysics},
+             year = 2018,
+            month = nov,
+           volume = {2},
+           number = {4},
+              eid = {209},
+            pages = {209},
+              doi = {10.3847/2515-5172/aaef38},
+    archivePrefix = {arXiv},
+           eprint = {1811.04859},
+     primaryClass = {astro-ph.EP},
+           adsurl = {https://ui.adsabs.harvard.edu/abs/2018RNAAS...2..209E},
+          adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+    }
+
+* **If radial-velocity fits were performed**, cite ``radvel``:
 
 .. code-block:: tex 
 
@@ -139,7 +184,7 @@ In addition to the citation above, and depending on the methods and samplers use
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
 
-* **If GPs were used, cite either `george` and/or `celerite` depending on the used kernel(s)**:
+* **If Gaussian Processes were used**, cite either ``george`` and/or ``celerite`` depending on the used kernel(s):
 
 .. code-block:: tex 
 
@@ -167,7 +212,7 @@ In addition to the citation above, and depending on the methods and samplers use
            url = {https://arxiv.org/abs/1703.09710}
     }
 
-* **If MultiNest was used to perform the sampling, cite `MultiNest` and `PyMultiNest`**:
+* **If MultiNest was used to perform the sampling**, cite ``MultiNest`` and ``PyMultiNest``:
 
 .. code-block:: tex 
 
@@ -207,7 +252,7 @@ In addition to the citation above, and depending on the methods and samplers use
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
 
-* **If dynesty was used to perform the sampling, cite `dynesty`**:
+* **If dynesty was used to perform the sampling**, cite ``dynesty``:
 
 .. code-block:: tex
 
@@ -229,4 +274,4 @@ In addition to the citation above, and depending on the methods and samplers use
           adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
 
-* **If UltraNest was used to perform the sampling, follow the instructions in the `UltraNest read-the-docs <https://johannesbuchner.github.io/UltraNest/issues.html#how-should-i-cite-ultranest>`_**.
+* **If UltraNest was used to perform the sampling**, follow the instructions in the `UltraNest read-the-docs <https://johannesbuchner.github.io/UltraNest/issues.html#how-should-i-cite-ultranest>`_.
