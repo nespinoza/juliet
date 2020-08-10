@@ -238,6 +238,10 @@ def transform_truncated_normal(x,hyperparameters):
     ar, br = (a - mu) / sigma, (b - mu) / sigma
     return truncnorm.ppf(x,ar,br,loc=mu,scale=sigma)
 
+def transform_modifiedjeffreys(x,hyperparameters):
+    turn, hi = hyperparameters
+    return turn * (np.exp( (x + 1e-10) * np.log(hi/turn + 1)) - 1)
+
 def input_error_catcher(t,y,yerr,datatype):
     if datatype == 'lightcurve':
         dname = 'lc'
@@ -527,7 +531,10 @@ def writepp(fout,posteriors, priors):
                 else:
                     a = ((posteriors['posterior_samples']['rho']*G*((priors['P_'+planet]['hyperparameters']*24.*3600.)**2))/(3.*np.pi))**(1./3.)
             else:
-                a = posteriors['posterior_samples']['a_'+planet]
+                if 'a_'+planet in posteriors['posterior_samples']:
+                    a = posteriors['posterior_samples']['a_'+planet]
+                else:
+                    a = priors['a_'+planet]['hyperparameters']
             inc_inv_factor = (b/a)*ecc_factor
             inc = np.arccos(inc_inv_factor)*180./np.pi
             val,valup,valdown = get_quantiles(inc)

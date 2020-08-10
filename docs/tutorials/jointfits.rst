@@ -38,8 +38,9 @@ first define the joint prior distribution:
 
     # Hyperparameters of the distributions (mean and standard-deviation for normal 
     # distributions, lower and upper limits for uniform and loguniform distributions, and 
-    # fixed values for fixed "distributions", which assume the parameter is fixed)
-    hyperps = [[1.,0.1], [1325.55,0.1], [0.,1], [0.,1.], [0., 1.], [0., 1.], 0.0, 90.,\
+    # fixed values for fixed "distributions", which assume the parameter is fixed). Note prior 
+    # on t0 has an added 2457000 to convert from TESS JD to JD:
+    hyperps = [[1.,0.1], [2457000 + 1325.55,0.1], [0.,1], [0.,1.], [0., 1.], [0., 1.], 0.0, 90.,\
                        [100., 10000.], 1.0, [0.,0.1], [0.1, 1000.]]
 
     # Populate the priors dictionary:
@@ -76,8 +77,9 @@ Now let's get the transit data, load the radial-velocity data and priors into ``
                                  'hlsp_tess-data-alerts_tess_phot_00403224672-'+\
                                  's01_tess_v1_lc.fits')
 
+   # Put data in dictionaries, add 2457000 to the times to convert from TESS JD to JD:
    times, fluxes, fluxes_error = {},{},{}
-   times['TESS'], fluxes['TESS'], fluxes_error['TESS'] = t,f,ferr
+   times['TESS'], fluxes['TESS'], fluxes_error['TESS'] = t + 2457000,f,ferr
   
    # RV data is given in a file, so let's just pass the filename to juliet and load the dataset:
    dataset = juliet.load(priors=priors, t_lc = times, y_lc = fluxes, \

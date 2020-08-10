@@ -118,6 +118,8 @@ string defines the names and laws to be used for each instrument separated by co
 common within instruments, too. To force this, simply give all the instruments that should be common to different instruments 
 separated by underscores when passing the `priors` (see below) to ``juliet``, e.g., ``q1_TESS_K2``.
 
+.. WARNING:: Because in `juliet` the internal parameters include underscores (`_`), the instrument names **should not** contain underscores. In this way, for example, instead of naming your instrument `My_Instrument` (as in, e.g., `mdilution_My_instrument`), prefer `My-Instrument` or `MyInstrument` instead.
+
 Exoplanets with juliet, pt. III: linear models & gaussian processes
 --------------------------------
 
