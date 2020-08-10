@@ -1474,40 +1474,51 @@ class model(object):
         Instrument the user wants to evaluate the model on. It is expected to be given for non-global models, not necessary for global models. 
 
         :params parameter_values: (optional, dict)
-        Dictionary containing samples of the parameter values in it. Each key is a parameter name (e.g. 'p_p1', 'q1_TESS', etc.), and inside each of those 
+        Dictionary containing samples of the posterior distribution in it. Each key is a parameter name (e.g. 'p_p1', 'q1_TESS', etc.), and inside each of those 
         keys an array of N samples is expected (i.e., parameter_values['p_p1'] is an array of length N). The indexes have to be consistent between different 
         parameters.
 
         :params resampling: (optional, boolean)
-        Boolean indicating if the model needs to be resampled or not
+        Boolean indicating if the model needs to be resampled or not. Only works for lightcurves.
+
+        :params nresampling: (optional, int)
+        Number of points to resample for a given time-stamp. Only used if resampling = True. Only applicable to lightcurves.
 
         :params etresampling: (optional, double)
-        Exposure time of the resampling
+        Exposure time of the resampling (same unit as times). Only used if resampling = True. Only applicable to lightcurves.
 
         :params all_samples: (optional, boolean)
-        Boolean indicating if all the posterior samples should be used or only a pre-defined number of samples. Default is 1000.
+        If True, all posterior samples will be used to evaluate the model. Default is False.
+        
+        :params nsamples: (optional, int)
+        Number of posterior samples to be used to evaluate the model. Default is 1000 (note each call to this function will sample `nsamples` different samples 
+        from the posterior, so no two calls are exactly the same).
 
         :params return_samples: (optional, boolean)
-        Boolean indicating whether the user wants the posterior samples of the model to be returned.
+        Boolean indicating whether the user wants the posterior model samples (i.e., the models evaluated in each of the posterior sample draws) to be returned. Default 
+        is False.
 
         :params t: (optional, numpy array)
-        Array with the times at which the model wants to be evaluated
+        Array with the times at which the model wants to be evaluated.
 
         :params GPRegressors: (optional, numpy array)
-        Array containing the GP Regressors onto which evaluate the models (same length as t)
+        Array containing the GP Regressors onto which to evaluate the models. Dimensions must be consistent with input `t`. If model is global, this needs to be a dictionary.
 
         :params LMRegressors: (optional, numpy array or dictionary)
-        If the model is not global, this is an array containing the Linear Regressors onto which evaulate the model for the input instrument. 
-        Has to have the same dimension as `t`. If model is global, this needs to be a dictionary, of the same length as input `t`.
+        If the model is not global, this is an array containing the Linear Regressors onto which to evaluate the model for the input instrument. 
+        Dimensions must be consistent with input `t`. If model is global, this needs to be a dictionary.
 
         :params return_err: (optional, boolean)
-        If True, this returns the n-sigma error on the evaluated model.
+        If True, this returns the credibility band on the evaluated model. Default credibility band is 68%.
 
         :params alpha: (optional, double)
-        Credibility band for return_err. Default is 1-sigma (68%).
+        Credibility band for return_err. Default is 0.68, i.e., the 68% credibility band.
 
         :params return_components: (optional, boolean)
-        If True, components of the model are returned
+        If True, each component of the model is returned (i.e., the Gaussian Process component, the Linear Model component, etc.).
+
+        :params evaluate_transit: (optional, boolean)
+        If True, the function evaluates only the transit model and not the Gaussian Process or Linear Model components.
 
         """
         if evaluate_transit:
