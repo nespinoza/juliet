@@ -2372,15 +2372,15 @@ class model(object):
                                 'deterministic_lerror'], self.model[instrument][
                                     'GP_lerror'] = lDET_output_model, lGP_output_model
                 else:
-                    output_model = np.median(output_model_samples, axis=0)
+                    output_model = np.nanmedian(output_model_samples, axis=0)
                     if self.global_model:
                         if self.dictionary['global_model']['GPDetrend']:
-                            self.model['deterministic'], self.model['GP'] = np.median(output_modelDET_samples,axis=0), \
-                                                                            np.median(output_modelGP_samples,axis=0)
+                            self.model['deterministic'], self.model['GP'] = np.nanmedian(output_modelDET_samples,axis=0), \
+                                                                            np.nanmedian(output_modelGP_samples,axis=0)
                     else:
                         if self.dictionary[instrument]['GPDetrend']:
-                            self.model[instrument]['deterministic'], self.model[instrument]['GP'] = np.median(output_modelDET_samples,axis=0), \
-                                                                                          np.median(output_modelGP_samples,axis=0)
+                            self.model[instrument]['deterministic'], self.model[instrument]['GP'] = np.nanmedian(output_modelDET_samples,axis=0), \
+                                                                                          np.nanmedian(output_modelGP_samples,axis=0)
 
                 # If return_components is true, generate the median models for each part of the full model:
                 if return_components:
@@ -2389,27 +2389,30 @@ class model(object):
                             if self.global_model:
                                 for k in components.keys():
                                     for ginstrument in instruments:
-                                        components[k][ginstrument] = np.median(
-                                            components[k][ginstrument], axis=0)
+                                        components[k][
+                                            ginstrument] = np.nanmedian(
+                                                components[k][ginstrument],
+                                                axis=0)
                             else:
                                 for k in components.keys():
-                                    components[k] = np.median(components[k],
-                                                              axis=0)
+                                    components[k] = np.nanmedian(components[k],
+                                                                 axis=0)
                         else:
                             for i in self.numbering:
-                                components['p' + str(i)] = np.median(
+                                components['p' + str(i)] = np.nanmedian(
                                     components['p' + str(i)], axis=0)
-                            components['trend'] = np.median(components['trend'],
-                                                            axis=0)
-                            components['keplerian'] = np.median(
+                            components['trend'] = np.nanmedian(
+                                components['trend'], axis=0)
+                            components['keplerian'] = np.nanmedian(
                                 components['keplerian'], axis=0)
                             if self.global_model:
                                 for ginstrument in instruments:
-                                    components['mu'][ginstrument] = np.median(
-                                        components['mu'][ginstrument])
+                                    components['mu'][
+                                        ginstrument] = np.nanmedian(
+                                            components['mu'][ginstrument])
                             else:
-                                components['mu'] = np.median(components['mu'],
-                                                             axis=0)
+                                components['mu'] = np.nanmedian(
+                                    components['mu'], axis=0)
             else:
                 if self.modeltype == 'lc':
                     self.generate_lc_model(parameter_values, evaluate_lc=True)
