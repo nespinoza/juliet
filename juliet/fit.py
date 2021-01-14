@@ -1207,7 +1207,7 @@ class fit(object):
                     runDynesty = True
             if runDynesty:
                 if self.dynesty_nthreads is None:
-                    sampler = dynesty.DynestySampler(self.loglike, self.prior, self.data.nparams, \
+                    sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, \
                                                            bound = self.dynesty_bound, sample = self.dynesty_sample)
                     # Run and get output:
                     if self.dynamic:
@@ -1220,7 +1220,7 @@ class fit(object):
                     import contextlib
                     nthreads = int(self.dynesty_nthreads)
                     with contextlib.closing(Pool(processes=nthreads-1)) as executor:
-                        sampler = dynesty.DynestySampler(self.loglike, self.prior, self.data.nparams, \
+                        sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, \
                                                               bound = self.dynesty_bound, sample = self.dynesty_sample, pool=executor, queue_size=nthreads)
                         if self.dynamic:
                             sampler.run_nested(nlive_init = self.n_live_points, n_effective = self.dynesty_n_effective)
