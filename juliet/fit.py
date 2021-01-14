@@ -714,7 +714,8 @@ class load(object):
                 self.save_priorfile(self.out_folder+'priors.dat')
 
     def fit(self, use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
-            n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0, ta = 2458460., dynesty_n_effective = np.inf):
+            n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0, ta = 2458460., dynesty_n_effective = np.inf, dynesty_use_stop = True, \
+            dynesty_use_pool = None):
         """
         Perhaps the most important function of the juliet data object. This function fits your data using the nested 
         sampler of choice. This returns a results object which contains all the posteriors information.
@@ -722,7 +723,7 @@ class load(object):
         # Note this return call creates a fit *object* with the current data object. The fit class definition is below.
         return fit(self, use_ultranest = use_ultranest, use_dynesty = use_dynesty, dynamic = dynamic, dynesty_bound = dynesty_bound, dynesty_sample = dynesty_sample, \
                    dynesty_nthreads = dynesty_nthreads, n_live_points = n_live_points, ecclim = ecclim, delta_z_lim = delta_z_lim, \
-                   pl = pl, pu = pu, ta = ta, dynesty_n_effective = dynesty_n_effective)
+                   pl = pl, pu = pu, ta = ta, dynesty_n_effective = dynesty_n_effective, dynesty_use_stop = dynesty_use_stop, dynesty_use_pool = dynesty_use_pool)
 
     def __init__(self,priors = None, input_folder = None, t_lc = None, y_lc = None, yerr_lc = None, \
                  t_rv = None, y_rv = None, yerr_rv = None, GP_regressors_lc = None, linear_regressors_lc = None, \
@@ -1013,6 +1014,16 @@ class fit(object):
 
     :param dynesty_n_effective: (optional, int)
         Minimum number of effective posterior samples when using ``dynesty``. If the estimated “effective sample size” exceeds this number, sampling will terminate. Default is ``None``.
+
+    :param dynesty_use_stop: (optional, boolean)
+        Whether to evaluate the ``dynesty`` stopping function after each batch. Disabling this can improve performance if other stopping criteria such as maxcall are already specified. 
+        Default is ``True``.
+
+    :param dynesty_use_pool: (optional, dict)
+        A dictionary containing flags indicating where a pool in ``dynesty`` should be used to execute operations in parallel. These govern whether ``prior_transform`` is executed in parallel during
+        initialization (``'prior_transform'``), loglikelihood is executed in parallel during initialization (``'loglikelihood'``), live points are proposed in parallel during a run 
+        (``'propose_point'``), and bounding distributions are updated in parallel during a run (``'update_bound'``). Default is True for all options.
+
     """
 
     def set_prior_transform(self):
@@ -1077,7 +1088,8 @@ class fit(object):
         return log_likelihood
 
     def __init__(self, data, use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
-                       n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0, ta = 2458460., dynesty_n_effective = np.inf):
+                       n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0, ta = 2458460., dynesty_n_effective = np.inf, dynesty_use_stop = True, \
+                       dynesty_use_pool = None):
 
         # Define output results object:
         self.results = None
@@ -1090,6 +1102,8 @@ class fit(object):
         self.dynesty_nthreads = dynesty_nthreads
         self.n_live_points = n_live_points
         self.dynesty_n_effective = dynesty_n_effective
+        self.dynesty_use_stop = dynesty_use_stop
+        self.dynesty_use_pool = dynesty_use_pool
         self.ecclim = ecclim 
         self.delta_z_lim = delta_z_lim
         self.pl = pl
@@ -1207,13 +1221,18 @@ class fit(object):
                     runDynesty = True
             if runDynesty:
                 if self.dynesty_nthreads is None:
-                    sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, \
-                                                           bound = self.dynesty_bound, sample = self.dynesty_sample)
+                    if self.dynesty_use_pool is not None:
+                        sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, \
+                                                               bound = self.dynesty_bound, sample = self.dynesty_sample,\
+                                                               use_pool = self.dynesty_use_pool)
+                    else:
+                        sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, \
+                                                               bound = self.dynesty_bound, sample = self.dynesty_sample)
                     # Run and get output:
                     if self.dynamic:
-                        sampler.run_nested(nlive_init = self.n_live_points, n_effective = self.dynesty_n_effective)
+                        sampler.run_nested(nlive_init = self.n_live_points, n_effective = self.dynesty_n_effective, use_stop = self.dynesty_use_stop)
                     else:
-                        sampler.run_nested(nlive = self.n_live_points, n_effective = self.dynesty_n_effective)
+                        sampler.run_nested(nlive = self.n_live_points, n_effective = self.dynesty_n_effective, use_stop = self.dynesty_use_stop)
                     results = sampler.results
                 else:
                     from multiprocessing import Pool
@@ -1223,9 +1242,9 @@ class fit(object):
                         sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, \
                                                               bound = self.dynesty_bound, sample = self.dynesty_sample, pool=executor, queue_size=nthreads)
                         if self.dynamic:
-                            sampler.run_nested(nlive_init = self.n_live_points, n_effective = self.dynesty_n_effective)
+                            sampler.run_nested(nlive_init = self.n_live_points, n_effective = self.dynesty_n_effective, use_stop = self.dynesty_use_stop)
                         else:
-                            sampler.run_nested(nlive = self.n_live_points, n_effective = self.dynesty_n_effective)
+                            sampler.run_nested(nlive = self.n_live_points, n_effective = self.dynesty_n_effective, use_stop = self.dynesty_use_stop)
                         results = sampler.results
                 out['dynesty_output'] = results
                 # Get weighted posterior:
