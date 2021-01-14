@@ -357,3 +357,30 @@ def convert_time(conv_string,t):
         return t
 
 
+def read_AIJ_tbl(fname):
+    """
+    This function takes a table of measurements produced by AstroImageJ
+    and returns a dictionary of the data.
+    """
+    fin = open(fname,'r')
+    firstime = True
+    out_dict = {}
+    while True:
+        line = fin.readline()
+        if line != '':
+            vec = line.split()
+            if firstime:
+                out_dict['index'] = np.array([])
+                for i in range(len(vec)):
+                    out_dict[vec[i]] = np.array([])
+                firstime = False
+                parameter_vector = ['index'] + vec
+            else:
+                for i in range(len(vec)):
+                    try:
+                        out_dict[parameter_vector[i]] = np.append(out_dict[parameter_vector[i]],np.double(vec[i]))
+                    except:
+                        out_dict[parameter_vector[i]] = np.append(out_dict[parameter_vector[i]],np.nan)
+        else:
+            break
+    return out_dict
