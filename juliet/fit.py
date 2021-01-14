@@ -2337,8 +2337,8 @@ class model(object):
                             return False 
 
             # Now that the transit model is calculated, generate a spiderman model if the user wants to and model its lightcurve:
-            if self.dictionary[instrument]['Spiderman']:
-                spider_params.t0 =   
+            #if self.dictionary[instrument]['Spiderman']:
+            #    spider_params.t0 =   
 
                     
             # Once either the transit model is generated or after populating the full_model with ones if no transit fit is on, 
