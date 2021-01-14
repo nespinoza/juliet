@@ -6,6 +6,13 @@ try:
     have_catwoman = True
 except:
     have_catwoman = False
+try:
+    import spiderman
+    have_spiderman = True
+    spider_params = sp.ModelParams(brightness_model="zhang")
+    spider_params.n_layers= 5
+except:
+    have_spiderman = False
 # Import radvel, for RV models:
 import radvel
 # Import george for detrending:
@@ -707,7 +714,7 @@ class load(object):
                 self.save_priorfile(self.out_folder+'priors.dat')
 
     def fit(self, use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
-            n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0, ta = 2458460.):
+            n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0, ta = 2458460., dynesty_n_effective = None):
         """
         Perhaps the most important function of the juliet data object. This function fits your data using the nested 
         sampler of choice. This returns a results object which contains all the posteriors information.
@@ -715,7 +722,7 @@ class load(object):
         # Note this return call creates a fit *object* with the current data object. The fit class definition is below.
         return fit(self, use_ultranest = use_ultranest, use_dynesty = use_dynesty, dynamic = dynamic, dynesty_bound = dynesty_bound, dynesty_sample = dynesty_sample, \
                    dynesty_nthreads = dynesty_nthreads, n_live_points = n_live_points, ecclim = ecclim, delta_z_lim = delta_z_lim, \
-                   pl = pl, pu = pu, ta = ta)
+                   pl = pl, pu = pu, ta = ta, dynesty_n_effective = None)
 
     def __init__(self,priors = None, input_folder = None, t_lc = None, y_lc = None, yerr_lc = None, \
                  t_rv = None, y_rv = None, yerr_rv = None, GP_regressors_lc = None, linear_regressors_lc = None, \
@@ -1003,6 +1010,9 @@ class fit(object):
     :param ta: (optional, float)
         Time to be substracted to the input times in order to generate the linear and/or quadratic trend to be added to the model. 
         Default is 2458460.
+
+    :param dynesty_n_effective: (optional, int)
+        Minimum number of effective posterior samples when using ``dynesty``. If the estimated “effective sample size” exceeds this number, sampling will terminate. Default is ``None``.
     """
 
     def set_prior_transform(self):
@@ -1067,7 +1077,7 @@ class fit(object):
         return log_likelihood
 
     def __init__(self, data, use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
-                       n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0, ta = 2458460.):
+                       n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0, ta = 2458460., dynesty_n_effective = None):
 
         # Define output results object:
         self.results = None
@@ -1079,6 +1089,7 @@ class fit(object):
         self.dynesty_sample = dynesty_sample
         self.dynesty_nthreads = dynesty_nthreads
         self.n_live_points = n_live_points
+        self.dynesty_n_effective = dynesty_n_effective
         self.ecclim = ecclim 
         self.delta_z_lim = delta_z_lim
         self.pl = pl
@@ -1196,19 +1207,25 @@ class fit(object):
                     runDynesty = True
             if runDynesty:
                 if self.dynesty_nthreads is None:
-                    sampler = dynesty.DynamicNestedSampler(self.loglike, self.prior, self.data.nparams, \
+                    sampler = dynesty.DynestySampler(self.loglike, self.prior, self.data.nparams, \
                                                            bound = self.dynesty_bound, sample = self.dynesty_sample)
                     # Run and get output:
-                    sampler.run_nested(nlive_init = self.n_live_points)
+                    if self.dynamic:
+                        sampler.run_nested(nlive_init = self.n_live_points, n_effective = self.dynesty_n_effective)
+                    else:
+                        sampler.run_nested(nlive = self.n_live_points, n_effective = self.dynesty_n_effective)
                     results = sampler.results
                 else:
                     from multiprocessing import Pool
                     import contextlib
                     nthreads = int(self.dynesty_nthreads)
                     with contextlib.closing(Pool(processes=nthreads-1)) as executor:
-                        sampler = dynesty.DynamicNestedSampler(self.loglike, self.prior, self.data.nparams, \
+                        sampler = dynesty.DynestySampler(self.loglike, self.prior, self.data.nparams, \
                                                               bound = self.dynesty_bound, sample = self.dynesty_sample, pool=executor, queue_size=nthreads)
-                        sampler.run_nested(nlive_init = self.n_live_points)
+                        if self.dynamic:
+                            sampler.run_nested(nlive_init = self.n_live_points, n_effective = self.dynesty_n_effective)
+                        else:
+                            sampler.run_nested(nlive = self.n_live_points, n_effective = self.dynesty_n_effective)
                         results = sampler.results
                 out['dynesty_output'] = results
                 # Get weighted posterior:
@@ -2318,6 +2335,11 @@ class model(object):
                         else:
                             self.modelOK = False   
                             return False 
+
+            # Now that the transit model is calculated, generate a spiderman model if the user wants to and model its lightcurve:
+            if self.dictionary[instrument]['Spiderman']:
+                spider_params.t0 =   
+
                     
             # Once either the transit model is generated or after populating the full_model with ones if no transit fit is on, 
             # convert the lightcurve so it complies with the juliet model accounting for the dilution and the mean out-of-transit flux:
@@ -2355,6 +2377,7 @@ class model(object):
                 self.gaussian_log_likelihood(residuals,self.model['global_variances'])
         else:
             log_like = 0.0
+
             for instrument in self.inames:
                 residuals = self.data[instrument] - self.model[instrument]['deterministic']
                 if self.dictionary[instrument]['GPDetrend']:
