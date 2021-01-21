@@ -95,7 +95,7 @@ try:
 except:
     has_astroquery = False
 
-def get_all_TESS_data(object_name, radius = ".02 deg", get_PDC = True, get_all = False):
+def get_all_TESS_data(object_name, radius = ".02 deg", get_PDC = True, get_all = False, get_lightcurves_only = True):
     """ 
     Given a planet name, this function returns a dictionary of times, fluxes and 
     errors on fluxes in a juliet-friendly format for usage. The function does an 
@@ -121,7 +121,11 @@ def get_all_TESS_data(object_name, radius = ".02 deg", get_PDC = True, get_all =
                 ticid = np.int(metadata[2])
                 # Download files:
                 data_products = Observations.get_product_list(obs_table[i])
-                manifest = Observations.download_products(data_products)
+                if get_lightcurves_only:
+                    want = data_products['description'] == "Light curves"
+                else:
+                    want = (data_products['description'] == "Light curves") or (data_products['description'] == "Target pixel files")
+                manifest = Observations.download_products(data_products[want])
                 # Read lightcurve file:
                 d,h = fits.getdata('mastDownload/TESS/'+fname[:-8]+'/'+fname,header=True)
                 t,fs,fserr,f,ferr = d['TIME']+h['BJDREFI'],d['SAP_FLUX'],d['SAP_FLUX_ERR'],\
