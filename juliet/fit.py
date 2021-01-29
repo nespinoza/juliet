@@ -3365,6 +3365,26 @@ class gaussian_process(object):
                 self.parameter_vector[3] = np.log(
                     parameter_values['sigma_w_' + self.instrument] *
                     self.sigma_factor)
+        elif self.kernel_name == 'CeleriteDoubleSHOKernel':
+            self.parameter_vector[0] = np.log(
+                parameter_values['GP_S0_' + self.input_instrument[0]])
+            self.parameter_vector[1] = np.log(
+                parameter_values['GP_Q0_' + self.input_instrument[1]])
+            self.parameter_vector[2] = np.log(
+                2 * np.pi /
+                parameter_values['GP_period_' + self.input_instrument[2]])
+            self.parameter_vector[3] = np.log(
+                parameter_values['GP_S1_' + self.input_instrument[3]])
+            self.parameter_vector[4] = np.log(
+                parameter_values['GP_Q1_' + self.input_instrument[4]])
+            self.parameter_vector[5] = np.log(
+                np.pi /
+                parameter_values['GP_period_' + self.input_instrument[2]])
+
+            if not self.global_GP:
+                self.parameter_vector[6] = np.log(
+                    parameter_values['sigma_w_' + self.instrument] *
+                    self.sigma_factor)
         self.GP.set_parameter_vector(self.parameter_vector)
 
     def __init__(self,
@@ -3461,6 +3481,10 @@ class gaussian_process(object):
             'sigma', 'timescale', 'rho'
         ]
         self.all_kernel_variables['CeleriteSHOKernel'] = ['S0', 'Q', 'omega0']
+
+        self.all_kernel_variables['CeleriteDoubleSHOKernel'] = [
+            'S0', 'Q0', 'period', 'S1', 'Q1'
+        ]
 
         # Find kernel name (and save it to self.kernel_name):
         self.kernel_name = self.get_kernel_name(data.priors)
@@ -3571,6 +3595,27 @@ class gaussian_process(object):
                 self.kernel = sho_kernel + kernel_jitter
             # We are using celerite:
             self.use_celerite = True
+        elif self.kernel_name == 'CeleriteDoubleSHOKernel':
+            # Generate kernel:
+            sho_kernel1 = terms.SHOTerm(log_S0=np.log(10.),
+                                        log_Q=np.log(10.),
+                                        log_omega0=np.log(10.))
+            sho_kernel2 = terms.SHOTerm(log_S0=np.log(10.),
+                                        log_Q=np.log(10.),
+                                        log_omega0=np.log(10.))
+
+            double_sho_kernel = sho_kernel1 + sho_kernel2
+            phantomvariable = 1
+            # Jitter term:
+            kernel_jitter = terms.JitterTerm(np.log(100 * 1e-6))
+            # Wrap GP kernel and object:
+            if self.instrument in ['rv', 'lc']:
+                self.kernel = double_sho_kernel
+            else:
+                self.kernel = double_sho_kernel + kernel_jitter
+            # We are using celerite:
+            self.use_celerite = True
+
         # Check if use_celerite is True; if True, check that the regressor is ordered. If not, don't do the self.init_GP():
         if self.use_celerite:
             idx_sorted = np.argsort(self.X)
