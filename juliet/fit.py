@@ -6,13 +6,7 @@ try:
     have_catwoman = True
 except:
     have_catwoman = False
-try:
-    import spiderman
-    have_spiderman = True
-    spider_params = sp.ModelParams(brightness_model="zhang")
-    spider_params.n_layers= 5
-except:
-    have_spiderman = False
+
 # Import radvel, for RV models:
 import radvel
 # Import george for detrending:
@@ -2355,11 +2349,6 @@ class model(object):
                             self.modelOK = False   
                             return False 
 
-            # Now that the transit model is calculated, generate a spiderman model if the user wants to and model its lightcurve:
-            #if self.dictionary[instrument]['Spiderman']:
-            #    spider_params.t0 =   
-
-                    
             # Once either the transit model is generated or after populating the full_model with ones if no transit fit is on, 
             # convert the lightcurve so it complies with the juliet model accounting for the dilution and the mean out-of-transit flux:
             D, M = parameter_values['mdilution_'+self.mdilution_iname[instrument]], parameter_values['mflux_'+instrument]
