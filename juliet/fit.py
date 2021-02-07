@@ -1340,7 +1340,11 @@ class fit(object):
                     # As with the other samplers, first extract list of possible args:
                     args = DynestySampler.__code__.co_varnames
                     d_args = {}
-                    # Match them with kwargs:
+                    # Define some standard ones (for back-compatibility with previous juliet versions):
+                    d_args['bound'] = 'multi'
+                    d_args['sample'] = 'rwalk'
+                    d_args[nlive_arg] = self.n_live_points
+                    # Match them with kwargs (kwargs take preference):
                     for arg in args:
                         if arg in kwargs:
                             d_args[arg] = kwargs[arg]
@@ -1350,8 +1354,6 @@ class fit(object):
                     # Now do the same for the actual sampler:
                     args = sampler.run_nested.__code__.co_varnames
                     ds_args = {}
-                    # Define some standard ones:
-                    ds_args[nlive_arg] = self.n_live_points
                     # Load ones from kwargs:
                     for arg in args:
                         if arg in kwargs:
@@ -1365,6 +1367,10 @@ class fit(object):
                     # Before running the whole multithread magic, match kwargs with functional arguments:
                     args = DynestySampler.__code__.co_varnames
                     d_args = {}
+                    # Define some standard ones (for back-compatibility with previous juliet versions):
+                    d_args['bound'] = 'multi'
+                    d_args['sample'] = 'rwalk'
+                    d_args[nlive_arg] = self.n_live_points
                     # Match them with kwargs:
                     for arg in args:
                         if arg in kwargs:
@@ -1375,8 +1381,6 @@ class fit(object):
                     # Extract args:
                     args = mock_sampler.run_nested.__code__.co_varnames
                     ds_args = {}
-                    # Define some standard ones:
-                    ds_args[nlive_arg] = self.n_live_points
                     # Load ones from kwargs:
                     for arg in args:
                         if arg in kwargs:
