@@ -1206,6 +1206,7 @@ class fit(object):
         # if MCMC, this saves the initial parameter values:
         self.posteriors = {}
         self.model_parameters = list(self.data.priors.keys())
+        self.paramnames = []
         for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] == 'fixed':
                 self.posteriors[pname] = self.data.priors[pname]['hyperparameters']
@@ -1214,7 +1215,7 @@ class fit(object):
                     self.posteriors[pname] = starting_point[pname]
                 else:
                     self.posteriors[pname] = 0.#self.data.priors[pname]['cvalue']
-
+                self.paramnames.append(pname)
         # For each of the variables in the prior that is not fixed, define an internal dictionary that will save the 
         # corresponding transformation function to the prior corresponding to that variable. Idea is that with this one 
         # simply does self.transform_prior[variable_name](value) and you get the transformed value to the 0,1 prior. 
@@ -1265,7 +1266,7 @@ class fit(object):
                     if arg in kwargs:
                         rns_args[arg] = kwargs[arg]
                 # ...and load the sampler:
-                sampler = ReactiveNestedSampler(paramnames, self.loglike, **rns_args)
+                sampler = ReactiveNestedSampler(self.paramnames, self.loglike, **rns_args)
 
                 # Now do the same for ReactiveNestedSampler.run --- load any kwargs the user has given as input:
                 args = ReactiveNestedSampler.run.__code__.co_varnames
@@ -1273,7 +1274,7 @@ class fit(object):
                 # Define some standard ones:
                 rns_run_args['frac_remain'] = 0.1
                 rns_run_args['min_num_live_points'] = self.n_live_points
-                rns_run_args['max_num_improvement_loop'] = 1
+                rns_run_args['max_num_improvement_loops'] = 1
                 # Load the ones from the kwargs:
                 for arg in args:
                     if arg in kwargs:
