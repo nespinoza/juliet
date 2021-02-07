@@ -1230,7 +1230,7 @@ class fit(object):
             self.rv = model(self.data, modeltype = 'rv', ecclim = self.ecclim, ta = self.ta, log_like_calc = True)
 
         # Before starting, check if force_dynesty or force_pymultinest is on; change options accordingly:
-        if force_dynesty and (self.sampler not 'dynesty'):
+        if force_dynesty and (self.sampler is not 'dynesty'):
             print('PyMultinest installation not detected. Forcing dynesty as the sampler.')
             self.sampler = 'dynesty'
             self.sampler_prefix = '_dynesty_NS_'
