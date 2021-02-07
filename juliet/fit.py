@@ -1139,13 +1139,13 @@ class fit(object):
         ws2 = ' argument is deprecated and will be removed in future juliet versions. Use the '
         ws3 = ' instead; for more information, check the API of juliet.fit: https://juliet.readthedocs.io/en/latest/user/api.html#juliet.fit'
         if self.use_ultranest:
-            sampler = 'ultranest'
+            self.sampler = 'ultranest'
             print(ws1+'use_ultranest'+ws2+'"sampler" string'+ws3)
         if self.use_dynesty:
             print(ws1+'use_dynesty'+ws2+'"sampler" string'+ws3)
-            sampler = 'dynesty'
+            self.sampler = 'dynesty'
             if self.dynamic:
-                sampler = 'dynamic_dynesty'
+                self.sampler = 'dynamic_dynesty'
                 print(ws1+'dynamic'+ws2+'"sampler" string'+ws3)
             # Add the other deprecated flags to the kwargs:
             if self.dynesty_bound != 'multi':
