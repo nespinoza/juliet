@@ -1201,7 +1201,7 @@ class fit(object):
         elif self.sampler == 'dynamic_dynesty':
             self.sampler_prefix = '_dynesty_DNS_'
         else:
-            self.sampler_prefix = sampler+'_'
+            self.sampler_prefix = self.sampler+'_'
         # Generate a posteriors self that will save the current values of each of the parameters. Initialization value is unimportant for nested samplers; 
         # if MCMC, this saves the initial parameter values:
         self.posteriors = {}
