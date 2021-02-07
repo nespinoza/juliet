@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PR #47, which adds function to `juliet.utils` to read AstroImageJ tables.
 - PR #22, which started a unit test script (`test_utils.py`); also added a `.gitignore`.
 - Created `CHANGELOG.md` (this file).
-- Now `dynesty` runs have the optional `dynesty_n_effective`, `dynesty_use_stop` and `dynesty_use_pool` flags. The first, receives an `int` and defines the maximum number of effective samples to be outputted; default is `np.inf`. The second defines whether the stopping criterion in `dynesty` is used or simply the run is kept going until `dynesty_n_effective` is reached. Default is `True`. Finally, `dynesty_use_pool` defines which steps should use multiprocessing. For details, see the `dynesty` API on the `n_effective`, `use_stop` and `use_pool` flags: https://dynesty.readthedocs.io/en/latest/api.html. 
+- Deprecated the use of several flags (e.g., `use_dynesty`, `use_ultranest`, `dynamic`, etc.); now samplers can be selected using the `sampler` string via `juliet.fit`. Options for each sampler can be directly ingested to `juliet.fit` via `**kwargs`.
+
 ### Fixed
 - Fixed bug that was making `juliet` runs with `dynesty` always go to Dynamic Nested Sampling by default. If `dynamic` is not `True`, the default goes to `dynesty`'s "vanilla" nested sampling.
 - Bug that made the `juliet.utils.get_all_TESS_data()` call to download _all_ files. Now by default only lightcurves are downloaded.
+- Removed the `delta_z_lim` flag which didn't do anything; the `delta_z` limit can be inputted through the `kwargs` via `juliet.fit`.

@@ -707,17 +707,13 @@ class load(object):
                 self.prior_fname = self.out_folder+'priors.dat'
                 self.save_priorfile(self.out_folder+'priors.dat')
 
-    def fit(self, use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
-            n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0, ta = 2458460., dynesty_n_effective = np.inf, dynesty_use_stop = True, \
-            dynesty_use_pool = None):
+    def fit(self, **kwargs):
         """
         Perhaps the most important function of the juliet data object. This function fits your data using the nested 
         sampler of choice. This returns a results object which contains all the posteriors information.
         """
         # Note this return call creates a fit *object* with the current data object. The fit class definition is below.
-        return fit(self, use_ultranest = use_ultranest, use_dynesty = use_dynesty, dynamic = dynamic, dynesty_bound = dynesty_bound, dynesty_sample = dynesty_sample, \
-                   dynesty_nthreads = dynesty_nthreads, n_live_points = n_live_points, ecclim = ecclim, delta_z_lim = delta_z_lim, \
-                   pl = pl, pu = pu, ta = ta, dynesty_n_effective = dynesty_n_effective, dynesty_use_stop = dynesty_use_stop, dynesty_use_pool = dynesty_use_pool)
+        return fit(self, **kwargs)
 
     def __init__(self,priors = None, input_folder = None, t_lc = None, y_lc = None, yerr_lc = None, \
                  t_rv = None, y_rv = None, yerr_rv = None, GP_regressors_lc = None, linear_regressors_lc = None, \
@@ -967,6 +963,57 @@ class fit(object):
         An object containing all the information regarding the data to be fitted, including options of the fit. 
         Generated via juliet.load().
 
+    On top of ``data``, a series of extra keywords can be included:
+
+    :param sampler: (optional, string)
+        String defining the sampler to be used on the fit. Current possible options include ``multinest`` to use `PyMultiNest <https://github.com/JohannesBuchner/PyMultiNest>`_ (via importance nested sampling), 
+        ``dynesty`` to use `Dynesty <https://github.com/joshspeagle/dynesty>`_'s importance nested sampling, ``dynamic_dynesty`` to use Dynesty's dynamic nested sampling algorithm, ``ultranest`` to use 
+        `Ultranest <https://github.com/JohannesBuchner/UltraNest/>`_ and ``emcee`` to use `emcee <https://github.com/dfm/emcee>`_. If this later sampler is used, users also have to include a 
+        vector indicating the starting point of the sampling with the ``starting_point`` argument below. Default is ``multinest`` if PyMultiNest is installed; ``dynesty`` if not.
+
+    :param n_live_points: (optional, int) 
+        Number of live-points to use on the nested sampling samplers. Default is 500.
+
+    :param starting_point: (mandatory if using MCMC, dict)
+        Dictionary indicating the starting value of each of the parameters for the MCMC run (i.e., currently only of use for ``emcee``). Keys should be consistent with the prior namings; each key should 
+        have an associated float with the starting value.
+
+    :param nwalkers: (mandatory if using emcee, int)
+        Number of walkers to use by emcee.
+
+    :param nsteps: (mandatory if using MCMC, int)
+        Number of steps/jumps to perform on the MCMC run.
+
+    :param nburnin: (mandatory if using MCMC, int)
+        Number of burnin steps/jumps when performing the MCMC run.
+
+    :param ecclim: (optional, float)                   
+        Upper limit on the maximum eccentricity to sample. Default is ``1``.
+
+    :param pl: (optional, float)                      
+        If the ``(r1,r2)`` parametrization for ``(b,p)`` is used, this defines the lower limit of the planet-to-star radius ratio to be sampled. 
+        Default is ``0``.
+
+    :param pu: (optional, float)                    
+        Same as ``pl``, but for the upper limit. Default is ``1``.
+
+    :param ta: (optional, float)
+        Time to be substracted to the input times in order to generate the linear and/or quadratic trend to be added to the model. 
+        Default is 2458460.
+
+    :param nthreads: (optinal, int)
+        Define the number of threads to use within dynesty or emcee. Default is to use just 1. Note this will not impact PyMultiNest or UltraNest runs --- these can be parallelized via MPI only.
+
+    In addition, any number of extra optional keywords can be given to the call, which will be directly ingested into the sampler of choice. For a full list of optional keywords for...
+    - ...PyMultiNest, check the docstring of ``PyMultiNest``'s ``run`` `function <https://github.com/JohannesBuchner/PyMultiNest/blob/master/pymultinest/run.py>`_.
+    - ...any of the nested sampling algorithms in ``dynesty``, see the docstring on the ``run_nested`` `function <https://dynesty.readthedocs.io/en/latest/api.html#dynesty.dynamicsampler.DynamicSampler.run_nested>`_.
+    - ...the non-dynamic nested sampling algorithm implemented in ``dynesty``, see the docstring on ``dynesty.dynesty.NestedSampler`` in `dynesty's documentation <https://dynesty.readthedocs.io/en/latest/api.html>`_. 
+    - ...the dynamic nested sampling in ``dynesty`` check the docstring for ``dynesty.dynesty.DynamicNestedSampler`` in `dynesty's documentation <https://dynesty.readthedocs.io/en/latest/api.html>`_.
+    - ...``ultranest``, see the docstring for `ultranest.integrationr.ReactiveNestedSampler` in `ultranest's documentation <https://johannesbuchner.github.io/UltraNest/ultranest.html#ultranest.integrator.ReactiveNestedSampler>`_
+
+    Finally, since ``juliet`` version 2.0.26, the following keywords have been deprecated, and are recommended to be removed from code using ``juliet`` as they 
+    will be removed sometime in the future:
+
     :param use_dynesty: (optional, boolean)              
         If ``True``, use dynesty instead of `MultiNest` for posterior sampling and evidence evaluation. Default is 
         ``False``, unless `MultiNest` via ``pymultinest`` is not working on the system.
@@ -985,26 +1032,6 @@ class fit(object):
 
     :param dynesty_nthreads: (optional, int)        
         Define the number of threads to use within dynesty. Default is to use just 1.
-
-    :param n_live_points: (optional, int)            
-        Number of live-points to be sampled. Default is ``500``.
-
-    :param ecclim: (optional, float)                   
-        Upper limit on the maximum eccentricity to sample. Default is ``1``.
-
-    :param delta_z_lim: (optional, double)
-        Define the convergence delta_z limit for the nested samplers. Default is 0.5.
-
-    :param pl: (optional, float)                      
-        If the ``(r1,r2)`` parametrization for ``(b,p)`` is used, this defines the lower limit of the planet-to-star radius ratio to be sampled. 
-        Default is ``0``.
-
-    :param pu: (optional, float)                    
-        Same as ``pl``, but for the upper limit. Default is ``1``.
-
-    :param ta: (optional, float)
-        Time to be substracted to the input times in order to generate the linear and/or quadratic trend to be added to the model. 
-        Default is 2458460.
 
     :param dynesty_n_effective: (optional, int)
         Minimum number of effective posterior samples when using ``dynesty``. If the estimated “effective sample size” exceeds this number, sampling will terminate. Default is ``None``.
@@ -1081,64 +1108,118 @@ class fit(object):
         # Return total log-likelihood:
         return log_likelihood
 
-    def __init__(self, data, use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
-                       n_live_points = 1000, ecclim = 1., delta_z_lim = 0.5, pl = 0.0, pu = 1.0, ta = 2458460., dynesty_n_effective = np.inf, dynesty_use_stop = True, \
-                       dynesty_use_pool = None):
+    def __init__(self, data, sampler = 'multinest', n_live_points = 500, starting_point = [], nwalkers = 10, nsteps = 1000, nburnin = 100, ecclim = 1., pl = 0.0, pu = 1.0, ta = 2458460., nthreads = None, \
+                 use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
+                 dynesty_n_effective = np.inf, dynesty_use_stop = True, dynesty_use_pool = None, **kwargs):
 
         # Define output results object:
         self.results = None
-        # Save sampler inputs:
+
+        # Save sampler inputs in case users are still using old definitions
         self.use_ultranest = use_ultranest
         self.use_dynesty = use_dynesty
         self.dynamic = dynamic
         self.dynesty_bound = dynesty_bound
         self.dynesty_sample = dynesty_sample
         self.dynesty_nthreads = dynesty_nthreads
-        self.n_live_points = n_live_points
         self.dynesty_n_effective = dynesty_n_effective
         self.dynesty_use_stop = dynesty_use_stop
         self.dynesty_use_pool = dynesty_use_pool
+
+        # Now extract sampler options:
+        self.sampler = sampler
+        self.n_live_points = n_live_points
+        self.starting_point = starting_point
+        self.nwalkers = nwalkers
+        self.nsteps = nsteps
+        self.nburnin = nburnin
+        self.nthreads = nthreads
+        # Update sampler inputs in case user still using deprecated inputs. We'll remove this in some future. First, define standard pre-fix and sufix for the warnings:
+        ws1 = 'WARNING: use of the '
+        ws2 = ' argument is deprecated and will be removed in future juliet versions. Use the '
+        ws3 = ' instead; for more information, check the API of juliet.fit: https://juliet.readthedocs.io/en/latest/user/api.html#juliet.fit'
+        if self.use_ultranest:
+            sampler = 'ultranest'
+            print(ws1+'use_ultranest'+ws2+'"sampler" string'+ws3)
+        if self.use_dynesty:
+            print(ws1+'use_dynesty'+ws2+'"sampler" string'+ws3)
+            sampler = 'dynesty'
+            if self.dynamic:
+                sampler = 'dynamic_dynesty'
+                print(ws1+'dynamic'+ws2+'"sampler" string'+ws3)
+            # Add the other deprecated flags to the kwargs:
+            if self.dynesty_bound != 'multi':
+                print(ws1+'dynesty_bound'+ws2+'"bound" argument'+ws3)
+                # kwargs take presedence:
+                if 'bound' not in kwargs.keys():
+                    kwargs['bound'] = self.dynesty_bound
+            if self.dynesty_sample != 'rwalk':
+                print(ws1+'dynesty_sample'+ws2+'"sample" argument'+ws3)
+                # kwargs take presedence:
+                if 'sample' not in kwargs.keys():
+                    kwargs['sample'] = self.dynesty_sample
+            if self.dynesty_nthreads is not None:
+                print(ws1+'dynesty_nthreads'+ws2+'"nthreads" argument'+ws3)
+                # The nthreads argument takes presedence now:
+                if nthreads is None:
+                    self.nthreads = self.dynesty_nthreads
+            if self.dynesty_n_effective is not np.inf:
+                print(ws1+'dynesty_n_effective'+ws2+'"n_effective" argument'+ws3)
+                # kwargs take presedence:
+                if 'n_effective' not in kwargs.keys():
+                    kwargs['n_effective'] = self.dynesty_n_effective
+            if not self.dynesty_use_stop:
+                print(ws1+'dynesty_use_stop'+ws2+'"use_stop" argument'+ws3)
+                # kwargs take presedence:
+                if 'use_stop' not in kwargs.keys():
+                    kwargs['use_stop'] = self.dynesty_use_stop
+            if self.dynesty_use_pool is not None:
+                print(ws1+'dynesty_use_pool'+ws2+'"use_pool" argument'+ws3)
+                # kwargs take presedence:
+                if 'use_pool' not in kwargs.keys():
+                    kwargs['use_pool'] = self.dynesty_use_pool
+
+        # Define (exo-)algorithmic options:
         self.ecclim = ecclim 
-        self.delta_z_lim = delta_z_lim
         self.pl = pl
         self.pu = pu
         self.ta = ta
+
         # Inhert data object:
         self.data = data
-        # Inhert some other fit options:
-        #if self.data.t_lc is not None:
-        #    if True in self.data.lc_dict['efficient_bp']:
-        #        self.pu = pu
-        #        self.pl = pl
-        #        self.Ar = (self.pu - self.pl)/(2. + self.pl + self.pu)
+
         # Inhert the output folder:
         self.out_folder = data.out_folder
         self.transformed_priors = np.zeros(self.data.nparams)
 
-        # Define prefixes in case saving is turned on (i.e., user passed an out_folder):
-        if self.use_dynesty:
-            if self.dynamic:
-                self.sampler_prefix = 'dynamic_dynesty_'
-            else:
-                self.sampler_prefix = 'dynesty_'
-        elif self.use_ultranest:
-            self.sampler_prefix = 'ultranest_'
+        # Define prefixes in case saving is turned on (i.e., user passed an out_folder). PyMultiNest and dynesty ones are set by hand. For the rest, use the new 
+        # sampler string directly:
+        if self.sampler == 'multinest':
+            self.sampler_prefix = ''
+        elif self.sampler == 'dynesty':
+            self.sampler_prefix = '_dynesty_NS_'
+        elif self.sampler == 'dynamic_dynesty':
+            self.sampler_prefix = '_dynesty_DNS_'
         else:
-            self.sampler_prefix = 'multinest_'
-
-        # Generate a posteriors self that will save the current values of each of the parameters:
+            self.sampler_prefix = sampler+'_'
+        # Generate a posteriors self that will save the current values of each of the parameters. Initialization value is unimportant for nested samplers; 
+        # if MCMC, this saves the initial parameter values:
         self.posteriors = {}
         self.model_parameters = list(self.data.priors.keys())
         for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] == 'fixed':
                 self.posteriors[pname] = self.data.priors[pname]['hyperparameters']
             else:
-                self.posteriors[pname] = 0.#self.data.priors[pname]['cvalue']
+                if sampler == 'emcee':
+                    self.posteriors[pname] = starting_point[pname]
+                else:
+                    self.posteriors[pname] = 0.#self.data.priors[pname]['cvalue']
 
         # For each of the variables in the prior that is not fixed, define an internal dictionary that will save the 
         # corresponding transformation function to the prior corresponding to that variable. Idea is that with this one 
         # simply does self.transform_prior[variable_name](value) and you get the transformed value to the 0,1 prior. 
-        # This avoids having to keep track of the prior distribution on each of the interations:[
+        # This avoids having to keep track of the prior distribution on each of the iterations. This is only useful for 
+        # nested samplers:
         self.transform_prior = {} 
         self.set_prior_transform()
 
@@ -1149,97 +1230,166 @@ class fit(object):
             self.rv = model(self.data, modeltype = 'rv', ecclim = self.ecclim, ta = self.ta, log_like_calc = True)
 
         # Before starting, check if force_dynesty or force_pymultinest is on; change options accordingly:
-        if force_dynesty and (not self.use_dynesty):
+        if force_dynesty and (self.sampler not 'dynesty'):
             print('PyMultinest installation not detected. Forcing dynesty as the sampler.')
-            self.use_dynesty = True
-        if force_pymultinest and self.use_dynesty:
+            self.sampler = 'dynesty'
+            self.sampler_prefix = '_dynesty_NS_'
+        if force_pymultinest and self.sampler is 'dynesty':
             print('dynesty installation not detected. Forcing PyMultinest as the sampler.')
-            self.use_dynesty = False
+            self.sampler = 'multinest'
+            self.sampler_prefix = ''
 
-        # If not ran and saved already, run dynesty or MultiNest, and save posterior samples and evidences to pickle file:
+        # First, check if a run has already been performed with the user-defined sampler. If it hasn't, run it. 
+        # If it has (detected through its output filename), skip running again and jump straight to loading the 
+        # data:
         out = {}
-        runMultiNest = False
-        runDynesty = False
-        runUltraNest = False
-        if self.use_ultranest:
-            runUltraNest = True
-            if self.out_folder is None:
-                self.out_folder = os.getcwd() + '/'
-            paramnames = [pname for pname in self.model_parameters
-                if self.data.priors[pname]['distribution'] != 'fixed']
+        runSampler = False
+        if self.out_folder is None:
+            self.out_folder = os.getcwd() + '/'
+        if (not os.path.exists(self.out_folder+self.sampler_prefix+'posteriors.pkl')):
+            runSampler = True
 
-            from ultranest import ReactiveNestedSampler
-            sampler = ReactiveNestedSampler(paramnames, self.loglike, transform=self.prior, 
-                log_dir=self.out_folder, resume=True)
-            results = sampler.run(frac_remain=0.1, min_num_live_points=self.n_live_points, max_num_improvement_loops=1)
-            sampler.print_results()
-            sampler.plot()
-            
-            out['ultranest_output'] = results
-            # Get weighted posterior:
-            posterior_samples = results['samples']
-            # Get lnZ:
-            out['lnZ'] = results['logz']
-            out['lnZerr'] = results['logzerr']
-        elif not self.use_dynesty:
-            if self.out_folder is None:
-                self.out_folder = os.getcwd()+'/'
-                runMultiNest = True
-            else:
-                if (not os.path.exists(self.out_folder+'posteriors.pkl')):
-                    runMultiNest = True
-            if runMultiNest:
-                pymultinest.run(self.loglike, self.prior, self.data.nparams, \
-                                n_live_points = self.n_live_points,\
-                                max_modes = 100,\
-                                outputfiles_basename = self.out_folder + 'jomnest_', resume = False,\
-                                verbose = self.data.verbose)
+        # If runSampler is True, then run the sampler of choice:
+        if runSampler:
+            if 'ultranest' in self.sampler:
+                from ultranest import ReactiveNestedSampler
+                # Match kwargs to possible ReactiveNestedSampler keywords. First, extract possible arguments of ReactiveNestedSampler:
+                args = ReactiveNestedSampler.__init__.__code__.co_varnames
+                rns_args = {}
+                # First, define some standard ones:
+                rns_args['transform'] = self.prior
+                rns_args['log_dir'] = self.out_folder
+                rns_args['resume'] = True
+                # Now extract arguments from kwargs; they take presedence over the standard ones above:
+                for arg in args:
+                    if arg in kwargs:
+                        rns_args[arg] = kwargs[arg]
+                # ...and load the sampler:
+                sampler = ReactiveNestedSampler(paramnames, self.loglike, **rns_args)
+
+                # Now do the same for ReactiveNestedSampler.run --- load any kwargs the user has given as input:
+                args = ReactiveNestedSampler.run.__code__.co_varnames
+                rns_run_args = {}
+                # Define some standard ones:
+                rns_run_args['frac_remain'] = 0.1
+                rns_run_args['min_num_live_points'] = self.n_live_points
+                rns_run_args['max_num_improvement_loop'] = 1
+                # Load the ones from the kwargs:
+                for arg in args:
+                    if arg in kwargs:
+                        rns_run_args[arg] = kwargs[arg]
+                # Run the sampler:
+                results = sampler.run(**rns_run_args)
+                sampler.print_results()
+                sampler.plot()
+           
+                # Save ultranest outputs:
+                out['ultranest_output'] = results
+                # Get weighted posterior:
+                posterior_samples = results['samples']
+                # Get lnZ:
+                out['lnZ'] = results['logz']
+                out['lnZerr'] = results['logzerr']
+
+            elif 'multinest' in self.sampler:
+                # As done for ultranest above, scan possible arguments for pymultinest.run:
+                args = pymultinest.run.__code__.co_varnames
+                mn_args = {}
+                # Define some standard ones:
+                mn_args['n_live_points'] = self.n_live_points
+                mn_args['max_modes'] = 100
+                mn_args['outputfiles_basename'] = self.out_folder + 'jomnest_'
+                mn_args['resume'] = False
+                mn_args['verbose'] = self.data.verbose
+                # Now extract arguments from kwargs:
+                for arg in args:
+                    if arg in kwargs:
+                        mn_args[arg] = kwargs[arg]
+                # Define the sampler:
+                pymultinest.run(self.loglike, self.prior, self.data.nparams, **mn_args)
+
+                # Now, with the sampler defined, repeat the same as above for the pymultinest.Analyzer object:
+                args = pymultinest.Analyzer.__init__.__code__.co_varnames
+                mna_args = {}
+                # Define standard ones:
+                mna_args['outputfiles_basename'] = self.out_folder + 'jomnest_'
+                mna_args['n_params'] = self.data.nparams
+                # Load the ones from kwargs:
+                for arg in args:
+                    if arg in kwargs:
+                        mna_args[arg] = kwargs[arg]
                 # Run and get output:
-                output = pymultinest.Analyzer(outputfiles_basename = self.out_folder + 'jomnest_', n_params = self.data.nparams)
+                output = pymultinest.Analyzer(**mna_args)
                 # Get out parameters: this matrix has (samples,n_params+1):
                 posterior_samples = output.get_equal_weighted_posterior()[:,:-1]
                 # Get INS lnZ:
                 out['lnZ'] = output.get_stats()['global evidence']
                 out['lnZerr'] = output.get_stats()['global evidence error']
-                if self.out_folder is None:
-                    os.system('rm '+out_folder+'jomnest_*')
-        elif self.use_dynesty:
-            if self.out_folder is None:
-                runDynesty = True
-            else:
-                if self.dynamic and (not os.path.exists(self.out_folder+'_dynesty_DNS_posteriors.pkl')):
+
+            elif 'dynesty' in self.sampler:
+                if self.sampler == 'dynamic_dynesty':
                     DynestySampler = dynesty.DynamicNestedSampler
-                    runDynesty = True
-                elif (not self.dynamic) and (not os.path.exists(self.out_folder+'_dynesty_NS_posteriors.pkl')):
+                    nlive_arg = 'nlive_init'
+                elif self.sampler == 'dynesty':
                     DynestySampler = dynesty.NestedSampler
-                    runDynesty = True
-            if runDynesty:
-                if self.dynesty_nthreads is None:
-                    if self.dynesty_use_pool is not None:
-                        sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, \
-                                                               bound = self.dynesty_bound, sample = self.dynesty_sample,\
-                                                               use_pool = self.dynesty_use_pool)
-                    else:
-                        sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, \
-                                                               bound = self.dynesty_bound, sample = self.dynesty_sample)
-                    # Run and get output:
-                    if self.dynamic:
-                        sampler.run_nested(nlive_init = self.n_live_points, n_effective = self.dynesty_n_effective, use_stop = self.dynesty_use_stop)
-                    else:
-                        sampler.run_nested(nlive = self.n_live_points, n_effective = self.dynesty_n_effective, use_stop = self.dynesty_use_stop)
+                    nlive_arg = 'nlive'
+
+                # To run dynesty, we do it a little bit different depending if we are doing multithreading or not:
+                if self.nthreads is None:
+                    # As with the other samplers, first extract list of possible args:
+                    args = DynestySampler.__code__.co_varnames
+                    d_args = {}
+                    # Match them with kwargs:
+                    for arg in args:
+                        if arg in kwargs:
+                            d_args[arg] = kwargs[arg]
+                    # Define the sampler:
+                    sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, **d_args)
+
+                    # Now do the same for the actual sampler:
+                    args = sampler.run_nested.__code__.co_varnames
+                    ds_args = {}
+                    # Define some standard ones:
+                    ds_args[nlive_arg] = self.n_live_points
+                    # Load ones from kwargs:
+                    for arg in args:
+                        if arg in kwargs:
+                            ds_args[arg] = kwargs[arg]
+                    # Now run:
+                    sampler.run_nested(**ds_args)
+                    # And extract results
                     results = sampler.results
+
                 else:
+                    # Before running the whole multithread magic, match kwargs with functional arguments:
+                    args = DynestySampler.__code__.co_varnames
+                    d_args = {}
+                    # Match them with kwargs:
+                    for arg in args:
+                        if arg in kwargs:
+                            d_args[arg] = kwargs[arg]
+
+                    # Now define a mock sampler to retrieve variable names:
+                    mock_sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, **d_args)
+                    # Extract args:
+                    args = mock_sampler.run_nested.__code__.co_varnames
+                    ds_args = {}
+                    # Define some standard ones:
+                    ds_args[nlive_arg] = self.n_live_points
+                    # Load ones from kwargs:
+                    for arg in args:
+                        if arg in kwargs:
+                            ds_args[arg] = kwargs[arg]
+
+                    # Now run all with multiprocessing:
                     from multiprocessing import Pool
                     import contextlib
-                    nthreads = int(self.dynesty_nthreads)
-                    with contextlib.closing(Pool(processes=nthreads-1)) as executor:
-                        sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, \
-                                                              bound = self.dynesty_bound, sample = self.dynesty_sample, pool=executor, queue_size=nthreads)
-                        if self.dynamic:
-                            sampler.run_nested(nlive_init = self.n_live_points, n_effective = self.dynesty_n_effective, use_stop = self.dynesty_use_stop)
-                        else:
-                            sampler.run_nested(nlive = self.n_live_points, n_effective = self.dynesty_n_effective, use_stop = self.dynesty_use_stop)
+                    with contextlib.closing(Pool(processes=self.nthreads-1)) as executor:
+                        sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, pool=executor, queue_size=self.nthreads, **d_args)
+                        sampler.run_nested(**ds_args)
                         results = sampler.results
+
+                # Extract dynesty outputs:
                 out['dynesty_output'] = results
                 # Get weighted posterior:
                 weights = np.exp(results['logwt'] - results['logz'][-1])
@@ -1247,7 +1397,7 @@ class fit(object):
                 # Get lnZ:
                 out['lnZ'] = results.logz[-1]
                 out['lnZerr'] = results.logzerr[-1]
-        if runMultiNest or runDynesty or runUltraNest:
+
             # Save posterior samples as outputted by Multinest/Dynesty:
             out['posterior_samples'] = {}
             out['posterior_samples']['unnamed'] = posterior_samples
@@ -1319,16 +1469,30 @@ class fit(object):
             if self.data.t_rv is not None:
                 if self.data.rv_options['fitrvline'] or self.data.rv_options['fitrvquad']:
                     out['ta'] = self.ta
-            if runDynesty:
-                if self.dynamic and (self.out_folder is not None):
+
+            # Finally, save juliet output to pickle file:
+            pickle.dump(out,open(self.out_folder+self.sampler_prefix+'posteriors.pkl','wb'))
+            """
+            if 'dynesty' in self.sampler:
+                if (self.sampler == 'dynamic_dynesty') and (self.out_folder is not None):
                     pickle.dump(out,open(self.out_folder+'_dynesty_DNS_posteriors.pkl','wb'))
-                elif (not self.dynamic) and (self.out_folder is not None):
+                elif (self.sampler == 'dynesty') and (self.out_folder is not None):
                     pickle.dump(out,open(self.out_folder+'_dynesty_NS_posteriors.pkl','wb'))
-            else:
-                if self.out_folder is not None:
+            elif 'multinest' in self.sampler:
+                if (self.sampler == 'multinest') and (self.out_folder is not None):
                     pickle.dump(out,open(self.out_folder+'posteriors.pkl','wb'))
+            elif 'ultranest' in self.sampler:
+                if (self.sampler == 'ultranest') and (self.out_folder is not None):
+                    pickle.dump(out,open(self.out_folder+self.sampler_prefix+'posteriors.pkl','wb'))
+            """
         else:
-            # Probably already ran any of the above, so read the outputs:
+            # If the sampler was already ran, then user really wants to extract outputs from previous fit:
+            print('Detected '+self.sampler+' sampler output files --- extracting from '+self.out_folder+self.sampler_prefix+'posteriors.pkl')
+            if self.data.pickle_encoding is None:
+                out = pickle.load(open(self.out_folder+self.sampler_prefix+'posteriors.pkl','rb'))
+            else:
+                out = pickle.load(open(self.out_folder+self.sampler_prefix+'posteriors.pkl','rb'), encoding = self.data.pickle_encoding)
+            """
             if (self.use_dynesty) and (self.out_folder is not None):
                 if self.dynamic:
                     if os.path.exists(self.out_folder+'_dynesty_DNS_posteriors.pkl'):
@@ -1353,6 +1517,7 @@ class fit(object):
                     out = pickle.load(open(self.out_folder+'posteriors.pkl','rb')) 
                 else:
                     out = pickle.load(open(self.out_folder+'posteriors.pkl','rb'), encoding = self.data.pickle_encoding)
+            """
             if len(out.keys()) == 0:
                 print('Warning: no output generated or extracted. Check the fit options given to juliet.fit().')
             else:
