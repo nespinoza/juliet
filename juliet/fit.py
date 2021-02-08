@@ -1067,18 +1067,18 @@ class fit(object):
 
     def prior(self, cube, ndim = None, nparams = None):
         pcounter = 0
-        if self.use_dynesty or self.use_ultranest:
+        if self.return_transformed_priors:
             transformed_priors = np.copy(self.transformed_priors)
         for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] != 'fixed':
-                if self.use_dynesty or self.use_ultranest:
+                if self.return_transformed_priors:
                     transformed_priors[pcounter] = self.transform_prior[pname](cube[pcounter], \
                                                                              self.data.priors[pname]['hyperparameters'])
                 else:
                     cube[pcounter] = self.transform_prior[pname](cube[pcounter], \
                                                           self.data.priors[pname]['hyperparameters'])
                 pcounter += 1
-        if self.use_dynesty or self.use_ultranest:
+        if self.return_transformed_priors:
             return transformed_priors
 
     def loglike(self, cube, ndim=None, nparams=None):
@@ -1134,6 +1134,10 @@ class fit(object):
         self.nsteps = nsteps
         self.nburnin = nburnin
         self.nthreads = nthreads
+        # Define if transformed prior a-la-ultranest or dynesty will be used:
+        self.return_transformed_priors = False
+        if 'dynesty' in self.sampler or 'ultranest' in self.sampler:
+            self.return_transformed_priors = True
         # Update sampler inputs in case user still using deprecated inputs. We'll remove this in some future. First, define standard pre-fix and sufix for the warnings:
         ws1 = 'WARNING: use of the '
         ws2 = ' argument is deprecated and will be removed in future juliet versions. Use the '
