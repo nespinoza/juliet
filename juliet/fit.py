@@ -1065,21 +1065,23 @@ class fit(object):
                 if self.data.priors[pname]['distribution'] == 'modjeffreys':
                     self.transform_prior[pname] = transform_modifiedjeffreys
 
-    def prior(self, cube, ndim = None, nparams = None):
+    def prior_transform(self, cube, ndim = None, nparams = None):
         pcounter = 0
-        if self.return_transformed_priors:
-            transformed_priors = np.copy(self.transformed_priors)
         for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] != 'fixed':
-                if self.return_transformed_priors:
-                    transformed_priors[pcounter] = self.transform_prior[pname](cube[pcounter], \
-                                                                             self.data.priors[pname]['hyperparameters'])
-                else:
-                    cube[pcounter] = self.transform_prior[pname](cube[pcounter], \
-                                                          self.data.priors[pname]['hyperparameters'])
-                pcounter += 1
-        if self.return_transformed_priors:
-            return transformed_priors
+                cube[pcounter] = self.transform_prior[pname](cube[pcounter], \
+                                 self.data.priors[pname]['hyperparameters'])
+                pcounter += 1 
+
+    def prior_transform_r(self, cube):
+        pcounter = 0
+        transformed_priors = np.copy(self.transformed_priors)
+        for pname in self.model_parameters:
+            if self.data.priors[pname]['distribution'] != 'fixed':
+                transformed_priors[pcounter] = self.transform_prior[pname](cube[pcounter], \
+                                               self.data.priors[pname]['hyperparameters'])
+                pcounter += 1 
+        return transformed_priors
 
     def loglike(self, cube, ndim=None, nparams=None):
         # Evaluate the joint log-likelihood. For this, first extract all inputs:
@@ -1134,10 +1136,7 @@ class fit(object):
         self.nsteps = nsteps
         self.nburnin = nburnin
         self.nthreads = nthreads
-        # Define if transformed prior a-la-ultranest or dynesty will be used:
-        self.return_transformed_priors = False
-        if 'dynesty' in self.sampler or 'ultranest' in self.sampler:
-            self.return_transformed_priors = True
+
         # Update sampler inputs in case user still using deprecated inputs. We'll remove this in some future. First, define standard pre-fix and sufix for the warnings:
         ws1 = 'WARNING: use of the '
         ws2 = ' argument is deprecated and will be removed in future juliet versions. Use the '
@@ -1262,7 +1261,7 @@ class fit(object):
                 args = ReactiveNestedSampler.__init__.__code__.co_varnames
                 rns_args = {}
                 # First, define some standard ones:
-                rns_args['transform'] = self.prior
+                rns_args['transform'] = self.prior_transform_r
                 rns_args['log_dir'] = self.out_folder
                 rns_args['resume'] = True
                 # Now extract arguments from kwargs; they take presedence over the standard ones above:
@@ -1311,7 +1310,7 @@ class fit(object):
                     if arg in kwargs:
                         mn_args[arg] = kwargs[arg]
                 # Define the sampler:
-                pymultinest.run(self.loglike, self.prior, self.data.nparams, **mn_args)
+                pymultinest.run(self.loglike, self.prior_transform, self.data.nparams, **mn_args)
 
                 # Now, with the sampler defined, repeat the same as above for the pymultinest.Analyzer object:
                 args = pymultinest.Analyzer.__init__.__code__.co_varnames
@@ -1353,7 +1352,7 @@ class fit(object):
                         if arg in kwargs:
                             d_args[arg] = kwargs[arg]
                     # Define the sampler:
-                    sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, **d_args)
+                    sampler = DynestySampler(self.loglike, self.prior_transform_r, self.data.nparams, **d_args)
 
                     # Now do the same for the actual sampler:
                     args = sampler.run_nested.__code__.co_varnames
@@ -1381,7 +1380,7 @@ class fit(object):
                             d_args[arg] = kwargs[arg]
 
                     # Now define a mock sampler to retrieve variable names:
-                    mock_sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, **d_args)
+                    mock_sampler = DynestySampler(self.loglike, self.prior_transform_r, self.data.nparams, **d_args)
                     # Extract args:
                     args = mock_sampler.run_nested.__code__.co_varnames
                     ds_args = {}
