@@ -42,13 +42,15 @@ try:
             )    
 except:
     print('Warning: no celerite installation found. No celerite GPs will be able to be used')
-# Import dynesty for dynamic nested sampling:
+
+# Check existence of different samplers. First, import dynesty for (dynamic) nested sampling:
 try:
     import dynesty
     from dynesty.utils import resample_equal
     force_pymultinest = False
 except:
     force_pymultinest = True
+
 # Import multinest for (importance) nested sampling:
 try:
     import pymultinest
@@ -1205,6 +1207,17 @@ class fit(object):
             self.sampler_prefix = '_dynesty_DNS_'
         else:
             self.sampler_prefix = self.sampler+'_'
+
+        # Before starting, check if force_dynesty or force_pymultinest is on; change options accordingly:
+        if force_dynesty and (self.sampler is not 'dynesty'):
+            print('PyMultinest installation not detected. Forcing dynesty as the sampler.')
+            self.sampler = 'dynesty'
+            self.sampler_prefix = '_dynesty_NS_'
+        if force_pymultinest and self.sampler is 'dynesty':
+            print('dynesty installation not detected. Forcing PyMultinest as the sampler.')
+            self.sampler = 'multinest'
+            self.sampler_prefix = '' 
+
         # Generate a posteriors self that will save the current values of each of the parameters. Initialization value is unimportant for nested samplers; 
         # if MCMC, this saves the initial parameter values:
         self.posteriors = {}
@@ -1232,16 +1245,6 @@ class fit(object):
             self.lc = model(self.data, modeltype = 'lc', pl = self.pl, pu = self.pu, ecclim = self.ecclim, log_like_calc = True)
         if self.data.t_rv is not None:
             self.rv = model(self.data, modeltype = 'rv', ecclim = self.ecclim, ta = self.ta, log_like_calc = True)
-
-        # Before starting, check if force_dynesty or force_pymultinest is on; change options accordingly:
-        if force_dynesty and (self.sampler is not 'dynesty'):
-            print('PyMultinest installation not detected. Forcing dynesty as the sampler.')
-            self.sampler = 'dynesty'
-            self.sampler_prefix = '_dynesty_NS_'
-        if force_pymultinest and self.sampler is 'dynesty':
-            print('dynesty installation not detected. Forcing PyMultinest as the sampler.')
-            self.sampler = 'multinest'
-            self.sampler_prefix = ''
 
         # First, check if a run has already been performed with the user-defined sampler. If it hasn't, run it. 
         # If it has (detected through its output filename), skip running again and jump straight to loading the 
