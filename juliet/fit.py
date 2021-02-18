@@ -1396,7 +1396,7 @@ class fit(object):
                     from multiprocessing import Pool
                     import contextlib
                     with contextlib.closing(Pool(processes=self.nthreads-1)) as executor:
-                        sampler = DynestySampler(self.loglike, self.prior, self.data.nparams, pool=executor, queue_size=self.nthreads, **d_args)
+                        sampler = DynestySampler(self.loglike, self.prior_transform_r, self.data.nparams, pool=executor, queue_size=self.nthreads, **d_args)
                         sampler.run_nested(**ds_args)
                         results = sampler.results
 
