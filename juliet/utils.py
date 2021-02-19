@@ -215,36 +215,84 @@ def reverse_bp(r1,r2,pl,pu):
 from scipy.stats import gamma,norm,beta,truncnorm
 import numpy as np
 
-def transform_uniform(x,hyperparameters):
-    a,b = hyperparameters
+# Prior transforms for nested samplers:
+def transform_uniform(x, hyperparameters):
+    a, b = hyperparameters
     return a + (b-a)*x
 
-def transform_loguniform(x,hyperparameters):
-    a,b = hyperparameters
-    la=np.log(a)
-    lb=np.log(b)
-    return np.exp(la + x*(lb-la))
+def transform_loguniform(x, hyperparameters):
+    a, b = hyperparameters
+    la = np.log(a)
+    lb = np.log(b)
+    return np.exp(la + x * (lb - la))
 
-def transform_normal(x,hyperparameters):
-    mu,sigma = hyperparameters
-    return norm.ppf(x,loc=mu,scale=sigma)
+def transform_normal(x, hyperparameters):
+    mu, sigma = hyperparameters
+    return norm.ppf(x, loc=mu, scale=sigma)
 
-def transform_beta(x,hyperparameters):
-    a,b = hyperparameters
-    return beta.ppf(x,a,b)
+def transform_beta(x, hyperparameters):
+    a, b = hyperparameters
+    return beta.ppf(x, a, b)
 
-def transform_exponential(x,hyperparameters):
+def transform_exponential(x, hyperparameters):
     a = hyperparameters
     return gamma.ppf(x, a)
 
-def transform_truncated_normal(x,hyperparameters):
+def transform_truncated_normal(x, hyperparameters):
     mu, sigma, a, b = hyperparameters
     ar, br = (a - mu) / sigma, (b - mu) / sigma
-    return truncnorm.ppf(x,ar,br,loc=mu,scale=sigma)
+    return truncnorm.ppf(x, ar, br, loc=mu, scale=sigma)
 
-def transform_modifiedjeffreys(x,hyperparameters):
+def transform_modifiedjeffreys(x, hyperparameters):
     turn, hi = hyperparameters
     return turn * (np.exp( (x + 1e-10) * np.log(hi/turn + 1)) - 1)
+
+# Log-prior evaluations for MCMCs:
+def evaluate_uniform(x, hyperparameters):
+    a, b = hyperparameters
+    if x > a and x < b:
+        return np.log(1./(b - a))
+    else: 
+        return -np.inf
+
+def evaluate_loguniform(x, hyperparameters):
+    a, b = hyperparameters
+    if x > a and x < b:
+        la = np.log(a)
+        lb = np.log(b)
+        return np.log(1./(x * (lb - la)))
+    else:
+        return -np.inf
+
+def evaluate_normal(x, hyperparameters):
+    mu, sigma = hyperparameters
+    return norm.logpdf(x, loc=mu, scale=sigma)
+
+def evaluate_beta(x, hyperparameters):
+    a, b = hyperparameters
+    if a > 0 and b < 1:
+        return beta.logpdf(x, a, b)
+    else:
+        return -np.inf
+
+def evaluate_exponential(x, hyperparameters):
+    a = hyperparameters
+    return gamma.logpdf(x, a)
+
+def evaluate_truncated_normal(x, hyperparameters):
+    mu, sigma, a, b = hyperparameters
+    if x > a and x < b:
+        ar, br = (a - mu) / sigma, (b - mu) / sigma
+        return truncnorm.logpdf(x, ar, br, loc=mu, scale=sigma)
+    else:
+        return -np.inf
+
+def evaluate_modifiedjeffreys(x, hyperparameters):
+    turn, hi = hyperparameters
+    if x > 0 and x < hi:
+        return np.log(1.) - np.log(x + turn) + np.log(1.) - np.log( np.log( (turn + hi) / turn ) )
+    else:
+        return -np.inf
 
 def input_error_catcher(t,y,yerr,datatype):
     if datatype == 'lightcurve':
