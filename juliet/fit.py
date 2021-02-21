@@ -58,6 +58,13 @@ try:
 except:
     force_dynesty = True
 
+# Emcee for MCMC-ing:
+try:
+    import emcee
+except:
+    print("Warning: no emcee installation found. Will not be able to sample using sampler = 'emcee'.")
+
+
 # Import generic useful classes:
 import os
 import sys
@@ -1049,6 +1056,8 @@ class fit(object):
 
     """
 
+    mcmc_samplers = ['emcee']
+
     def set_prior_transform(self):
         for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] != 'fixed':
@@ -1063,9 +1072,28 @@ class fit(object):
                 if self.data.priors[pname]['distribution'] == 'beta':
                     self.transform_prior[pname] = transform_beta
                 if self.data.priors[pname]['distribution'] == 'exponential':
-                    self.transform_prior[pname] = exponential
+                    self.transform_prior[pname] = transform_exponential
                 if self.data.priors[pname]['distribution'] == 'modjeffreys':
                     self.transform_prior[pname] = transform_modifiedjeffreys
+
+    def set_logpriors(self):
+        for pname in self.model_parameters:
+            if self.data.priors[pname]['distribution'] != 'fixed':
+                if self.data.priors[pname]['distribution'] == 'uniform':
+                    self.evaluate_logprior[pname] = evaluate_uniform
+                if self.data.priors[pname]['distribution'] == 'normal':
+                    self.evaluate_logprior[pname] = evaluate_normal
+                if self.data.priors[pname]['distribution'] == 'truncatednormal':
+                    self.evaluate_logprior[pname] = evaluate_truncated_normal
+                if self.data.priors[pname]['distribution'] == 'jeffreys' or self.data.priors[pname]['distribution'] =='loguniform':
+                    self.evaluate_logprior[pname] = evaluate_loguniform
+                if self.data.priors[pname]['distribution'] == 'beta':
+                    self.evaluate_logprior[pname] = evaluate_beta
+                if self.data.priors[pname]['distribution'] == 'exponential':
+                    self.evaluate_logprior[pname] = evaluate_exponential
+                if self.data.priors[pname]['distribution'] == 'modjeffreys':
+                    self.evaluate_logprior[pname] = evaluate_modifiedjeffreys
+
 
     def prior_transform(self, cube, ndim = None, nparams = None):
         pcounter = 0
@@ -1209,11 +1237,11 @@ class fit(object):
             self.sampler_prefix = self.sampler+'_'
 
         # Before starting, check if force_dynesty or force_pymultinest is on; change options accordingly:
-        if force_dynesty and (self.sampler is not 'dynesty'):
+        if force_dynesty and (self.sampler is 'multinest'):
             print('PyMultinest installation not detected. Forcing dynesty as the sampler.')
             self.sampler = 'dynesty'
             self.sampler_prefix = '_dynesty_NS_'
-        if force_pymultinest and self.sampler is 'dynesty':
+        if force_pymultinest and (self.sampler is 'dynesty'):
             print('dynesty installation not detected. Forcing PyMultinest as the sampler.')
             self.sampler = 'multinest'
             self.sampler_prefix = '' 
@@ -1237,8 +1265,12 @@ class fit(object):
         # simply does self.transform_prior[variable_name](value) and you get the transformed value to the 0,1 prior. 
         # This avoids having to keep track of the prior distribution on each of the iterations. This is only useful for 
         # nested samplers:
-        self.transform_prior = {} 
-        self.set_prior_transform()
+        if self.sampler not in mcmc_samplers:
+            self.transform_prior = {} 
+            self.set_prior_transform()
+        else:
+            self.evaluate_logprior = {}
+            self.set_logpriors()
 
         # Generate light-curve and radial-velocity models:
         if self.data.t_lc is not None:
@@ -1409,6 +1441,15 @@ class fit(object):
                 out['lnZ'] = results.logz[-1]
                 out['lnZerr'] = results.logzerr[-1]
 
+            elif 'emcee' in self.sampler:
+                # Initiate starting point. To this end, first load starting values.
+                pcounter = 0
+                initial_position = np.array([])
+                for pname in self.model_parameters:
+                    if self.data.priors[pname]['distribution'] != 'fixed':
+                        initial_position = np.append(initial_position, self.posteriors[pname])
+                initial_position += 1e-4 #??? # better to sample from prior?
+                
             # Save posterior samples as outputted by Multinest/Dynesty:
             out['posterior_samples'] = {}
             out['posterior_samples']['unnamed'] = posterior_samples
