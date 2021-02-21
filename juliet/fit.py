@@ -961,6 +961,7 @@ class load(object):
         if t_rv is not None:
             self.generate_datadict('rv')
 
+mcmc_samplers = ['emcee']
 class fit(object):
     """
     Given a juliet data object, this class performs a fit to the data and returns a results object to explore the 
@@ -1055,8 +1056,6 @@ class fit(object):
         (``'propose_point'``), and bounding distributions are updated in parallel during a run (``'update_bound'``). Default is True for all options.
 
     """
-
-    mcmc_samplers = ['emcee']
 
     def set_prior_transform(self):
         for pname in self.model_parameters:
