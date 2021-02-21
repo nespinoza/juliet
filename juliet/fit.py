@@ -997,6 +997,9 @@ class fit(object):
     :param nburnin: (mandatory if using MCMC, int)
         Number of burnin steps/jumps when performing the MCMC run.
 
+    :param emcee_factor: (optional, for emcee only, float)
+        Factor multiplying the standard-gaussian ball around which the initial position is perturbed for each walker. Default is 1e-4.
+
     :param ecclim: (optional, float)                   
         Upper limit on the maximum eccentricity to sample. Default is ``1``.
 
@@ -1094,6 +1097,7 @@ class fit(object):
                     self.evaluate_logprior[pname] = evaluate_modifiedjeffreys
 
 
+    # Prior transform for nested samplers:
     def prior_transform(self, cube, ndim = None, nparams = None):
         pcounter = 0
         for pname in self.model_parameters:
@@ -1102,6 +1106,7 @@ class fit(object):
                                  self.data.priors[pname]['hyperparameters'])
                 pcounter += 1 
 
+    # Prior transform for nested samplers (this one spits the transformed priors from the unit cube):
     def prior_transform_r(self, cube):
         pcounter = 0
         transformed_priors = np.copy(self.transformed_priors)
@@ -1111,6 +1116,17 @@ class fit(object):
                                                self.data.priors[pname]['hyperparameters'])
                 pcounter += 1 
         return transformed_priors
+
+    # Log-prior for MCMCs (returns evaluated prior):
+    def logprior(self, theta):
+        pcounter = 0
+        total_logprior = 0.
+        for pname in self.model_parameters:
+            if self.data.priors[pname]['distribution'] != 'fixed':
+                total_logprior += self.evaluate_prior[pname](theta[pcounter], \
+                                  self.data.priors[pname]['hyperparameters'])
+                pcounter += 1 
+        return total_logprior
 
     def loglike(self, cube, ndim=None, nparams=None):
         # Evaluate the joint log-likelihood. For this, first extract all inputs:
@@ -1139,7 +1155,13 @@ class fit(object):
         # Return total log-likelihood:
         return log_likelihood
 
-    def __init__(self, data, sampler = 'multinest', n_live_points = 500, starting_point = [], nwalkers = 10, nsteps = 1000, nburnin = 100, ecclim = 1., pl = 0.0, pu = 1.0, ta = 2458460., nthreads = None, \
+    # Log-probability for MCMC samplers:
+    def logprob(self, theta):
+        return logprior(theta) + loglike(theta)
+        
+
+    def __init__(self, data, sampler = 'multinest', n_live_points = 500, starting_point = [], nwalkers = 30, nsteps = 1000, nburnin = 100, emcee_factor = 1e-4, \
+                 ecclim = 1., pl = 0.0, pu = 1.0, ta = 2458460., nthreads = None, \
                  use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
                  dynesty_n_effective = np.inf, dynesty_use_stop = True, dynesty_use_pool = None, **kwargs):
 
@@ -1163,6 +1185,7 @@ class fit(object):
         self.starting_point = starting_point
         self.nwalkers = nwalkers
         self.nsteps = nsteps
+        self.emcee_factor = emcee_factor
         self.nburnin = nburnin
         self.nthreads = nthreads
 
@@ -1441,13 +1464,26 @@ class fit(object):
                 out['lnZerr'] = results.logzerr[-1]
 
             elif 'emcee' in self.sampler:
-                # Initiate starting point. To this end, first load starting values.
-                pcounter = 0
+                # Initiate starting point for each walker. To this end, first load starting values.
                 initial_position = np.array([])
                 for pname in self.model_parameters:
                     if self.data.priors[pname]['distribution'] != 'fixed':
                         initial_position = np.append(initial_position, self.posteriors[pname])
-                initial_position += 1e-4 #??? # better to sample from prior?
+                
+                # Perturb initial position for each of the walkers:
+                pos = initial_position + self.emcee_factor * np.random.randn(self.nwalkers, len(initial_position))
+
+                # Peform the sampling:
+                sampler = emcee.EnsembleSampler(self.nwalkers, self.data.nparams, self.logprob, **kwargs)
+                sampler.run_mcmc(pos, self.nsteps + self.nburnin, **kwargs)
+
+                # Store posterior samples:
+                posterior_samples = np.zeros([self.data.nparams, self.nsteps])
+                for i in range(self.data.nparams):
+                    c_ps = np.array([])
+                    for walker in self.nwalkers:
+                        c_ps = np.append(c_ps, sampler.chain[walker, self.nburnin:, i])
+                    posterior_samples[i, :] = np.copy(c_ps)
                 
             # Save posterior samples as outputted by Multinest/Dynesty:
             out['posterior_samples'] = {}
