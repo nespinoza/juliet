@@ -988,14 +988,14 @@ class fit(object):
         Dictionary indicating the starting value of each of the parameters for the MCMC run (i.e., currently only of use for ``emcee``). Keys should be consistent with the prior namings; each key should 
         have an associated float with the starting value.
 
-    :param nwalkers: (mandatory if using emcee, int)
-        Number of walkers to use by emcee.
+    :param nwalkers: (optional if using emcee, int)
+        Number of walkers to use by emcee. Default is 100.
 
-    :param nsteps: (mandatory if using MCMC, int)
-        Number of steps/jumps to perform on the MCMC run.
+    :param nsteps: (optional if using MCMC, int)
+        Number of steps/jumps to perform on the MCMC run. Default is 1000.
 
-    :param nburnin: (mandatory if using MCMC, int)
-        Number of burnin steps/jumps when performing the MCMC run.
+    :param nburnin: (optional if using MCMC, int)
+        Number of burnin steps/jumps when performing the MCMC run. Default is 500.
 
     :param emcee_factor: (optional, for emcee only, float)
         Factor multiplying the standard-gaussian ball around which the initial position is perturbed for each walker. Default is 1e-4.
@@ -1162,7 +1162,7 @@ class fit(object):
             return -np.inf
         
 
-    def __init__(self, data, sampler = 'multinest', n_live_points = 500, starting_point = [], nwalkers = 30, nsteps = 1000, nburnin = 100, emcee_factor = 1e-4, \
+    def __init__(self, data, sampler = 'multinest', n_live_points = 500, starting_point = [], nwalkers = 100, nsteps = 1000, nburnin = 500, emcee_factor = 1e-4, \
                  ecclim = 1., pl = 0.0, pu = 1.0, ta = 2458460., nthreads = None, \
                  use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
                  dynesty_n_effective = np.inf, dynesty_use_stop = True, dynesty_use_pool = None, **kwargs):
@@ -1491,13 +1491,11 @@ class fit(object):
                 sampler = emcee.EnsembleSampler(self.nwalkers, self.data.nparams, self.logprob, **ES_args)
                 sampler.run_mcmc(pos, self.nsteps + self.nburnin, **kwargs)
 
-                # Store posterior samples:
-                posterior_samples = np.zeros([self.data.nparams, self.nsteps])
-                for i in range(self.data.nparams):
-                    c_ps = np.array([])
-                    for walker in range(self.nwalkers):
-                        c_ps = np.append(c_ps, sampler.chain[walker, self.nburnin:, i])
-                    posterior_samples[i, :] = np.copy(c_ps)
+                # Store posterior samples. First, store the samples for each walker:
+                out['posteriors_per_walker'] = sampler.get_chain()
+
+                # And now store posteriors with all walkers flattened out:
+                posterior_samples = sampler.get_chain(discard = self.nburnin, flat = True)
                 
             # Save posterior samples as outputted by Multinest/Dynesty:
             out['posterior_samples'] = {}
