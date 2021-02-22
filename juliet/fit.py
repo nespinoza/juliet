@@ -1123,7 +1123,7 @@ class fit(object):
         total_logprior = 0.
         for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'] != 'fixed':
-                total_logprior += self.evaluate_prior[pname](theta[pcounter], \
+                total_logprior += self.evaluate_logprior[pname](theta[pcounter], \
                                   self.data.priors[pname]['hyperparameters'])
                 pcounter += 1 
         return total_logprior
