@@ -1157,7 +1157,7 @@ class fit(object):
 
     # Log-probability for MCMC samplers:
     def logprob(self, theta):
-        return logprior(theta) + loglike(theta)
+        return self.logprior(theta) + self.loglike(theta)
         
 
     def __init__(self, data, sampler = 'multinest', n_live_points = 500, starting_point = [], nwalkers = 30, nsteps = 1000, nburnin = 100, emcee_factor = 1e-4, \
