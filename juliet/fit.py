@@ -346,12 +346,13 @@ class load(object):
         for pname in self.priors.keys():
             if self.priors[pname]['distribution'].lower() != 'fixed':
                 value = ','.join(np.array(self.priors[pname]['hyperparameters']).astype(str))
+                if self.starting_point is not None:
+                    fout.write('{0: <20} {1: <20} {2: <20} {3: <20}\n'.format(pname, self.priors[pname]['distribution'], value, self.starting_point[pname]))
+                else:
+                    fout.write('{0: <20} {1: <20} {2: <20}\n'.format(pname, self.priors[pname]['distribution'], value))
             else:
                 value = str(self.priors[pname]['hyperparameters'])
-            if self.starting_point is not None:
-                fout.write('{0: <20} {1: <20} {2: <20} {3: <20}\n'.format(pname,self.priors[pname]['distribution'],value, self.starting_point[pname]))
-            else:
-                fout.write('{0: <20} {1: <20} {2: <20}\n'.format(pname,self.priors[pname]['distribution'],value))
+                fout.write('{0: <20} {1: <20} {2: <20}\n'.format(pname, self.priors[pname]['distribution'], value))
         fout.close()
 
     def check_global(self,name):
