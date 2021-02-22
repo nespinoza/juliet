@@ -989,13 +989,13 @@ class fit(object):
         have an associated float with the starting value.
 
     :param nwalkers: (optional if using emcee, int)
-        Number of walkers to use by emcee. Default is 100.
+        Number of walkers to use by emcee. Default is 50.
 
     :param nsteps: (optional if using MCMC, int)
-        Number of steps/jumps to perform on the MCMC run. Default is 1000.
+        Number of steps/jumps to perform on the MCMC run. Default is 300.
 
     :param nburnin: (optional if using MCMC, int)
-        Number of burnin steps/jumps when performing the MCMC run. Default is 500.
+        Number of burnin steps/jumps when performing the MCMC run. Default is 100.
 
     :param emcee_factor: (optional, for emcee only, float)
         Factor multiplying the standard-gaussian ball around which the initial position is perturbed for each walker. Default is 1e-4.
@@ -1158,13 +1158,12 @@ class fit(object):
     # Log-probability for MCMC samplers:
     def logprob(self, theta):
         lp = self.logprior(theta) + self.loglike(theta)
-        if not (lp is np.nan):
-            return lp
-        else:
+        if np.isnan(lp):
             return -np.inf
-        
+        else:
+            return lp
 
-    def __init__(self, data, sampler = 'multinest', n_live_points = 500, starting_point = [], nwalkers = 100, nsteps = 1000, nburnin = 500, emcee_factor = 1e-4, \
+    def __init__(self, data, sampler = 'multinest', n_live_points = 500, starting_point = [], nwalkers = 50, nsteps = 300, nburnin = 100, emcee_factor = 1e-4, \
                  ecclim = 1., pl = 0.0, pu = 1.0, ta = 2458460., nthreads = None, \
                  use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
                  dynesty_n_effective = np.inf, dynesty_use_stop = True, dynesty_use_pool = None, **kwargs):
