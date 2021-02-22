@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Created `CHANGELOG.md` (this file).
 - Deprecated the use of several flags (e.g., `use_dynesty`, `use_ultranest`, `dynamic`, etc.); now samplers can be selected using the `sampler` string via `juliet.fit`. Options for each sampler can be directly ingested to `juliet.fit` via `**kwargs`.
 - Outputs from multinest are kept in the output folder now (were removed in previous juliet versions).
+- Support for `emcee`.
 
 ### Fixed
 - Fixed bug that was making `juliet` runs with `dynesty` always go to Dynamic Nested Sampling by default. 

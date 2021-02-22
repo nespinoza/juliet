@@ -113,6 +113,10 @@ class load(object):
         Note that this along with either lightcurve or RV data or a ``input_folder`` has to be given in order to properly 
         load a juliet data object.
 
+    :param starting_point: (mandatory if using MCMC, useless if using nested samplers, dict)
+        Dictionary indicating the starting value of each of the parameters for the MCMC run (i.e., currently only of use for ``emcee``). Keys should be consistent with the ``prior`` namings above; 
+        each key should have an associated float with the starting value. This is of no use if using nested samplers (which sample directly from the prior).
+
     :param input_folder: (optional, string)
         Python ``string`` containing the path to a folder containing all the input data --- this will thus be load into a 
         juliet data object. This input folder has to contain at least a ``priors.dat`` file with the priors and either a ``lc.dat`` 
@@ -344,7 +348,10 @@ class load(object):
                 value = ','.join(np.array(self.priors[pname]['hyperparameters']).astype(str))
             else:
                 value = str(self.priors[pname]['hyperparameters'])
-            fout.write('{0: <20} {1: <20} {2: <20}\n'.format(pname,self.priors[pname]['distribution'],value))
+            if self.starting_value is not None:
+                fout.write('{0: <20} {1: <20} {2: <20} {3: <20}\n'.format(pname,self.priors[pname]['distribution'],value, self.starting_point[pname]))
+            else:
+                fout.write('{0: <20} {1: <20} {2: <20}\n'.format(pname,self.priors[pname]['distribution'],value))
         fout.close()
 
     def check_global(self,name):
@@ -676,6 +683,7 @@ class load(object):
     def save(self):
             if self.out_folder[-1] != '/': 
                 self.out_folder = self.out_folder + '/'
+
             # First, save lightcurve data:
             if not os.path.exists(self.out_folder):
                 os.makedirs(self.out_folder)
@@ -684,12 +692,14 @@ class load(object):
                     os.system('cp '+self.lcfilename+' '+self.out_folder+'lc.dat')
                 elif self.t_lc is not None:
                     self.save_data(self.out_folder+'lc.dat',self.t_lc,self.y_lc,self.yerr_lc,self.instruments_lc,self.lm_lc_boolean,self.lm_lc_arguments)
+
             # Now radial-velocity data:
             if (not os.path.exists(self.out_folder+'rvs.dat')):
                 if self.rvfilename is not None:
                     os.system('cp '+self.rvfilename+' '+self.out_folder+'rvs.dat')
                 elif self.t_rv is not None:
                     self.save_data(self.out_folder+'rvs.dat',self.t_rv,self.y_rv,self.yerr_rv,self.instruments_rv,self.lm_rv_boolean,self.lm_rv_arguments)
+
             # Next, save GP regressors:
             if (not os.path.exists(self.out_folder+'GP_lc_regressors.dat')):
                 if self.GPlceparamfile is not None:
@@ -701,6 +711,7 @@ class load(object):
                     os.system('cp '+self.GPrveparamfile+' '+self.out_folder+'GP_rv_regressors.dat')
                 elif self.GP_rv_arguments is not None:
                     self.save_regressors(self.out_folder+'GP_rv_regressors.dat', self.GP_rv_arguments)
+
             # Finally, save LM regressors if any:
             if (not os.path.exists(self.out_folder+'LM_lc_regressors.dat')):
                 if self.LMlceparamfile is not None:
@@ -712,6 +723,8 @@ class load(object):
                     os.system('cp '+self.LMrveparamfile+' '+self.out_folder+'LM_rv_regressors.dat')
                 elif self.LM_rv_arguments is not None:
                     self.save_regressors(self.out_folder+'LM_rv_regressors.dat', self.LM_rv_arguments)
+
+            # Save priors:
             if (not os.path.exists(self.out_folder+'priors.dat')):
                 self.prior_fname = self.out_folder+'priors.dat'
                 self.save_priorfile(self.out_folder+'priors.dat')
@@ -724,7 +737,7 @@ class load(object):
         # Note this return call creates a fit *object* with the current data object. The fit class definition is below.
         return fit(self, **kwargs)
 
-    def __init__(self,priors = None, input_folder = None, t_lc = None, y_lc = None, yerr_lc = None, \
+    def __init__(self,priors = None, starting_point = None, input_folder = None, t_lc = None, y_lc = None, yerr_lc = None, \
                  t_rv = None, y_rv = None, yerr_rv = None, GP_regressors_lc = None, linear_regressors_lc = None, \
                  GP_regressors_rv = None, linear_regressors_rv = None, 
                  out_folder = None, lcfilename = None, rvfilename = None, GPlceparamfile = None,\
@@ -740,6 +753,7 @@ class load(object):
         self.LMrveparamfile = LMrveparamfile
         self.verbose = verbose
         self.pickle_encoding = pickle_encoding
+        self.starting_point = starting_point
 
         # GP options:
         self.matern_eps = matern_eps # Epsilon parameter for celerite Matern32Term
@@ -822,7 +836,7 @@ class load(object):
 
         if type(priors) == str:
            self.prior_fname = priors
-           priors,n_transit,n_rv,numbering_transit,numbering_rv,n_params =  readpriors(priors)
+           priors, n_transit, n_rv, numbering_transit, numbering_rv, n_params, starting_point = readpriors(priors)
            # Save information stored in the prior: the dictionary, number of transiting planets, 
            # number of RV planets, numbering of transiting and rv planets (e.g., if p1 and p3 transit 
            # and all of them are RV planets, numbering_transit = [1,3] and numbering_rv = [1,2,3]). 
@@ -833,11 +847,12 @@ class load(object):
            self.numbering_transiting_planets = numbering_transit
            self.numbering_rv_planets = numbering_rv
            self.nparams = n_params
+           self.starting_point = starting_point
         elif type(priors) == dict:
            # Dictionary was passed, so save it.
            self.priors = priors
            # Extract same info as above if-statement but using only the dictionary:
-           n_transit,n_rv,numbering_transit,numbering_rv,n_params =  readpriors(priors)
+           n_transit, n_rv, numbering_transit, numbering_rv, n_params = readpriors(priors)
            # Save information:
            self.n_transiting_planets = n_transit
            self.n_rv_planets = n_rv
@@ -954,6 +969,7 @@ class load(object):
         if out_folder is not None:
             self.out_folder = out_folder
             self.save()
+
         # Finally, generate datadicts, that will save information about the fits, including gaussian_process objects for each instrument that requires it 
         # (including the case of global models):  
         if t_lc is not None:
@@ -978,21 +994,16 @@ class fit(object):
     :param sampler: (optional, string)
         String defining the sampler to be used on the fit. Current possible options include ``multinest`` to use `PyMultiNest <https://github.com/JohannesBuchner/PyMultiNest>`_ (via importance nested sampling), 
         ``dynesty`` to use `Dynesty <https://github.com/joshspeagle/dynesty>`_'s importance nested sampling, ``dynamic_dynesty`` to use Dynesty's dynamic nested sampling algorithm, ``ultranest`` to use 
-        `Ultranest <https://github.com/JohannesBuchner/UltraNest/>`_ and ``emcee`` to use `emcee <https://github.com/dfm/emcee>`_. If this later sampler is used, users also have to include a 
-        vector indicating the starting point of the sampling with the ``starting_point`` argument below. Default is ``multinest`` if PyMultiNest is installed; ``dynesty`` if not.
+        `Ultranest <https://github.com/JohannesBuchner/UltraNest/>`_ and ``emcee`` to use `emcee <https://github.com/dfm/emcee>`_. Default is ``multinest`` if PyMultiNest is installed; ``dynesty`` if not.
 
     :param n_live_points: (optional, int) 
         Number of live-points to use on the nested sampling samplers. Default is 500.
 
-    :param starting_point: (mandatory if using MCMC, dict)
-        Dictionary indicating the starting value of each of the parameters for the MCMC run (i.e., currently only of use for ``emcee``). Keys should be consistent with the prior namings; each key should 
-        have an associated float with the starting value.
-
     :param nwalkers: (optional if using emcee, int)
-        Number of walkers to use by emcee. Default is 50.
+        Number of walkers to use by emcee. Default is 100.
 
     :param nsteps: (optional if using MCMC, int)
-        Number of steps/jumps to perform on the MCMC run. Default is 300.
+        Number of steps/jumps to perform on the MCMC run. Default is 500.
 
     :param nburnin: (optional if using MCMC, int)
         Number of burnin steps/jumps when performing the MCMC run. Default is 100.
@@ -1163,7 +1174,7 @@ class fit(object):
         else:
             return lp
 
-    def __init__(self, data, sampler = 'multinest', n_live_points = 500, starting_point = [], nwalkers = 50, nsteps = 300, nburnin = 100, emcee_factor = 1e-4, \
+    def __init__(self, data, sampler = 'multinest', n_live_points = 500, nwalkers = 100, nsteps = 300, nburnin = 500, emcee_factor = 1e-4, \
                  ecclim = 1., pl = 0.0, pu = 1.0, ta = 2458460., nthreads = None, \
                  use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
                  dynesty_n_effective = np.inf, dynesty_use_stop = True, dynesty_use_pool = None, **kwargs):
@@ -1185,7 +1196,6 @@ class fit(object):
         # Now extract sampler options:
         self.sampler = sampler
         self.n_live_points = n_live_points
-        self.starting_point = starting_point
         self.nwalkers = nwalkers
         self.nsteps = nsteps
         self.emcee_factor = emcee_factor
@@ -1281,7 +1291,7 @@ class fit(object):
                 self.posteriors[pname] = self.data.priors[pname]['hyperparameters']
             else:
                 if sampler == 'emcee':
-                    self.posteriors[pname] = starting_point[pname]
+                    self.posteriors[pname] = self.data.starting_point[pname]
                 else:
                     self.posteriors[pname] = 0.#self.data.priors[pname]['cvalue']
                 self.paramnames.append(pname)
