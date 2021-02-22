@@ -1157,7 +1157,9 @@ class fit(object):
 
     # Log-probability for MCMC samplers:
     def logprob(self, theta):
-        return self.logprior(theta) + self.loglike(theta)
+        lp = self.logprior(theta) + self.loglike(theta)
+        if not (lp is np.nan):
+            return -np.inf
         
 
     def __init__(self, data, sampler = 'multinest', n_live_points = 500, starting_point = [], nwalkers = 30, nsteps = 1000, nburnin = 100, emcee_factor = 1e-4, \
@@ -1493,7 +1495,7 @@ class fit(object):
                 posterior_samples = np.zeros([self.data.nparams, self.nsteps])
                 for i in range(self.data.nparams):
                     c_ps = np.array([])
-                    for walker in self.nwalkers:
+                    for walker in range(self.nwalkers):
                         c_ps = np.append(c_ps, sampler.chain[walker, self.nburnin:, i])
                     posterior_samples[i, :] = np.copy(c_ps)
                 
