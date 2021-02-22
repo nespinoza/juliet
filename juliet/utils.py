@@ -392,6 +392,7 @@ def readpriors(priorname):
     if type(priorname) == str:
         fin = open(priorname)
         priors = {}
+        starting_point = {}
     else:
         counter = -1
         priors = priorname
@@ -413,8 +414,13 @@ def readpriors(priorname):
         if line != '': 
             if line[0] != '#':
                 if not input_dict:
-                    out = line.split()
-                    parameter,prior_name,vals = line.split()
+                    prior_vector = line.split()
+                    if len(prior_vector) == 3:
+                        parameter, prior_name, vals = prior_vector
+                        has_sp = False
+                    else:
+                        parameter, prior_name, vals, sp = prior_vector
+                        has_sp = True
                     parameter = parameter.split()[0]
                     # For retro-compatibility, if parameter is of the form sigma_w_rv_instrument change to
                     # sigma_w_instrument:
@@ -424,6 +430,8 @@ def readpriors(priorname):
                     prior_name = prior_name.split()[0]
                     vals = vals.split()[0]
                     priors[parameter] = {}
+                    if has_sp:
+                        starting_point[parameter] = np.double(sp)
                 else:
                     param = all_parameters[counter]
                     parameter,prior_name = param,priors[param]['distribution']
@@ -466,9 +474,9 @@ def readpriors(priorname):
             if counter == n_allkeys-1:
                 break
     if not input_dict:
-        return priors,n_transit,n_rv,numbering_transit.astype('int'),numbering_rv.astype('int'),n_params
+        return priors, n_transit, n_rv, numbering_transit.astype('int'), numbering_rv.astype('int'), n_params, starting_point
     else:
-        return n_transit,n_rv,numbering_transit.astype('int'),numbering_rv.astype('int'),n_params
+        return n_transit, n_rv, numbering_transit.astype('int'), numbering_rv.astype('int'), n_params
 
 def get_phases(t,P,t0):
     """
