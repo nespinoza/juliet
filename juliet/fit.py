@@ -1159,6 +1159,8 @@ class fit(object):
     def logprob(self, theta):
         lp = self.logprior(theta) + self.loglike(theta)
         if not (lp is np.nan):
+            return lp
+        else:
             return -np.inf
         
 
