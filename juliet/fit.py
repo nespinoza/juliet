@@ -1473,8 +1473,20 @@ class fit(object):
                 # Perturb initial position for each of the walkers:
                 pos = initial_position + self.emcee_factor * np.random.randn(self.nwalkers, len(initial_position))
 
-                # Peform the sampling:
-                sampler = emcee.EnsembleSampler(self.nwalkers, self.data.nparams, self.logprob, **kwargs)
+                # Before performing the sampling, catch any kwargs that go to EnsembleSampler; rest of kwargs are assumed to go 
+                # to run_mcmc:
+                args = emcee.EnsembleSampler.__init__.__code__.co_varnames
+                ES_args = {}
+                runmcmc_args = {}
+
+                # Match them with kwargs (kwargs take preference):
+                for arg in args:
+                    if arg in kwargs:
+                        ES_args[arg] = kwargs[arg]
+                        kwargs.pop(arg)
+
+                # Now perform the sampling:
+                sampler = emcee.EnsembleSampler(self.nwalkers, self.data.nparams, self.logprob, **ES_args)
                 sampler.run_mcmc(pos, self.nsteps + self.nburnin, **kwargs)
 
                 # Store posterior samples:
