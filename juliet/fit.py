@@ -1007,7 +1007,7 @@ class fit(object):
         Number of walkers to use by emcee. Default is 100.
 
     :param nsteps: (optional if using MCMC, int)
-        Number of steps/jumps to perform on the MCMC run. Default is 500.
+        Number of steps/jumps to perform on the MCMC run. Default is 300.
 
     :param nburnin: (optional if using MCMC, int)
         Number of burnin steps/jumps when performing the MCMC run. Default is 100.
