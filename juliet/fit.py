@@ -1010,7 +1010,7 @@ class fit(object):
         Number of steps/jumps to perform on the MCMC run. Default is 300.
 
     :param nburnin: (optional if using MCMC, int)
-        Number of burnin steps/jumps when performing the MCMC run. Default is 100.
+        Number of burnin steps/jumps when performing the MCMC run. Default is 500.
 
     :param emcee_factor: (optional, for emcee only, float)
         Factor multiplying the standard-gaussian ball around which the initial position is perturbed for each walker. Default is 1e-4.
