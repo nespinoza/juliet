@@ -1030,11 +1030,16 @@ class fit(object):
         Define the number of threads to use within dynesty or emcee. Default is to use just 1. Note this will not impact PyMultiNest or UltraNest runs --- these can be parallelized via MPI only.
 
     In addition, any number of extra optional keywords can be given to the call, which will be directly ingested into the sampler of choice. For a full list of optional keywords for...
+
     - ...PyMultiNest, check the docstring of ``PyMultiNest``'s ``run`` `function <https://github.com/JohannesBuchner/PyMultiNest/blob/master/pymultinest/run.py>`_.
+
     - ...any of the nested sampling algorithms in ``dynesty``, see the docstring on the ``run_nested`` `function <https://dynesty.readthedocs.io/en/latest/api.html#dynesty.dynamicsampler.DynamicSampler.run_nested>`_.
+    
     - ...the non-dynamic nested sampling algorithm implemented in ``dynesty``, see the docstring on ``dynesty.dynesty.NestedSampler`` in `dynesty's documentation <https://dynesty.readthedocs.io/en/latest/api.html>`_. 
+    
     - ...the dynamic nested sampling in ``dynesty`` check the docstring for ``dynesty.dynesty.DynamicNestedSampler`` in `dynesty's documentation <https://dynesty.readthedocs.io/en/latest/api.html>`_.
-    - ...``ultranest``, see the docstring for `ultranest.integrationr.ReactiveNestedSampler` in `ultranest's documentation <https://johannesbuchner.github.io/UltraNest/ultranest.html#ultranest.integrator.ReactiveNestedSampler>`_
+    
+    - ...the ``ultranest`` sampler, see the docstring for `ultranest.integrationr.ReactiveNestedSampler` in `ultranest's documentation <https://johannesbuchner.github.io/UltraNest/ultranest.html#ultranest.integrator.ReactiveNestedSampler>`_
 
     Finally, since ``juliet`` version 2.0.26, the following keywords have been deprecated, and are recommended to be removed from code using ``juliet`` as they 
     will be removed sometime in the future:
