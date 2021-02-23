@@ -69,6 +69,9 @@ except:
 import os
 import sys
 import numpy as np
+# Useful imports for parallelization:
+from multiprocessing import Pool
+import contextlib
 
 # Define constants on the code:
 G = 6.67408e-11 # Gravitational constant, mks
@@ -1466,8 +1469,6 @@ class fit(object):
                             ds_args[arg] = kwargs[arg]
 
                     # Now run all with multiprocessing:
-                    from multiprocessing import Pool
-                    import contextlib
                     with contextlib.closing(Pool(processes=self.nthreads-1)) as executor:
                         sampler = DynestySampler(self.loglike, self.prior_transform_r, self.data.nparams, pool=executor, queue_size=self.nthreads, **d_args)
                         sampler.run_nested(**ds_args)
@@ -1504,9 +1505,14 @@ class fit(object):
                         ES_args[arg] = kwargs[arg]
                         kwargs.pop(arg)
 
-                # Now perform the sampling:
-                sampler = emcee.EnsembleSampler(self.nwalkers, self.data.nparams, self.logprob, **ES_args)
-                sampler.run_mcmc(pos, self.nsteps + self.nburnin, **kwargs)
+                # Now perform the sampling. If nthreads is defined, parallelize. If not, go the serial way:
+                if self.nthreads is None:
+                    sampler = emcee.EnsembleSampler(self.nwalkers, self.data.nparams, self.logprob, **ES_args)
+                    sampler.run_mcmc(pos, self.nsteps + self.nburnin, **kwargs)
+                else:
+                    with contextlib.closing(Pool(processes=self.nthreads-1)) as executor:
+                        sampler = emcee.EnsembleSampler(self.nwalkers, self.data.nparams, self.logprob, pool = executor, **ES_args)
+                        sampler.run_mcmc(pos, self.nsteps + self.nburnin, **kwargs)
 
                 # Store posterior samples. First, store the samples for each walker:
                 out['posteriors_per_walker'] = sampler.get_chain()
