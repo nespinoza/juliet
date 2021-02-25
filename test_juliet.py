@@ -69,5 +69,5 @@ for sampler in samplers:
     total = t1 - t0
     all_times[sampler] = total
     print(sampler,' took ',total,' seconds to run.')
-print('timing results (in seconds):'
+print('timing results (in seconds):')
 print(all_times)
