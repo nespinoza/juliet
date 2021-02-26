@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ##[2.1.1] - Unreleased
 ### Added
 - Support for multithreading with `emcee`.
+- Added `stepsampler_ultranest` to use Ultranest's stepsampler (see https://johannesbuchner.github.io/UltraNest/example-sine-highd.html).
 
 ### Fixed
 - `juliet.fit` docstring parsing.

@@ -1362,7 +1362,7 @@ class fit(object):
                     rss_args['nsteps'] = 400
                     rss_args['adaptive_nsteps'] = 'move-distance'
                     # Extract kwargs, add them in:
-                    for arg in rgs:
+                    for arg in args:
                         if arg in kwargs:
                             rss_args[arg] = kwargs[arg]
 
