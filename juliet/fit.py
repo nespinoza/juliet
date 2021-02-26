@@ -1367,7 +1367,7 @@ class fit(object):
                             rss_args[arg] = kwargs[arg]
 
                     # Apply stepsampler:
-                    sampler.stepsampler = ultranest.stepsampler.RegionSliceSampler
+                    sampler.stepsampler = ultranest.stepsampler.RegionSliceSampler(**rss_args)
 
                 # Now do the same for ReactiveNestedSampler.run --- load any kwargs the user has given as input:
                 args = ReactiveNestedSampler.run.__code__.co_varnames
