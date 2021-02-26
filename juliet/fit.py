@@ -998,7 +998,8 @@ class fit(object):
     :param sampler: (optional, string)
         String defining the sampler to be used on the fit. Current possible options include ``multinest`` to use `PyMultiNest <https://github.com/JohannesBuchner/PyMultiNest>`_ (via importance nested sampling), 
         ``dynesty`` to use `Dynesty <https://github.com/joshspeagle/dynesty>`_'s importance nested sampling, ``dynamic_dynesty`` to use Dynesty's dynamic nested sampling algorithm, ``ultranest`` to use 
-        `Ultranest <https://github.com/JohannesBuchner/UltraNest/>`_ and ``emcee`` to use `emcee <https://github.com/dfm/emcee>`_. Default is ``multinest`` if PyMultiNest is installed; ``dynesty`` if not.
+        `Ultranest <https://github.com/JohannesBuchner/UltraNest/>`_, ``slicesampler_ultranest`` to use Ultranest's slice sampler and ``emcee`` to use `emcee <https://github.com/dfm/emcee>`_. Default is 
+        ``multinest`` if PyMultiNest is installed; ``dynesty`` if not.
 
     :param n_live_points: (optional, int) 
         Number of live-points to use on the nested sampling samplers. Default is 500.
@@ -1336,6 +1337,7 @@ class fit(object):
         if runSampler:
             if 'ultranest' in self.sampler:
                 from ultranest import ReactiveNestedSampler
+
                 # Match kwargs to possible ReactiveNestedSampler keywords. First, extract possible arguments of ReactiveNestedSampler:
                 args = ReactiveNestedSampler.__init__.__code__.co_varnames
                 rns_args = {}
@@ -1349,6 +1351,23 @@ class fit(object):
                         rns_args[arg] = kwargs[arg]
                 # ...and load the sampler:
                 sampler = ReactiveNestedSampler(self.paramnames, self.loglike, **rns_args)
+
+                if 'slicesampler' in self.sampler:
+                    import ultranest.stepsampler
+
+                    # Match kwarfs to possible args in RegionSliceSampler:
+                    args = ultranest.stepsampler.RegionSliceSampler.__init__.__code__.co_varnames
+                    rss_args = {}
+                    # First, define standard ones:
+                    rss_args['nsteps'] = 400
+                    rss_args['adaptive_nsteps'] = 'move-distance'
+                    # Extract kwargs, add them in:
+                    for arg in rgs:
+                        if arg in kwargs:
+                            rss_args[arg] = kwargs[arg]
+
+                    # Apply stepsampler:
+                    sampler.stepsampler = ultranest.stepsampler.RegionSliceSampler
 
                 # Now do the same for ReactiveNestedSampler.run --- load any kwargs the user has given as input:
                 args = ReactiveNestedSampler.run.__code__.co_varnames
