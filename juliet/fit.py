@@ -3366,6 +3366,33 @@ class gaussian_process(object):
                     parameter_values['sigma_w_' + self.instrument] *
                     self.sigma_factor)
         elif self.kernel_name == 'CeleriteDoubleSHOKernel':
+            #(The parametrization follows the "RotationTerm" implemented in celerite2 https://celerite2.readthedocs.io/en/latest/api/python/#celerite2.terms.RotationTerm)
+            sigma = parameter_values['GP_sigma_' + self.input_instrument[0]]
+            Q0 = parameter_values['GP_Q0_' + self.input_instrument[1]]
+            P = parameter_values['GP_period_' + self.input_instrument[2]]
+            f = parameter_values['GP_f_' + self.input_instrument[3]]
+            dQ = parameter_values['GP_dQ_' + self.input_instrument[4]]
+
+            Q1 = 1 / 2 + Q0 + dQ
+            omega1 = 4 * np.pi * Q1 / (P * np.sqrt(4 * Q1**2 - 1))
+            S1 = sigma**2 / ((1 + f) * omega1 * Q1)
+
+            Q2 = 1 / 2 + Q0
+            omega2 = 8 * np.pi * Q1 / (P * np.sqrt(4 * Q1**2 - 1))
+            S2 = f * sigma**2 / ((1 + f) * omega2 * Q2)
+
+            self.parameter_vector[0] = np.log(S1)
+            self.parameter_vector[1] = np.log(Q1)
+            self.parameter_vector[2] = np.log(omega1)
+            self.parameter_vector[3] = np.log(S2)
+            self.parameter_vector[4] = np.log(Q2)
+            self.parameter_vector[5] = np.log(omega2)
+
+            if not self.global_GP:
+                self.parameter_vector[6] = np.log(
+                    parameter_values['sigma_w_' + self.instrument] *
+                    self.sigma_factor)
+        elif self.kernel_name == 'CeleriteTripleSHOKernel':
             self.parameter_vector[0] = np.log(
                 parameter_values['GP_S0_' + self.input_instrument[0]])
             self.parameter_vector[1] = np.log(
@@ -3374,15 +3401,21 @@ class gaussian_process(object):
                 2 * np.pi /
                 parameter_values['GP_period_' + self.input_instrument[2]])
             self.parameter_vector[3] = np.log(
-                parameter_values['GP_S1_' + self.input_instrument[3]])
+                parameter_values['GP_f_' + self.input_instrument[3]] *
+                parameter_values['GP_S0_' + self.input_instrument[0]])
             self.parameter_vector[4] = np.log(
-                parameter_values['GP_Q1_' + self.input_instrument[4]])
+                parameter_values['GP_Q0_' + self.input_instrument[1]] -
+                parameter_values['GP_dQ_' + self.input_instrument[4]])
             self.parameter_vector[5] = np.log(
                 np.pi /
                 parameter_values['GP_period_' + self.input_instrument[2]])
+            self.parameter_vector[6] = np.log(
+                parameter_values['GP_S0sc_' + self.input_instrument[5]])
+            self.parameter_vector[7] = np.log(
+                parameter_values['GP_omega0sc_' + self.input_instrument[6]])
 
             if not self.global_GP:
-                self.parameter_vector[6] = np.log(
+                self.parameter_vector[8] = np.log(
                     parameter_values['sigma_w_' + self.instrument] *
                     self.sigma_factor)
         self.GP.set_parameter_vector(self.parameter_vector)
@@ -3483,7 +3516,7 @@ class gaussian_process(object):
         self.all_kernel_variables['CeleriteSHOKernel'] = ['S0', 'Q', 'omega0']
 
         self.all_kernel_variables['CeleriteDoubleSHOKernel'] = [
-            'S0', 'Q0', 'period', 'S1', 'Q1'
+            'sigma', 'Q0', 'period', 'f', 'dQ'
         ]
 
         # Find kernel name (and save it to self.kernel_name):
@@ -3596,7 +3629,7 @@ class gaussian_process(object):
             # We are using celerite:
             self.use_celerite = True
         elif self.kernel_name == 'CeleriteDoubleSHOKernel':
-            # Generate kernel:
+            # Generate kernel (This kernel is implemented in celerite2 as the "RotationTerm" https://celerite2.readthedocs.io/en/latest/api/python/#celerite2.terms.RotationTerm):
             sho_kernel1 = terms.SHOTerm(log_S0=np.log(10.),
                                         log_Q=np.log(10.),
                                         log_omega0=np.log(10.))
@@ -3605,6 +3638,7 @@ class gaussian_process(object):
                                         log_omega0=np.log(10.))
 
             double_sho_kernel = sho_kernel1 + sho_kernel2
+
             phantomvariable = 1
             # Jitter term:
             kernel_jitter = terms.JitterTerm(np.log(100 * 1e-6))
