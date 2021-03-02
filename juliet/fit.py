@@ -2284,24 +2284,25 @@ class model(object):
 
                 # If return_components is true, generate the median models for each part of the full model:
                 if return_components:
-                    if self.modeltype == 'lc':
-                        if self.global_model:
-                            for k in components.keys():
+                    if not return_samples:
+                        if self.modeltype == 'lc':
+                            if self.global_model:
+                                for k in components.keys():
+                                    for ginstrument in instruments:
+                                        components[k][ginstrument] = np.median(components[k][ginstrument],axis=0)
+                            else:
+                                for k in components.keys():
+                                    components[k] = np.median(components[k],axis=0)
+                        else:
+                            for i in self.numbering:
+                                components['p'+str(i)] = np.median(components['p'+str(i)], axis = 0)
+                            components['trend'] = np.median(components['trend'], axis = 0)
+                            components['keplerian'] = np.median(components['keplerian'], axis = 0)
+                            if self.global_model:
                                 for ginstrument in instruments:
-                                    components[k][ginstrument] = np.median(components[k][ginstrument],axis=0)
-                        else:
-                            for k in components.keys():
-                                components[k] = np.median(components[k],axis=0)
-                    else:
-                        for i in self.numbering:
-                            components['p'+str(i)] = np.median(components['p'+str(i)], axis = 0)
-                        components['trend'] = np.median(components['trend'], axis = 0)
-                        components['keplerian'] = np.median(components['keplerian'], axis = 0)
-                        if self.global_model:
-                            for ginstrument in instruments:
-                                components['mu'][ginstrument] = np.median(components['mu'][ginstrument])
-                        else:
-                            components['mu'] = np.median(components['mu'], axis=0)
+                                    components['mu'][ginstrument] = np.median(components['mu'][ginstrument])
+                            else:
+                                components['mu'] = np.median(components['mu'], axis=0)
             else:
                 if self.modeltype == 'lc':
                     self.generate_lc_model(parameter_values,evaluate_lc = True)
