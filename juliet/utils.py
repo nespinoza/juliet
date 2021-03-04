@@ -474,6 +474,8 @@ def readpriors(priorname):
             if counter == n_allkeys-1:
                 break
     if not input_dict:
+        if len(starting_point.keys()) == 0:
+            starting_point = None
         return priors, n_transit, n_rv, numbering_transit.astype('int'), numbering_rv.astype('int'), n_params, starting_point
     else:
         return n_transit, n_rv, numbering_transit.astype('int'), numbering_rv.astype('int'), n_params
