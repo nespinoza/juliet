@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for multithreading with `emcee`.
 - Added `stepsampler_ultranest` to use Ultranest's stepsampler (see https://johannesbuchner.github.io/UltraNest/example-sine-highd.html).
 - `setup.py` automatically installs `ultranest` and `emcee` now, as both are supported by `juliet`.
+- Added canonical `_version.py` file to store versions of the code, following user Zooko in stackoverflow question 458550. Modified `__init__.py` and `setup.py` accordingly.
 
 ### Fixed
 - `juliet.fit` docstring parsing.
