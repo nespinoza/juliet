@@ -192,8 +192,22 @@ static PyMethodDef FWTMethods[] = {
 	{NULL, NULL, 0, NULL}
 };
 
-void initFWT(void){
-	(void) Py_InitModule("FWT", FWTMethods);
+//void initFWT(void){
+//	(void) Py_InitModule("FWT", FWTMethods);
+//}
+
+static struct PyModuleDef FWT =
+{
+    PyModuleDef_HEAD_INIT,
+    "FWT", /* name of module */
+    "",          /* module documentation, may be NULL */
+    -1,          /* size of per-interpreter state of the module, or -1 if the module keeps state in global variables. */
+    FWTMethods
+};
+
+PyMODINIT_FUNC PyInit_FWT(void)
+{
+    return PyModule_Create(&FWT);
 }
 
 
