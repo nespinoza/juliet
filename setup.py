@@ -1,11 +1,21 @@
+import re
 from setuptools import setup
 
+VERSIONFILE='juliet/_version.py'
+verstrline = open(VERSIONFILE, "rt").read()
+VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
+mo = re.search(VSRE, verstrline, re.M)
+if mo:
+    verstr = mo.group(1)
+else:
+    raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
+
 setup(name='juliet',
-      version='2.1.1',
+      version=verstr,
       description='juliet: a versatile modelling tool for transiting exoplanets, radial-velocity systems or both',
       url='http://github.com/nespinoza/juliet',
       author='Nestor Espinoza',
-      author_email='espinoza@mpia.de',
+      author_email='nespinoza@stsci.edu',
       license='MIT',
       packages=['juliet'],
       install_requires=['batman-package','radvel','dynesty','george','celerite','astropy','numpy','scipy', 'emcee', 'ultranest'],
