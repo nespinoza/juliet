@@ -59,7 +59,7 @@ starting_point['mflux_inst'] = 0.
 starting_point['sigma_w_inst'] = 100.
 
 # And fit:
-samplers = ['emcee', 'multinest', 'dynesty', 'dynamic_dynesty', 'ultranest']
+samplers = ['slicesampler_ultranest', 'emcee', 'dynesty', 'dynamic_dynesty', 'ultranest', 'multinest']
 all_times = {}
 for sampler in samplers:
     dataset = juliet.load(priors = priors, t_lc = times, y_lc = fluxes, yerr_lc = errors, out_folder = sampler+'-test', starting_point = starting_point)
