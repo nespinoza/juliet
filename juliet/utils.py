@@ -117,8 +117,8 @@ def get_all_TESS_data(object_name, radius = ".02 deg", get_PDC = True, get_all =
             metadata = fname.split('-')
             if len(metadata) == 5:
                 # Extract metadata:
-                sector = np.int(metadata[1].split('s')[-1])
-                ticid = np.int(metadata[2])
+                sector = int(metadata[1].split('s')[-1])
+                ticid = int(metadata[2])
                 # Download files:
                 data_products = Observations.get_product_list(obs_table[i])
                 if get_lightcurves_only:
