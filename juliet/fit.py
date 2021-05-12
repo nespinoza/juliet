@@ -3578,12 +3578,7 @@ class gaussian_process(object):
                 self.parameter_vector[6] = np.log(
                     parameter_values['sigma_w_' + self.instrument] *
                     self.sigma_factor)
-        self.GP.set_parameter_vector(self.parameter_vector)
 
-            if not self.global_GP:
-                self.parameter_vector[6] = np.log(
-                    parameter_values['sigma_w_' + self.instrument] *
-                    self.sigma_factor)
         elif self.kernel_name == 'CeleriteTripleSHOKernel':
             self.parameter_vector[0] = np.log(
                 parameter_values['GP_S0_' + self.input_instrument[0]])
