@@ -64,6 +64,11 @@ try:
 except:
     print("Warning: no emcee installation found. Will not be able to sample using sampler = 'emcee'.")
 
+# Import zeus for fast MCMC:
+try:
+    import zeus
+except:
+    print("Warning: no zeus installation found. Will not be able to sample using sampler = 'zeus'.")
 
 # Import generic useful classes:
 import os
@@ -981,7 +986,7 @@ class load(object):
         if t_rv is not None:
             self.generate_datadict('rv')
 
-mcmc_samplers = ['emcee']
+mcmc_samplers = ['emcee', 'zeus']
 class fit(object):
     """
     Given a juliet data object, this class performs a fit to the data and returns a results object to explore the 
@@ -1300,7 +1305,7 @@ class fit(object):
             if self.data.priors[pname]['distribution'] == 'fixed':
                 self.posteriors[pname] = self.data.priors[pname]['hyperparameters']
             else:
-                if sampler == 'emcee':
+                if self.sampler in mcmc_samplers:
                     self.posteriors[pname] = self.data.starting_point[pname]
                 else:
                     self.posteriors[pname] = 0.#self.data.priors[pname]['cvalue']
@@ -1538,7 +1543,45 @@ class fit(object):
 
                 # And now store posteriors with all walkers flattened out:
                 posterior_samples = sampler.get_chain(discard = self.nburnin, flat = True)
-                
+
+            elif 'zeus' in self.sampler:
+                # Identical implementation to emcee...?
+                # Initiate starting point for each walker. To this end, first load starting values.
+                initial_position = np.array([])
+                for pname in self.model_parameters:
+                    if self.data.priors[pname]['distribution'] != 'fixed':
+                        initial_position = np.append(initial_position, self.posteriors[pname])
+
+                # Perturb initial position for each of the walkers:
+                pos = initial_position + self.emcee_factor * np.random.randn(self.nwalkers, len(initial_position))
+
+                # Before performing the sampling, catch any kwargs that go to EnsembleSampler; rest of kwargs are assumed to go
+                # to run_mcmc:
+                args = zeus.EnsembleSampler.__init__.__code__.co_varnames
+                zeus_args = {}
+                runmcmc_args = {}
+
+                # Match them with kwargs (kwargs take preference):
+                for arg in args:
+                    if arg in kwargs:
+                        ES_args[arg] = kwargs[arg]
+                        kwargs.pop(arg)
+
+                # Now perform the sampling. If nthreads is defined, parallelize. If not, go the serial way:
+                if self.nthreads is None:
+                    sampler = zeus.EnsembleSampler(self.nwalkers, self.data.nparams, self.logprob, **zeus_args)
+                    sampler.run_mcmc(pos, self.nsteps + self.nburnin, **kwargs)
+                else:
+                    with contextlib.closing(Pool(processes=self.nthreads-1)) as executor:
+                        sampler = zeus.EnsembleSampler(self.nwalkers, self.data.nparams, self.logprob, pool = executor, **zeus_args)
+                        sampler.run_mcmc(pos, self.nsteps + self.nburnin, **kwargs)
+
+                # Store posterior samples. First, store the samples for each walker:
+                out['posteriors_per_walker'] = sampler.get_chain()
+
+                # And now store posteriors with all walkers flattened out:
+                posterior_samples = sampler.get_chain(discard = self.nburnin, flat = True)
+
             # Save posterior samples as outputted by Multinest/Dynesty:
             out['posterior_samples'] = {}
             out['posterior_samples']['unnamed'] = posterior_samples
