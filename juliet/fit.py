@@ -1564,7 +1564,7 @@ class fit(object):
                 # Match them with kwargs (kwargs take preference):
                 for arg in args:
                     if arg in kwargs:
-                        ES_args[arg] = kwargs[arg]
+                        zeus_args[arg] = kwargs[arg]
                         kwargs.pop(arg)
 
                 # Now perform the sampling. If nthreads is defined, parallelize. If not, go the serial way:
