@@ -775,7 +775,7 @@ class load(object):
 
         # First, save lightcurve data:
         if not os.path.exists(self.out_folder):
-            os.makedirs(self.out_folder)
+            os.makedirs(self.out_folder, exist_ok=True)
         if (not os.path.exists(self.out_folder + 'lc.dat')):
             if self.lcfilename is not None:
                 os.system('cp ' + self.lcfilename + ' ' + self.out_folder +
