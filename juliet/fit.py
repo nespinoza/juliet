@@ -1505,7 +1505,7 @@ class fit(object):
                     import ultranest.stepsampler
 
                     # Match kwarfs to possible args in RegionSliceSampler:
-                    args = ultranest.stepsampler.RegionSliceSampler.__init__.__code__.co_varnames
+                    args = ultranest.stepsampler.SliceSampler.__init__.__code__.co_varnames
                     rss_args = {}
                     # First, define standard ones:
                     rss_args['nsteps'] = 400
