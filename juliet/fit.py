@@ -78,7 +78,7 @@ G = 6.67408e-11 # Gravitational constant, mks
 log2pi = np.log(2.*np.pi) # ln(2*pi)
 
 # Import all the utils functions:
-from .utils import *
+from utils import *
 
 __all__ = ['load','fit','gaussian_process','model'] 
 
@@ -472,8 +472,14 @@ class load(object):
             if dictype == 'lc':
                 dictionary[instrument]['TransitFit'] = False
                 dictionary[instrument]['TransitFitCatwoman'] = False
+        dictionary['EclipseFit'] = False
 
         if dictype == 'lc':
+            for pri in self.priors.keys():
+                if pri[0:2] == 'fp':
+                    dictionary['EclipseFit'] = True
+                    if self.verbose:
+                        print('\t Eclipse fit detected')
             # Extract limb-darkening law. If no limb-darkening law was given by the user, assume LD law depending on whether the user defined a prior for q1 only for a 
             # given instrument (in which that instrument is set to the linear law) or a prior for q1 and q2, in which case we assume the user 
             # wants to use a quadratic law for that instrument. If user gave one limb-darkening law, assume that law for all instruments that have priors for q1 and q2 
@@ -1917,11 +1923,20 @@ class model(object):
 
         if (resampling is not None) and (self.modeltype == 'lc') and (instrument is not None):
             if resampling:
-                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                if not self.dictionary['EclipseFit']:
+                    self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                                 nresampling = nresampling,\
+                                                                                                 etresampling = etresampling)
+                else:
+                    self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                                 eclipse=True,\
                                                                                                  nresampling = nresampling,\
                                                                                                  etresampling = etresampling)
             else:
-                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                if not self.dictionary['EclipseFit']:
+                    self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                else:
+                    self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'], eclipse=True)
 
         # Save the original inames in the case of non-global models, and set self.inames to the input model. This is because if the model 
         # is not global, in general we don't care about generating the models for the other instruments (and in the lightcurve and RV evaluation part, 
@@ -1996,20 +2011,28 @@ class model(object):
                             # then generate the model-generating objects for those instruments using both the input times and the model-fit times. Save 
                             # those in dictionaries:
                             for ginstrument in instruments:
-                                if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']:
+                                if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman'] or self.dictionary['EclipseFit']:
                                     if not self.dictionary[ginstrument]['TransitFitCatwoman']:
-                                        supersample_params[ginstrument],supersample_m[ginstrument] = init_batman(t, self.dictionary[ginstrument]['ldlaw'])
-                                        sample_params[ginstrument],sample_m[ginstrument] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
+                                        if not self.dictionary['EclipseFit']:
+                                            supersample_params[ginstrument],supersample_m[ginstrument] = init_batman(t, self.dictionary[ginstrument]['ldlaw'])
+                                            sample_params[ginstrument],sample_m[ginstrument] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
+                                        else:
+                                            supersample_params[ginstrument],supersample_m[ginstrument] = init_batman(t, self.dictionary[ginstrument]['ldlaw'], eclipse=True)
+                                            sample_params[ginstrument],sample_m[ginstrument] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'], eclipse=True)
                                     else:
                                         supersample_params[ginstrument],supersample_m[ginstrument] = init_catwoman(t, self.dictionary[ginstrument]['ldlaw'])
                                         sample_params[ginstrument],sample_m[ginstrument] = init_catwoman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
                         else:
                             # If model is not global, the variables saved are not dictionaries but simply the objects, as we are just going to evaluate the 
                             # model for one dataset (the one of the input instrument):
-                            if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman']:
+                            if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman'] or self.dictionary['EclipseFit']:
                                 if not self.dictionary[instrument]['TransitFitCatwoman']:
-                                    supersample_params,supersample_m = init_batman(t, self.dictionary[instrument]['ldlaw'])
-                                    sample_params,sample_m = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                                    if not self.dictionary['EclipseFit']:
+                                        supersample_params,supersample_m = init_batman(t, self.dictionary[instrument]['ldlaw'])
+                                        sample_params,sample_m = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                                    else:
+                                        supersample_params,supersample_m = init_batman(t, self.dictionary[instrument]['ldlaw'], eclipse=True)
+                                        sample_params,sample_m = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'], eclipse=True)
                                 else:
                                     supersample_params,supersample_m = init_catwoman(t, self.dictionary[instrument]['ldlaw'])
                                     sample_params,sample_m = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
@@ -2418,11 +2441,20 @@ class model(object):
         if (resampling is not None) and (self.modeltype == 'lc') and (instrument is not None): 
              # get lc, return, then turn all back to normal:
              if self.dictionary[instrument]['resampling']:
-                 self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                 if not self.dictionary['EclipseFit']:
+                     self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                                  nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                  etresampling = self.dictionary[instrument]['exptimeresampling'])
+                 else:
+                     self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                                  eclipse=True,\
                                                                                                   nresampling = self.dictionary[instrument]['nresampling'],\
                                                                                                   etresampling = self.dictionary[instrument]['exptimeresampling'])
              else:
-                 self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                 if not self.dictionary['EclipseFit']:
+                     self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                 else:
+                     self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'], eclipse=True)
 
         if not self.global_model:
             # Return original inames back in case of non-global models:
@@ -2632,11 +2664,19 @@ class model(object):
                             else:
                                 if not self.dictionary[instrument]['TransitFitCatwoman']:
                                     if self.dictionary[instrument]['resampling']:
-                                        pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'], \
-                                                                 nresampling = self.dictionary[instrument]['nresampling'], \
-                                                                 etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                        if not self.dictionary['EclipseFit']:
+                                            pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'], \
+                                                                    nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                    etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                        else:
+                                            pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'], eclipse=True,\
+                                                                    nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                    etresampling = self.dictionary[instrument]['exptimeresampling'])
                                     else:
-                                        pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                        if not self.dictionary['EclipseFit']:
+                                            pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                        else:
+                                            pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'], eclipse=True)
                                 else:
                                     if self.dictionary[instrument]['resampling']:
                                         pm, m = init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'], \
@@ -2813,17 +2853,26 @@ class model(object):
                     # First, take the opportunity to initialize transit lightcurves for each instrument:
                     if self.dictionary[instrument]['resampling']:
                         if not self.dictionary[instrument]['TransitFitCatwoman']:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                         nresampling = self.dictionary[instrument]['nresampling'],\
-                                                                                                         etresampling = self.dictionary[instrument]['exptimeresampling'])
+                            if not self.dictionary['EclipseFit']:
+                                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                                            nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                            etresampling = self.dictionary[instrument]['exptimeresampling'])
+                            else:
+                                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'], eclipse=True, \
+                                                                                                            nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                            etresampling = self.dictionary[instrument]['exptimeresampling'])
                         else:
                             self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                         nresampling = self.dictionary[instrument]['nresampling'],\
-                                                                                                         etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                                                                                        nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                        etresampling = self.dictionary[instrument]['exptimeresampling'])
                     else:
                         if not self.dictionary[instrument]['TransitFitCatwoman']:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], \
-                                                                                                             self.dictionary[instrument]['ldlaw'])
+                            if not self.dictionary['EclipseFit']:
+                                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], \
+                                                                                                                self.dictionary[instrument]['ldlaw'])
+                            else:
+                                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], \
+                                                                                                                self.dictionary[instrument]['ldlaw'], eclipse=True)
                         else:
                             self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], \
                                                                                                                self.dictionary[instrument]['ldlaw'])

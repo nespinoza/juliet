@@ -10,7 +10,7 @@ try:
 except:
     have_catwoman = False
 
-def init_batman(t, ld_law, nresampling = None, etresampling = None):
+def init_batman(t, ld_law, eclipse=False, nresampling = None, etresampling = None):
      """  
      This function initializes the batman code.
      """
@@ -27,10 +27,19 @@ def init_batman(t, ld_law, nresampling = None, etresampling = None):
      else:
          params.u = [0.1,0.3]
      params.limb_dark = ld_law
+     if eclipse:
+         params.fp = 0.001
+         params.t_secondary = params.t0 + (params.per/2)
      if nresampling is None or etresampling is None:
-         m = batman.TransitModel(params, t)
+         if eclipse:
+             m = batman.TransitModel(params, t, transittype='secondary')
+         else:
+             m = batman.TransitModel(params, t)
      else:
-         m = batman.TransitModel(params, t, supersample_factor=nresampling, exp_time=etresampling)
+         if eclipse:
+             m = batman.TransitModel(params, t, transittype='secondary', supersample_factor=nresampling, exp_time=etresampling)
+         else:
+             m = batman.TransitModel(params, t, supersample_factor=nresampling, exp_time=etresampling)
      return params,m
 
 def init_catwoman(t, ld_law, nresampling = None, etresampling = None):
