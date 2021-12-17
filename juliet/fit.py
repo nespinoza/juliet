@@ -78,7 +78,7 @@ G = 6.67408e-11 # Gravitational constant, mks
 log2pi = np.log(2.*np.pi) # ln(2*pi)
 
 # Import all the utils functions:
-from utils import *
+from .utils import *
 
 __all__ = ['load','fit','gaussian_process','model'] 
 
