@@ -475,11 +475,6 @@ class load(object):
         dictionary['EclipseFit'] = False
 
         if dictype == 'lc':
-            for pri in self.priors.keys():
-                if pri[0:2] == 'fp':
-                    dictionary['EclipseFit'] = True
-                    if self.verbose:
-                        print('\t Eclipse fit detected')
             # Extract limb-darkening law. If no limb-darkening law was given by the user, assume LD law depending on whether the user defined a prior for q1 only for a 
             # given instrument (in which that instrument is set to the linear law) or a prior for q1 and q2, in which case we assume the user 
             # wants to use a quadratic law for that instrument. If user gave one limb-darkening law, assume that law for all instruments that have priors for q1 and q2 
@@ -569,6 +564,13 @@ class load(object):
                         dictionary[inames[i]]['TransitFitCatwoman'] = True
                         if self.verbose:
                             print('\t Transit (catwoman) fit detected for instrument ',inames[i])
+                    ###
+                    if pri[0:2] == 'fp':
+                        dictionary[inames[i]]['TransitFit'] = True
+                        dictionary['EclipseFit'] = True
+                        if self.verbose:
+                            print('\t Eclipse fit detected')
+                    ###
                     if pri[0:2] == 'dt' or pri[0:2] == 'T_':
                         if pri[0:2] == 'T_':
                             dictionary[inames[i]]['TTVs'][pi]['parametrization'] = 'T'
@@ -2536,6 +2538,10 @@ class model(object):
                 # comments for details).
                 cP, ct0 = {}, {}
                 for i in self.numbering:
+                    ###
+                    if self.dictionary['EclipseFit']:
+                        fp = parameter_values['fp_p' + str(i)]
+                    ###
                     # Check if we will be fitting for TTVs. If not, all goes as usual. If we are, check which parametrization (dt or T):
                     if not self.dictionary[instrument]['TTVs'][i]['status']:
                         t0, P = parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)]
@@ -2640,6 +2646,10 @@ class model(object):
                             self.model[instrument]['params'].inc = np.arccos(inc_inv_factor)*180./np.pi
                             self.model[instrument]['params'].ecc = ecc 
                             self.model[instrument]['params'].w = omega
+                            ###
+                            if self.dictionary['EclipseFit']:
+                                self.model[instrument]['params'].fp = fp
+                            ###
                             if not self.dictionary[instrument]['TransitFitCatwoman']:
                                 self.model[instrument]['params'].rp = p
                             else:
