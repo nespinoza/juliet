@@ -498,6 +498,8 @@ class load(object):
                         dictionary[instrument]['ldlaw'] = (all_ld_laws[0].split('-')[-1]).split()[0].lower()
                     elif (not q1_given) and q2_given:
                         raise Exception('INPUT ERROR: it appears q1 for instrument '+instrument+' was not defined (but q2 was) in the prior file.')
+                    elif (not q1_given) and (not q2_given):
+                        dictionary[instrument]['ldlaw'] = 'none'
             else:
                 for ld_law in all_ld_laws:
                     instrument,ld = ld_law.split('-')
@@ -566,7 +568,7 @@ class load(object):
                             print('\t Transit (catwoman) fit detected for instrument ',inames[i])
                     ###
                     if pri[0:2] == 'fp':
-                        dictionary[inames[i]]['TransitFit'] = True
+                        #dictionary[inames[i]]['TransitFit'] = True
                         dictionary[inames[i]]['EclipseFit'] = True
                         if self.verbose:
                             print('\t Eclipse fit detected for instrument ',inames[i])
@@ -2527,9 +2529,11 @@ class model(object):
             # If transit fit is on, then model the transit lightcurve:
             if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['EclipseFit']:
                 # Extract and set the limb-darkening coefficients for the instrument:
-                if self.dictionary[instrument]['ldlaw'] != 'linear':
+                if self.dictionary[instrument]['ldlaw'] != 'linear' and self.dictionary[instrument]['ldlaw'] != 'none':
                     coeff1, coeff2 = reverse_ld_coeffs(self.dictionary[instrument]['ldlaw'], parameter_values['q1_'+self.ld_iname[instrument]],\
                                                        parameter_values['q2_'+self.ld_iname[instrument]])
+                elif self.dictionary[instrument]['ldlaw'] == 'none':
+                    coeff1, coeff2 = 0.1, 0.3
                 else:
                     coeff1 = parameter_values['q1_'+self.ld_iname[instrument]]
 
