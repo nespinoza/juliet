@@ -26,7 +26,10 @@ def init_batman(t, ld_law, eclipse=False, nresampling = None, etresampling = Non
          params.u = [0.5]
      else:
          params.u = [0.1,0.3]
-     params.limb_dark = ld_law
+     if ld_law == 'none':
+         params.limb_dark = 'quadratic'
+     else:
+         params.limb_dark = ld_law
      if eclipse:
          params.fp = 0.001
          params.t_secondary = params.t0 + (params.per/2)
