@@ -10,7 +10,7 @@ try:
 except:
     have_catwoman = False
 
-def init_batman(t, ld_law, eclipse=False, nresampling = None, etresampling = None):
+def init_batman(t, ld_law, nresampling = None, etresampling = None):
      """  
      This function initializes the batman code.
      """
@@ -30,20 +30,14 @@ def init_batman(t, ld_law, eclipse=False, nresampling = None, etresampling = Non
          params.limb_dark = 'quadratic'
      else:
          params.limb_dark = ld_law
-     if eclipse:
-         params.ac = 0.001
-         params.fp = 0.001
-         params.t_secondary = params.t0 + (params.per/2) + params.ac
+     params.ac = 0.001
+     params.fp = 0.001
+     params.t_secondary = params.t0 + (params.per/2) + params.ac
      if nresampling is None or etresampling is None:
-         if eclipse:
-             m = batman.TransitModel(params, t, transittype='secondary')
-         else:
-             m = batman.TransitModel(params, t)
+         m = [batman.TransitModel(params, t), batman.TransitModel(params, t, transittype='secondary')]
      else:
-         if eclipse:
-             m = batman.TransitModel(params, t, transittype='secondary', supersample_factor=nresampling, exp_time=etresampling)
-         else:
-             m = batman.TransitModel(params, t, supersample_factor=nresampling, exp_time=etresampling)
+         m = [batman.TransitModel(params, t, supersample_factor=nresampling, exp_time=etresampling),\
+             batman.TransitModel(params, t, transittype='secondary', supersample_factor=nresampling, exp_time=etresampling)]
      return params,m
 
 def init_catwoman(t, ld_law, nresampling = None, etresampling = None):
