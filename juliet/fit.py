@@ -2545,6 +2545,7 @@ class model(object):
                     ###
                     if self.dictionary[instrument]['EclipseFit']:
                         fp = parameter_values['fp_p' + str(i)]
+                        ac = parameter_values['ac_p' + str(i)]
                     ###
                     # Check if we will be fitting for TTVs. If not, all goes as usual. If we are, check which parametrization (dt or T):
                     if not self.dictionary[instrument]['TTVs'][i]['status']:
@@ -2653,6 +2654,7 @@ class model(object):
                             ###
                             if self.dictionary[instrument]['EclipseFit']:
                                 self.model[instrument]['params'].fp = fp
+                                self.model[instrument]['params'].ac = ac
                             ###
                             if not self.dictionary[instrument]['TransitFitCatwoman']:
                                 self.model[instrument]['params'].rp = p
