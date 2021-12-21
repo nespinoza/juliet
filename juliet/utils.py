@@ -31,8 +31,9 @@ def init_batman(t, ld_law, eclipse=False, nresampling = None, etresampling = Non
      else:
          params.limb_dark = ld_law
      if eclipse:
+         params.ac = 0.001
          params.fp = 0.001
-         params.t_secondary = params.t0 + (params.per/2)
+         params.t_secondary = params.t0 + (params.per/2) + params.ac
      if nresampling is None or etresampling is None:
          if eclipse:
              m = batman.TransitModel(params, t, transittype='secondary')
