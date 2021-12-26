@@ -10,7 +10,7 @@ try:
 except:
     have_catwoman = False
 
-def init_batman(t, ld_law, eclipse=False, nresampling = None, etresampling = None):
+def init_batman(t, ld_law, nresampling = None, etresampling = None):
      """  
      This function initializes the batman code.
      """
@@ -30,20 +30,14 @@ def init_batman(t, ld_law, eclipse=False, nresampling = None, etresampling = Non
          params.limb_dark = 'quadratic'
      else:
          params.limb_dark = ld_law
-     if eclipse:
-         params.ac = 0.001
-         params.fp = 0.001
-         params.t_secondary = params.t0 + (params.per/2) + params.ac
+     params.ac = 0.001
+     params.fp = 0.001
+     params.t_secondary = params.t0 + (params.per/2) + params.ac
      if nresampling is None or etresampling is None:
-         if eclipse:
-             m = batman.TransitModel(params, t, transittype='secondary')
-         else:
-             m = batman.TransitModel(params, t)
+         m = [batman.TransitModel(params, t), batman.TransitModel(params, t, transittype='secondary')]
      else:
-         if eclipse:
-             m = batman.TransitModel(params, t, transittype='secondary', supersample_factor=nresampling, exp_time=etresampling)
-         else:
-             m = batman.TransitModel(params, t, supersample_factor=nresampling, exp_time=etresampling)
+         m = [batman.TransitModel(params, t, supersample_factor=nresampling, exp_time=etresampling),\
+             batman.TransitModel(params, t, transittype='secondary', supersample_factor=nresampling, exp_time=etresampling)]
      return params,m
 
 def init_catwoman(t, ld_law, nresampling = None, etresampling = None):
@@ -493,7 +487,7 @@ def readpriors(priorname):
     else:
         return n_transit, n_rv, numbering_transit.astype('int'), numbering_rv.astype('int'), n_params
 
-def get_phases(t,P,t0):
+def get_phases(t,P,t0, phmin=0.5):
     """
     Given input times, a period (or posterior dist of periods)
     and time of transit center (or posterior), returns the 
@@ -501,7 +495,7 @@ def get_phases(t,P,t0):
     """
     if type(t) is not float:
         phase = ((t - np.median(t0))/np.median(P)) % 1
-        ii = np.where(phase>=0.5)[0]
+        ii = np.where(phase>=phmin)[0]
         phase[ii] = phase[ii]-1.0
     else:
         phase = ((t - np.median(t0))/np.median(P)) % 1
