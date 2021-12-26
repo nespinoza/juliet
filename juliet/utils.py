@@ -487,7 +487,7 @@ def readpriors(priorname):
     else:
         return n_transit, n_rv, numbering_transit.astype('int'), numbering_rv.astype('int'), n_params
 
-def get_phases(t,P,t0):
+def get_phases(t,P,t0, phmin=0.5):
     """
     Given input times, a period (or posterior dist of periods)
     and time of transit center (or posterior), returns the 
@@ -495,7 +495,7 @@ def get_phases(t,P,t0):
     """
     if type(t) is not float:
         phase = ((t - np.median(t0))/np.median(P)) % 1
-        ii = np.where(phase>=0.5)[0]
+        ii = np.where(phase>=phmin)[0]
         phase[ii] = phase[ii]-1.0
     else:
         phase = ((t - np.median(t0))/np.median(P)) % 1
