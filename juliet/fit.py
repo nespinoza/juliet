@@ -1282,11 +1282,11 @@ class fit(object):
             self.sampler_prefix = self.sampler+'_'
 
         # Before starting, check if force_dynesty or force_pymultinest is on; change options accordingly:
-        if force_dynesty and (self.sampler is 'multinest'):
+        if force_dynesty and (self.sampler == 'multinest'):
             print('PyMultinest installation not detected. Forcing dynesty as the sampler.')
             self.sampler = 'dynesty'
             self.sampler_prefix = '_dynesty_NS_'
-        if force_pymultinest and (self.sampler is 'dynesty'):
+        if force_pymultinest and (self.sampler == 'dynesty'):
             print('dynesty installation not detected. Forcing PyMultinest as the sampler.')
             self.sampler = 'multinest'
             self.sampler_prefix = '' 
@@ -2703,7 +2703,7 @@ class model(object):
         self.posteriors = posterior_samples
         self.median_posterior_samples = {}
         for parameter in self.posteriors.keys():
-            if parameter is not 'unnamed':
+            if parameter != 'unnamed':
                 self.median_posterior_samples[parameter] = np.median(self.posteriors[parameter])
         for parameter in self.priors:
             if self.priors[parameter]['distribution'] == 'fixed':
