@@ -1827,8 +1827,8 @@ class model(object):
             else:
                 return self.model[instrument]['deterministic']
 
-    def evaluate_model(self, instrument = None, parameter_values = None, resampling = None, nresampling = None, etresampling = None, \
-                          all_samples = False, nsamples = 1000, return_samples = False, t = None, GPregressors = None, LMregressors = None, \
+    def evaluate_model(self, instrument = None, parameter_values = None,
+                          all_samples = False, nsamples = 1000, return_samples = False, t = None, GPregressors = None, LMregressors = None,
                           return_err = False, alpha = 0.68, return_components = False, evaluate_transit = False):
         """
         This function evaluates the current lc or rv model given a set of posterior distribution samples and/or parameter values. Example usage:
@@ -1850,15 +1850,6 @@ class model(object):
         Dictionary containing samples of the posterior distribution or, more generally, parameter valuesin it. Each key is a parameter name (e.g. 'p_p1', 
         'q1_TESS', etc.), and inside each of those keys an array of N samples is expected (i.e., parameter_values['p_p1'] is an array of length N). The 
         indexes have to be consistent between different parameters.
-
-        :param resampling: (optional, boolean)
-        Boolean indicating if the model needs to be resampled or not. Only works for lightcurves.
-
-        :param nresampling: (optional, int)
-        Number of points to resample for a given time-stamp. Only used if resampling = True. Only applicable to lightcurves.
-
-        :param etresampling: (optional, double)
-        Exposure time of the resampling (same unit as times). Only used if resampling = True. Only applicable to lightcurves.
 
         :param all_samples: (optional, boolean)
         If True, all posterior samples will be used to evaluate the model. Default is False.
@@ -1915,13 +1906,11 @@ class model(object):
             if not self.global_model:
                 raise Exception("Input error: an instrument has to be defined for non-global models in order to evaluate the model.")
 
-        if (resampling is not None) and (self.modeltype == 'lc') and (instrument is not None):
-            if resampling:
-                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                 nresampling = nresampling,\
-                                                                                                 etresampling = etresampling)
-            else:
-                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+        if self.modeltype == 'lc':
+            nresampling = self.dictionary[instrument].get('nresampling')
+            etresampling = self.dictionary[instrument].get('exptimeresampling')
+            self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                        nresampling=nresampling, etresampling=etresampling)
 
         # Save the original inames in the case of non-global models, and set self.inames to the input model. This is because if the model 
         # is not global, in general we don't care about generating the models for the other instruments (and in the lightcurve and RV evaluation part, 
@@ -1956,7 +1945,7 @@ class model(object):
                 else:
                     idx_samples = np.random.choice(np.arange(nsampled),np.min([nsamples,nsampled]),replace=False)
                     idx_samples = idx_samples[np.argsort(idx_samples)]
-                
+
                 # Create the output_model arrays: these will save on each iteration the full model (lc/rv + GP, output_model_samples), 
                 # the GP-only model (GP, output_modelGP_samples) and the lc/rv-only model (lc/rv, output_modelDET_samples) --- the latter ones 
                 # will make sense only if there is a GP model. If not, it will be a zero-array throughout the evaluation process:
@@ -1997,22 +1986,36 @@ class model(object):
                             # those in dictionaries:
                             for ginstrument in instruments:
                                 if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']:
+                                    nresampling = self.dictionary[ginstrument].get('nresampling')
+                                    etresampling = self.dictionary[ginstrument].get('exptimeresampling')
+                                    supersample_params, supersample_m = {}, {}
+                                    sample_params, sample_m = {}, {}
                                     if not self.dictionary[ginstrument]['TransitFitCatwoman']:
-                                        supersample_params[ginstrument],supersample_m[ginstrument] = init_batman(t, self.dictionary[ginstrument]['ldlaw'])
-                                        sample_params[ginstrument],sample_m[ginstrument] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
+                                        supersample_params[ginstrument],supersample_m[ginstrument] = init_batman(t, self.dictionary[ginstrument]['ldlaw'],
+                                                                                                                 nresampling=nresampling, etresampling=etresampling)
+                                        sample_params[ginstrument],sample_m[ginstrument] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'],
+                                                                                                       nresampling=nresampling, etresampling=etresampling)
                                     else:
-                                        supersample_params[ginstrument],supersample_m[ginstrument] = init_catwoman(t, self.dictionary[ginstrument]['ldlaw'])
-                                        sample_params[ginstrument],sample_m[ginstrument] = init_catwoman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
+                                        supersample_params[ginstrument],supersample_m[ginstrument] = init_catwoman(t, self.dictionary[ginstrument]['ldlaw'],
+                                                                                                                   nresampling=nresampling, etresampling=etresampling)
+                                        sample_params[ginstrument],sample_m[ginstrument] = init_catwoman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'],
+                                                                                                         nresampling=nresampling, etresampling=etresampling)
                         else:
                             # If model is not global, the variables saved are not dictionaries but simply the objects, as we are just going to evaluate the 
                             # model for one dataset (the one of the input instrument):
                             if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman']:
+                                nresampling = self.dictionary[instrument].get('nresampling')
+                                etresampling = self.dictionary[instrument].get('exptimeresampling')
                                 if not self.dictionary[instrument]['TransitFitCatwoman']:
-                                    supersample_params,supersample_m = init_batman(t, self.dictionary[instrument]['ldlaw'])
-                                    sample_params,sample_m = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                                    supersample_params,supersample_m = init_batman(t, self.dictionary[instrument]['ldlaw'],
+                                                                                   nresampling=nresampling, etresampling=etresampling)
+                                    sample_params,sample_m = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                         nresampling=nresampling, etresampling=etresampling)
                                 else:
-                                    supersample_params,supersample_m = init_catwoman(t, self.dictionary[instrument]['ldlaw'])
-                                    sample_params,sample_m = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                                    supersample_params,supersample_m = init_catwoman(t, self.dictionary[instrument]['ldlaw'],
+                                                                                     nresampling=nresampling, etresampling=etresampling)
+                                    sample_params,sample_m = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                           nresampling=nresampling, etresampling=etresampling)
                     else:
                         # If we are trying to evaluate radial-velocities, we don't need to generate objects because radvel receives the times as inputs 
                         # on each call. In this case then we save the original times (self.t has *all* the times of all the instruments) and instrument 
@@ -2387,10 +2390,9 @@ class model(object):
                             components['lm'] = self.model[instrument]['LM']
         else:
          
-            x = self.evaluate_model(instrument = instrument, parameter_values = self.posteriors, resampling = resampling, \
-                                              nresampling = nresampling, etresampling = etresampling, all_samples = all_samples, \
-                                              nsamples = nsamples, return_samples = return_samples, t = t, GPregressors = GPregressors, \
-                                              LMregressors = LMregressors, return_err = return_err, return_components = return_components, alpha = alpha, \
+            x = self.evaluate_model(instrument = instrument, parameter_values = self.posteriors, all_samples = all_samples,
+                                              nsamples = nsamples, return_samples = return_samples, t = t, GPregressors = GPregressors,
+                                              LMregressors = LMregressors, return_err = return_err, return_components = return_components, alpha = alpha,
                                               evaluate_transit = evaluate_transit)
             if return_samples:
                 if return_err:
@@ -2414,15 +2416,6 @@ class model(object):
                         output_model, components = x
                     else:
                         output_model = x
-
-        if (resampling is not None) and (self.modeltype == 'lc') and (instrument is not None): 
-             # get lc, return, then turn all back to normal:
-             if self.dictionary[instrument]['resampling']:
-                 self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                  nresampling = self.dictionary[instrument]['nresampling'],\
-                                                                                                  etresampling = self.dictionary[instrument]['exptimeresampling'])
-             else:
-                 self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
 
         if not self.global_model:
             # Return original inames back in case of non-global models:
