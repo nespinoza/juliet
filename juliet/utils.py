@@ -15,31 +15,35 @@ def init_batman(t, ld_law, nresampling=None, etresampling=None):
     """
      This function initializes the batman code.
      """
-    params = batman.TransitParams()
-    params.t0 = 0.
-    params.per = 1.
-    params.rp = 0.1
-    params.a = 15.
-    params.inc = 87.
-    params.ecc = 0.
-    params.w = 90.
-    if ld_law == 'linear':
-        params.u = [0.5]
-    else:
-        params.u = [0.1, 0.3]
-    params.limb_dark = ld_law
-    if nresampling is None or etresampling is None:
-        m = batman.TransitModel(params, t)
-    else:
-        m = batman.TransitModel(params,
-                                t,
-                                supersample_factor=nresampling,
-                                exp_time=etresampling)
-    return params, m
+    
+     params = batman.TransitParams()
+     params.t0 = 0. 
+     params.per = 1. 
+     params.rp = 0.1
+     params.a = 15.
+     params.inc = 87.
+     params.ecc = 0. 
+     params.w = 90.
+     if ld_law == 'linear':
+         params.u = [0.5]
+     else:
+         params.u = [0.1,0.3]
+     if ld_law == 'none':
+         params.limb_dark = 'quadratic'
+     else:
+         params.limb_dark = ld_law
+     params.ac = 0.001
+     params.fp = 0.001
+     params.t_secondary = params.t0 + (params.per/2) + params.ac
+     if nresampling is None or etresampling is None:
+         m = [batman.TransitModel(params, t), batman.TransitModel(params, t, transittype='secondary')]
+     else:
+         m = [batman.TransitModel(params, t, supersample_factor=nresampling, exp_time=etresampling),\
+             batman.TransitModel(params, t, transittype='secondary', supersample_factor=nresampling, exp_time=etresampling)]
+     return params,m
 
-
-def init_catwoman(t, ld_law, nresampling=None, etresampling=None):
-    """
+def init_catwoman(t, ld_law, nresampling = None, etresampling = None):
+     """  
      This function initializes the catwoman code.
      """
     params = batman.TransitParams()
@@ -518,20 +522,25 @@ def readpriors(priorname):
     else:
         return n_transit, n_rv, numbering_transit.astype('int'), numbering_rv.astype('int'), n_params
 
-def get_phases(t, P, t0):
+def get_phases(t, P, t0, phmin=0.5):
     """
     Given input times, a period (or posterior dist of periods)
     and time of transit center (or posterior), returns the
     phase at each time t.
     """
     if type(t) is not float:
-        phase = ((t - np.median(t0)) / np.median(P)) % 1
-        ii = np.where(phase >= 0.5)[0]
+
+        phase = ( (t - np.median(t0)) / np.median(P) ) % 1
+        ii = np.where(phase >= phmin)[0]
         phase[ii] = phase[ii] - 1.0
+      
     else:
+      
         phase = ((t - np.median(t0)) / np.median(P)) % 1
+        
         if phase >= 0.5:
             phase = phase - 1.0
+            
     return phase
 
 
