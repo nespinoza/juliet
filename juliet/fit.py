@@ -472,6 +472,8 @@ class load(object):
             if dictype == 'lc':
                 dictionary[instrument]['TransitFit'] = False
                 dictionary[instrument]['TransitFitCatwoman'] = False
+                dictionary[instrument]['EclipseFit'] = False
+                dictionary[instrument]['TranEclFit'] = False
 
         if dictype == 'lc':
             # Extract limb-darkening law. If no limb-darkening law was given by the user, assume LD law depending on whether the user defined a prior for q1 only for a
@@ -497,6 +499,8 @@ class load(object):
                         dictionary[instrument]['ldlaw'] = (all_ld_laws[0].split('-')[-1]).split()[0].lower()
                     elif (not q1_given) and q2_given:
                         raise Exception('INPUT ERROR: it appears q1 for instrument '+instrument+' was not defined (but q2 was) in the prior file.')
+                    elif (not q1_given) and (not q2_given):
+                        dictionary[instrument]['ldlaw'] = 'none'
             else:
                 for ld_law in all_ld_laws:
                     instrument,ld = ld_law.split('-')
@@ -563,6 +567,13 @@ class load(object):
                         dictionary[inames[i]]['TransitFitCatwoman'] = True
                         if self.verbose:
                             print('\t Transit (catwoman) fit detected for instrument ',inames[i])
+                    ###
+                    if pri[0:2] == 'fp':
+                        #dictionary[inames[i]]['TransitFit'] = True
+                        dictionary[inames[i]]['EclipseFit'] = True
+                        if self.verbose:
+                            print('\t Eclipse fit detected for instrument ',inames[i])
+                    ###
                     if pri[0:2] == 'dt' or pri[0:2] == 'T_':
                         if pri[0:2] == 'T_':
                             dictionary[inames[i]]['TTVs'][pi]['parametrization'] = 'T'
@@ -570,6 +581,11 @@ class load(object):
                         if inames[i] == instrument:
                             dictionary[inames[i]]['TTVs'][int(planet_number[1:])]['status'] = True
                             dictionary[inames[i]]['TTVs'][int(planet_number[1:])]['transit_number'].append(int(ntransit))
+                if dictionary[inames[i]]['TransitFit'] and dictionary[inames[i]]['EclipseFit']:
+                    dictionary[inames[i]]['TranEclFit'] = True
+                    dictionary[inames[i]]['TransitFit'] = False
+                    dictionary[inames[i]]['EclipseFit'] = False
+                    print('\t Joint Transit and Eclipse fit detected for instrument ',inames[i])
             for pi in numbering_planets:
                 for i in range (ninstruments):
                     if dictionary[inames[i]]['TTVs'][pi]['status']:
@@ -1907,10 +1923,23 @@ class model(object):
                 raise Exception("Input error: an instrument has to be defined for non-global models in order to evaluate the model.")
 
         if self.modeltype == 'lc':
+
             nresampling = self.dictionary[instrument].get('nresampling')
             etresampling = self.dictionary[instrument].get('exptimeresampling')
-            self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
-                                                                                        nresampling=nresampling, etresampling=etresampling)
+        
+            if self.dictionary[instrument]['TransitFit']:
+            
+                self.model[instrument]['params'], [self.model[instrument]['m'],_] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                                nresampling=nresampling, etresampling=etresampling)
+            elif self.dictionary[instrument]['EclipseFit']:
+              
+                self.model[instrument]['params'], [_,self.model[instrument]['m']] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                                nresampling=nresampling, etresampling=etresampling)
+                
+            elif self.dictionary[instrument]['TranEclFit']:
+              
+                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                                nresampling=nresampling, etresampling=etresampling)
 
         # Save the original inames in the case of non-global models, and set self.inames to the input model. This is because if the model
         # is not global, in general we don't care about generating the models for the other instruments (and in the lightcurve and RV evaluation part,
@@ -1985,16 +2014,38 @@ class model(object):
                             # then generate the model-generating objects for those instruments using both the input times and the model-fit times. Save
                             # those in dictionaries:
                             for ginstrument in instruments:
-                                if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']:
+
+                                if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman'] or self.dictionary[ginstrument]['EclipseFit'] or self.dictionary[ginstrument]['TranEclFit']:
+    
                                     nresampling = self.dictionary[ginstrument].get('nresampling')
                                     etresampling = self.dictionary[ginstrument].get('exptimeresampling')
                                     supersample_params, supersample_m = {}, {}
                                     sample_params, sample_m = {}, {}
+            
                                     if not self.dictionary[ginstrument]['TransitFitCatwoman']:
-                                        supersample_params[ginstrument],supersample_m[ginstrument] = init_batman(t, self.dictionary[ginstrument]['ldlaw'],
-                                                                                                                 nresampling=nresampling, etresampling=etresampling)
-                                        sample_params[ginstrument],sample_m[ginstrument] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'],
-                                                                                                       nresampling=nresampling, etresampling=etresampling)
+                
+                                        if self.dictionary[ginstrument]['TransitFit']:
+                
+                                            supersample_params[ginstrument],[supersample_m[ginstrument],_] = init_batman(t, self.dictionary[ginstrument]['ldlaw'],
+                                                                                                                         nresampling=nresampling, etresampling=etresampling)
+                                            sample_params[ginstrument],[sample_m[ginstrument],_] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'],
+                                                                                                               nresampling=nresampling, etresampling=etresampling)
+                    
+                                        elif self.dictionary[ginstrument]['EclipseFit']:
+                        
+                                            supersample_params[ginstrument],[_,supersample_m[ginstrument]] = init_batman(t, self.dictionary[ginstrument]['ldlaw'],
+                                                                                                                         nresampling=nresampling, etresampling=etresampling)
+                                            sample_params[ginstrument],[_,sample_m[ginstrument]] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'],
+                                                                                                               nresampling=nresampling, etresampling=etresampling)
+                            
+                                        elif self.dictionary[ginstrument]['TranEclFit']:
+                                
+                                            supersample_params[ginstrument],supersample_m[ginstrument] = init_batman(t, self.dictionary[ginstrument]['ldlaw'],
+                                                                                                                     nresampling=nresampling, etresampling=etresampling)
+                                            sample_params[ginstrument],sample_m[ginstrument] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'],
+                                                                                                           nresampling=nresampling, etresampling=etresampling)                     
+                        
+
                                     else:
                                         supersample_params[ginstrument],supersample_m[ginstrument] = init_catwoman(t, self.dictionary[ginstrument]['ldlaw'],
                                                                                                                    nresampling=nresampling, etresampling=etresampling)
@@ -2003,14 +2054,32 @@ class model(object):
                         else:
                             # If model is not global, the variables saved are not dictionaries but simply the objects, as we are just going to evaluate the
                             # model for one dataset (the one of the input instrument):
-                            if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman']:
+
+                            if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+    
                                 nresampling = self.dictionary[instrument].get('nresampling')
                                 etresampling = self.dictionary[instrument].get('exptimeresampling')
+        
                                 if not self.dictionary[instrument]['TransitFitCatwoman']:
-                                    supersample_params,supersample_m = init_batman(t, self.dictionary[instrument]['ldlaw'],
-                                                                                   nresampling=nresampling, etresampling=etresampling)
-                                    sample_params,sample_m = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
-                                                                         nresampling=nresampling, etresampling=etresampling)
+            
+                                    if self.dictionary[instrument]['TransitFit']:
+                                        supersample_params,[supersample_m,_] = init_batman(t, self.dictionary[instrument]['ldlaw'],
+                                                                                           nresampling=nresampling, etresampling=etresampling)
+                                        sample_params,[sample_m,_] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                 nresampling=nresampling, etresampling=etresampling)
+                    
+                                    elif self.dictionary[instrument]['EclipseFit']:
+                                         supersample_params,[_,supersample_m] = init_batman(t, self.dictionary[instrument]['ldlaw'],
+                                                                                            nresampling=nresampling, etresampling=etresampling)
+                                        sample_params,[_,sample_m] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                 nresampling=nresampling, etresampling=etresampling)
+                            
+                                    elif self.dictionary[instrument]['TranEclFit']:
+                                        supersample_params,supersample_m = init_batman(t, self.dictionary[instrument]['ldlaw'],
+                                                                                       nresampling=nresampling, etresampling=etresampling)
+                                        sample_params,sample_m = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                             nresampling=nresampling, etresampling=etresampling)
+
                                 else:
                                     supersample_params,supersample_m = init_catwoman(t, self.dictionary[instrument]['ldlaw'],
                                                                                      nresampling=nresampling, etresampling=etresampling)
@@ -2134,7 +2203,7 @@ class model(object):
                             if self.global_model:
                                 # If global model, set all super-sample objects to evaluate at the input times:
                                 for ginstrument in instruments:
-                                    if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']:
+                                    if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman'] or self.dictionary[ginstrument]['EclipseFit'] or self.dictionary[ginstrument]['TranEclFit']:
                                         self.model[ginstrument]['params'], self.model[ginstrument]['m'] = supersample_params[ginstrument],supersample_m[ginstrument]
                                     if self.lm_boolean[ginstrument]:
                                         self.lm_arguments[ginstrument] = LMregressors[ginstrument]
@@ -2147,7 +2216,7 @@ class model(object):
                                 self.inames = original_inames
                             else:
                                 # If not, set them only for the instrument of interest:
-                                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman']:
+                                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
                                     self.model[instrument]['params'], self.model[instrument]['m'] = supersample_params,supersample_m
                                 if self.lm_boolean[instrument]:
                                     self.lm_arguments[instrument] = LMregressors
@@ -2244,7 +2313,7 @@ class model(object):
                             for ginstrument in instruments:
                                 self.times[ginstrument] = original_instrument_times[ginstrument]
                                 if self.modeltype == 'lc':
-                                    if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']:
+                                    if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman'] or self.dictionary[ginstrument]['EclipseFit'] or self.dictionary[ginstrument]['TranEclFit']:
                                         self.model[ginstrument]['params'], self.model[ginstrument]['m'] = sample_params[ginstrument],sample_m[ginstrument]
                                     if self.lm_boolean[ginstrument]:
                                         self.lm_arguments[ginstrument] = original_lm_arguments[ginstrument]
@@ -2256,7 +2325,7 @@ class model(object):
                         else:
                             self.times[instrument] = original_instrument_times
                             if self.modeltype == 'lc':
-                                if self.dictionary[instrument]['TransitFit']:
+                                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
                                     self.model[instrument]['params'], self.model[instrument]['m'] = sample_params,sample_m
                                 if self.lm_boolean[instrument]:
                                     self.lm_arguments[instrument] = original_lm_arguments
@@ -2484,11 +2553,13 @@ class model(object):
             # Set full array to ones by copying:
             self.model[instrument]['M'] = np.copy(self.model[instrument]['ones'])
             # If transit fit is on, then model the transit lightcurve:
-            if self.dictionary[instrument]['TransitFit']:
+            if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
                 # Extract and set the limb-darkening coefficients for the instrument:
-                if self.dictionary[instrument]['ldlaw'] != 'linear':
+                if self.dictionary[instrument]['ldlaw'] != 'linear' and self.dictionary[instrument]['ldlaw'] != 'none':
                     coeff1, coeff2 = reverse_ld_coeffs(self.dictionary[instrument]['ldlaw'], parameter_values['q1_'+self.ld_iname[instrument]],\
                                                        parameter_values['q2_'+self.ld_iname[instrument]])
+                elif self.dictionary[instrument]['ldlaw'] == 'none':
+                    coeff1, coeff2 = 0.1, 0.3
                 else:
                     coeff1 = parameter_values['q1_'+self.ld_iname[instrument]]
 
@@ -2497,6 +2568,11 @@ class model(object):
                 # comments for details).
                 cP, ct0 = {}, {}
                 for i in self.numbering:
+                    ###
+                    if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+                        fp = parameter_values['fp_p' + str(i)]
+                        ac = parameter_values['ac_p' + str(i)]
+                    ###
                     # Check if we will be fitting for TTVs. If not, all goes as usual. If we are, check which parametrization (dt or T):
                     if not self.dictionary[instrument]['TTVs'][i]['status']:
                         t0, P = parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)]
@@ -2601,6 +2677,11 @@ class model(object):
                             self.model[instrument]['params'].inc = np.arccos(inc_inv_factor)*180./np.pi
                             self.model[instrument]['params'].ecc = ecc
                             self.model[instrument]['params'].w = omega
+                            ###
+                            if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+                                self.model[instrument]['params'].fp = fp
+                                self.model[instrument]['params'].ac = ac
+                            ###
                             if not self.dictionary[instrument]['TransitFitCatwoman']:
                                 self.model[instrument]['params'].rp = p
                             else:
@@ -2618,18 +2699,39 @@ class model(object):
                             if not self.dictionary[instrument]['TTVs'][i]['status']:
                                 # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
                                 if self.log_like_calc:
-                                    self.model[instrument]['M'] += self.model[instrument]['m'].light_curve(self.model[instrument]['params']) - 1.
+                                    if not self.dictionary[instrument]['TranEclFit']:
+                                        self.model[instrument]['M'] += self.model[instrument]['m'].light_curve(self.model[instrument]['params']) - 1.
+                                    else:
+                                        self.model[instrument]['M'] += (self.model[instrument]['m'][0].light_curve(self.model[instrument]['params']) * self.model[instrument]['m'][1].light_curve(self.model[instrument]['params'])) - 1.
                                 else:
-                                    self.model[instrument]['p'+str(i)] = self.model[instrument]['m'].light_curve(self.model[instrument]['params'])
-                                    self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
+                                    if not self.dictionary[instrument]['TranEclFit']:
+                                        self.model[instrument]['p'+str(i)] = self.model[instrument]['m'].light_curve(self.model[instrument]['params'])
+                                        self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
+                                    else:
+                                        self.model[instrument]['p'+str(i)] = self.model[instrument]['m'][0].light_curve(self.model[instrument]['params']) * self.model[instrument]['m'][1].light_curve(self.model[instrument]['params'])
+                                        self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
                             else:
                                 if not self.dictionary[instrument]['TransitFitCatwoman']:
                                     if self.dictionary[instrument]['resampling']:
-                                        pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'], \
-                                                                 nresampling = self.dictionary[instrument]['nresampling'], \
-                                                                 etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                        if self.dictionary[instrument]['TransitFit']:
+                                            pm, [m,_] = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'], \
+                                                                    nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                    etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                        elif self.dictionary[instrument]['EclipseFit']:
+                                            pm, [_,m] = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'],\
+                                                                    nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                    etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                        elif self.dictionary[instrument]['TranEclFit']:
+                                            pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'],\
+                                                                    nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                    etresampling = self.dictionary[instrument]['exptimeresampling'])
                                     else:
-                                        pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                        if self.dictionary[instrument]['TransitFit']:
+                                            pm, [m,_] = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                        elif self.dictionary[instrument]['EclipseFit']:
+                                            pm, [_,m] = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                        elif self.dictionary[instrument]['TranEclFit']:
+                                            pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
                                 else:
                                     if self.dictionary[instrument]['resampling']:
                                         pm, m = init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'], \
@@ -2639,10 +2741,20 @@ class model(object):
                                         pm, m = init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'])
                                 # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
                                 if self.log_like_calc:
-                                    self.model[instrument]['M'] += m.light_curve(self.model[instrument]['params']) - 1.
+                                  
+                                    if not self.dictionary[instrument]['TranEclFit']:
+                                        self.model[instrument]['M'] += m.light_curve(self.model[instrument]['params']) - 1. 
+                                    else:
+                                        self.model[instrument]['M'] += (m[0].light_curve(self.model[instrument]['params']) * m[1].light_curve(self.model[instrument]['params'])) - 1. 
+                                        
                                 else:
-                                    self.model[instrument]['p'+str(i)] = m.light_curve(self.model[instrument]['params'])
-                                    self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
+                                  
+                                    if not self.dictionary[instrument]['TranEclFit']:
+                                        self.model[instrument]['p'+str(i)] = m.light_curve(self.model[instrument]['params'])
+                                        self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1. 
+                                    else:
+                                        self.model[instrument]['p'+str(i)] = m[0].light_curve(self.model[instrument]['params']) * m[1].light_curve(self.model[instrument]['params'])
+                                        self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1. 
 
                         else:
                             self.modelOK = False
@@ -2802,21 +2914,37 @@ class model(object):
                 self.model[instrument]['deterministic'] = np.zeros(len(self.instrument_indexes[instrument]))
                 # Same for the errors:
                 self.model[instrument]['deterministic_errors'] = np.zeros(len(self.instrument_indexes[instrument]))
-                if self.dictionary[instrument]['TransitFit']:
+                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
                     # First, take the opportunity to initialize transit lightcurves for each instrument:
                     if self.dictionary[instrument]['resampling']:
                         if not self.dictionary[instrument]['TransitFitCatwoman']:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                         nresampling = self.dictionary[instrument]['nresampling'],\
-                                                                                                         etresampling = self.dictionary[instrument]['exptimeresampling'])
+                            if self.dictionary[instrument]['TransitFit']:
+                                self.model[instrument]['params'], [self.model[instrument]['m'],_] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                                            nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                            etresampling = self.dictionary[instrument]['exptimeresampling'])
+                            elif self.dictionary[instrument]['EclipseFit']:
+                                self.model[instrument]['params'], [_,self.model[instrument]['m']] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'], \
+                                                                                                            nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                            etresampling = self.dictionary[instrument]['exptimeresampling'])
+                            elif self.dictionary[instrument]['TranEclFit']:
+                                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'], \
+                                                                                                            nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                            etresampling = self.dictionary[instrument]['exptimeresampling'])
                         else:
                             self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                         nresampling = self.dictionary[instrument]['nresampling'],\
-                                                                                                         etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                                                                                        nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                        etresampling = self.dictionary[instrument]['exptimeresampling'])
                     else:
                         if not self.dictionary[instrument]['TransitFitCatwoman']:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], \
-                                                                                                             self.dictionary[instrument]['ldlaw'])
+                            if self.dictionary[instrument]['TransitFit']:
+                                self.model[instrument]['params'], [self.model[instrument]['m'],_] = init_batman(self.times[instrument], \
+                                                                                                                self.dictionary[instrument]['ldlaw'])
+                            elif self.dictionary[instrument]['EclipseFit']:
+                                self.model[instrument]['params'], [_,self.model[instrument]['m']] = init_batman(self.times[instrument], \
+                                                                                                                self.dictionary[instrument]['ldlaw'])
+                            elif self.dictionary[instrument]['TranEclFit']:
+                                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], \
+                                                                                                                self.dictionary[instrument]['ldlaw'])
                         else:
                             self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], \
                                                                                                                self.dictionary[instrument]['ldlaw'])
