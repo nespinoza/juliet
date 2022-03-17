@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.3] - current dev
+### Added
+- Upgraded list of contributors.
+- `tests` folder where code tests will be saved.
+- `zeus` sampler thanks to contribution from Rachel Cooper.
+- Secondary eclipse fitting thanks to contribution from Jayshil Patel.
+- Additional GP kernels thanks to contribution from Jonas Kemmer.
+
+### Removed
+- Removed the `juliet.py` (and associated `utils.py`, `FLAGS.md`) which hosted the original version of the code, to not confuse contributors.
+
+### Fixed
+- Supersampling bug when evaluating models.
+
 ## [2.1.2] - 2021-03-20
 ### Removed
 - Files for pink noise in deference of building a new package.
