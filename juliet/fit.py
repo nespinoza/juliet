@@ -2418,20 +2418,26 @@ class model(object):
                                 if not self.dictionary[instrument]['TransitFitCatwoman']:
             
                                     if self.dictionary[instrument]['TransitFit']:
+
                                         supersample_params,[supersample_m,_] = init_batman(t, self.dictionary[instrument]['ldlaw'],
                                                                                            nresampling=nresampling, etresampling=etresampling)
+
                                         sample_params,[sample_m,_] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
                                                                                  nresampling=nresampling, etresampling=etresampling)
                     
                                     elif self.dictionary[instrument]['EclipseFit']:
+
                                          supersample_params,[_,supersample_m] = init_batman(t, self.dictionary[instrument]['ldlaw'],
                                                                                             nresampling=nresampling, etresampling=etresampling)
-                                        sample_params,[_,sample_m] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
-                                                                                 nresampling=nresampling, etresampling=etresampling)
+
+                                         sample_params,[_,sample_m] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                  nresampling=nresampling, etresampling=etresampling)
                             
                                     elif self.dictionary[instrument]['TranEclFit']:
+
                                         supersample_params,supersample_m = init_batman(t, self.dictionary[instrument]['ldlaw'],
                                                                                        nresampling=nresampling, etresampling=etresampling)
+
                                         sample_params,sample_m = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
                                                                              nresampling=nresampling, etresampling=etresampling)
 
