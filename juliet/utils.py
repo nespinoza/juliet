@@ -12,7 +12,7 @@ except:
 
 
 def init_batman(t, ld_law, nresampling=None, etresampling=None):
-    """
+     """
      This function initializes the batman code.
      """
 
@@ -52,9 +52,10 @@ def init_batman(t, ld_law, nresampling=None, etresampling=None):
      return params,m
 
 def init_catwoman(t, ld_law, nresampling = None, etresampling = None):
-     """  
-     This function initializes the catwoman code.
-     """
+    """  
+    This function initializes the catwoman code.
+    """
+
     params = batman.TransitParams()
     params.t0 = 0.
     params.per = 1.
