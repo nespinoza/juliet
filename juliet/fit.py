@@ -1885,7 +1885,7 @@ class fit(object):
                             pnum][i] = Y - out['posterior_samples']['P_' +
                                                                     pnum][i] * X
             if self.data.t_lc is not None:
-                if True in self.data.lc_options['efficient_bp']:
+                if True in self.data.lc_options['efficient_bp'].values():
                     out['pu'] = self.pu
                     out['pl'] = self.pl
             if self.data.t_rv is not None:
