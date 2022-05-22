@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `zeus` sampler thanks to contribution from Rachel Cooper.
 - Secondary eclipse fitting thanks to contribution from Jayshil Patel.
 - Additional GP kernels thanks to contribution from Jonas Kemmer.
+- Added lowercase priors (thanks to @rosteen; #80).
 
 ### Removed
 - Removed the `juliet.py` (and associated `utils.py`, `FLAGS.md`) which hosted the original version of the code, to not confuse contributors.
