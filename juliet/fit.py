@@ -1252,49 +1252,55 @@ class fit(object):
 
     def set_prior_transform(self):
         for pname in self.model_parameters:
-            if self.data.priors[pname]['distribution'] != 'fixed':
-                if self.data.priors[pname]['distribution'] == 'uniform':
+            dist_name = self.data.priors[pname]['distribution'].lower()
+            if dist_name != 'fixed':
+                if dist_name == 'uniform':
                     self.transform_prior[pname] = transform_uniform
-                if self.data.priors[pname]['distribution'] == 'normal':
+                if dist_name == 'normal':
                     self.transform_prior[pname] = transform_normal
-                if self.data.priors[pname]['distribution'] == 'truncatednormal':
+                if dist_name == 'truncatednormal':
                     self.transform_prior[pname] = transform_truncated_normal
+
                 if self.data.priors[pname][
                         'distribution'] == 'jeffreys' or self.data.priors[
                             pname]['distribution'] == 'loguniform':
+
                     self.transform_prior[pname] = transform_loguniform
-                if self.data.priors[pname]['distribution'] == 'beta':
+                if dist_name == 'beta':
                     self.transform_prior[pname] = transform_beta
-                if self.data.priors[pname]['distribution'] == 'exponential':
+                if dist_name == 'exponential':
                     self.transform_prior[pname] = transform_exponential
-                if self.data.priors[pname]['distribution'] == 'modjeffreys':
+                if dist_name == 'modjeffreys':
                     self.transform_prior[pname] = transform_modifiedjeffreys
 
     def set_logpriors(self):
         for pname in self.model_parameters:
-            if self.data.priors[pname]['distribution'] != 'fixed':
-                if self.data.priors[pname]['distribution'] == 'uniform':
+            dist_name = self.data.priors[pname]['distribution'].lower()
+            if dist_name != 'fixed':
+                if dist_name == 'uniform':
                     self.evaluate_logprior[pname] = evaluate_uniform
-                if self.data.priors[pname]['distribution'] == 'normal':
+                if dist_name == 'normal':
                     self.evaluate_logprior[pname] = evaluate_normal
-                if self.data.priors[pname]['distribution'] == 'truncatednormal':
+                if dist_name == 'truncatednormal':
                     self.evaluate_logprior[pname] = evaluate_truncated_normal
+
                 if self.data.priors[pname][
                         'distribution'] == 'jeffreys' or self.data.priors[
                             pname]['distribution'] == 'loguniform':
+
                     self.evaluate_logprior[pname] = evaluate_loguniform
-                if self.data.priors[pname]['distribution'] == 'beta':
+                if dist_name == 'beta':
                     self.evaluate_logprior[pname] = evaluate_beta
-                if self.data.priors[pname]['distribution'] == 'exponential':
+                if dist_name == 'exponential':
                     self.evaluate_logprior[pname] = evaluate_exponential
-                if self.data.priors[pname]['distribution'] == 'modjeffreys':
+                if dist_name == 'modjeffreys':
                     self.evaluate_logprior[pname] = evaluate_modifiedjeffreys
 
     # Prior transform for nested samplers:
     def prior_transform(self, cube, ndim=None, nparams=None):
         pcounter = 0
         for pname in self.model_parameters:
-            if self.data.priors[pname]['distribution'] != 'fixed':
+            if self.data.priors[pname]['distribution'].lower() != 'fixed':
                 cube[pcounter] = self.transform_prior[pname](cube[pcounter], \
                                  self.data.priors[pname]['hyperparameters'])
                 pcounter += 1
@@ -1304,7 +1310,7 @@ class fit(object):
         pcounter = 0
         transformed_priors = np.copy(self.transformed_priors)
         for pname in self.model_parameters:
-            if self.data.priors[pname]['distribution'] != 'fixed':
+            if self.data.priors[pname]['distribution'].lower() != 'fixed':
                 transformed_priors[pcounter] = self.transform_prior[pname](cube[pcounter], \
                                                self.data.priors[pname]['hyperparameters'])
                 pcounter += 1
@@ -1315,7 +1321,7 @@ class fit(object):
         pcounter = 0
         total_logprior = 0.
         for pname in self.model_parameters:
-            if self.data.priors[pname]['distribution'] != 'fixed':
+            if self.data.priors[pname]['distribution'].lower() != 'fixed':
                 total_logprior += self.evaluate_logprior[pname](theta[pcounter], \
                                   self.data.priors[pname]['hyperparameters'])
                 pcounter += 1
@@ -1325,7 +1331,7 @@ class fit(object):
         # Evaluate the joint log-likelihood. For this, first extract all inputs:
         pcounter = 0
         for pname in self.model_parameters:
-            if self.data.priors[pname]['distribution'] != 'fixed':
+            if self.data.priors[pname]['distribution'].lower() != 'fixed':
                 self.posteriors[pname] = cube[pcounter]
                 pcounter += 1
         # Initialize log-likelihood:
@@ -1479,9 +1485,11 @@ class fit(object):
         self.model_parameters = list(self.data.priors.keys())
         self.paramnames = []
         for pname in self.model_parameters:
+
             if self.data.priors[pname]['distribution'] == 'fixed':
                 self.posteriors[pname] = self.data.priors[pname][
                     'hyperparameters']
+
             else:
                 if self.sampler in mcmc_samplers:
                     self.posteriors[pname] = self.data.starting_point[pname]
@@ -1516,7 +1524,6 @@ class fit(object):
                             ecclim=self.ecclim,
                             ta=self.ta,
                             log_like_calc=True)
-
 
         # First, check if a run has already been performed with the user-defined sampler. If it hasn't, run it.
         # If it has (detected through its output filename), skip running again and jump straight to loading the
@@ -1716,6 +1723,7 @@ class fit(object):
                 # Initiate starting point for each walker. To this end, first load starting values.
                 initial_position = np.array([])
                 for pname in self.model_parameters:
+
                     if self.data.priors[pname]['distribution'] != 'fixed':
 
                         initial_position = np.append(initial_position,
@@ -1798,6 +1806,7 @@ class fit(object):
                 out['posteriors_per_walker'] = sampler.get_chain()
 
                 # And now store posteriors with all walkers flattened out:
+
                 posterior_samples = sampler.get_chain(discard = self.nburnin, 
                                                       flat = True)
 
@@ -2527,7 +2536,6 @@ class model(object):
 
                         current_parameter_values[parameter] = self.priors[parameter]['hyperparameters']
 
-
                 # If extrapolating the model, save the current GPregressors and current linear
                 # regressors. Save the input GPRegressors to the self.dictionary. Note this is done because
                 # we won't be evaluating the likelihood on each iteration, so we don't need the original GP Regressors,
@@ -2785,7 +2793,6 @@ class model(object):
                                 self.instrument_indexes[instrument] = original_instrument_index
                                 
                             self.ndatapoints_per_instrument[instrument] = nt_original
-
 
                     counter += 1
                 # If return_error is on, return upper and lower sigma (alpha x 100% CI) of the model(s):
@@ -3612,7 +3619,7 @@ class model(object):
                                 if instrument in vec:
 
                                     self.mdilution_iname[instrument] = '_'.join(vec[1:])
-
+                                    
                             else:
                                 if instrument in vec:
                                     self.mdilution_iname[instrument] = vec[1]
@@ -3697,7 +3704,6 @@ class model(object):
                 'Model type "' + lc +
                 '" not recognized. Currently it can only be "lc" for a light-curve model or "rv" for radial-velocity model.'
             )
-
 
 class gaussian_process(object):
     """
@@ -3917,6 +3923,7 @@ class gaussian_process(object):
             self.parameter_vector[5] = np.log(omega2)
 
             if not self.global_GP:
+
                 self.parameter_vector[6] = np.log(
                     parameter_values['sigma_w_' + self.instrument] *
                     self.sigma_factor)
@@ -4137,6 +4144,7 @@ class gaussian_process(object):
             if self.instrument in ['rv', 'lc']:
                 self.kernel = exp_kernel * matern_kernel
             else:
+
                 self.kernel = exp_kernel * matern_kernel + kernel_jitter
 
             # We add a phantom variable because we want to leave index 2 without value ON PURPOSE: the idea is
