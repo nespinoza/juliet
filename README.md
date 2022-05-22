@@ -3,7 +3,7 @@ juliet --- a versatile modelling tool for transiting and non-transiting exoplane
 
 ![Juliet logo](juliet.png?raw=true)
 
-Authors: Néstor Espinoza (espinoza@mpia.de) & Diana Kossakowski (kossakowski@mpia.de)
+Authors: Néstor Espinoza (nespinoza@stsci.edu) & Diana Kossakowski (kossakowski@mpia.de)
 
 > For usage and dependencies, **check the documentation at http://juliet.readthedocs.io.**
 > Don't forget to [check out the paper](https://arxiv.org/abs/1812.08549).

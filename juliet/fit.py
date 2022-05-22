@@ -13,7 +13,9 @@ import radvel
 try:
     import george
 except:
-    print('Warning: no george installation found. No non-celerite GPs will be able to be used')
+    print(
+        'Warning: no george installation found. No non-celerite GPs will be able to be used'
+    )
 # Import celerite for detrending:
 try:
     import celerite
@@ -22,7 +24,9 @@ try:
     # This class was written by Daniel Foreman-Mackey for his paper:
     # https://github.com/dfm/celerite/blob/master/paper/figures/rotation/rotation.ipynb
     class RotationTerm(terms.Term):
-        parameter_names = ("log_amp", "log_timescale", "log_period", "log_factor")
+        parameter_names = ("log_amp", "log_timescale", "log_period",
+                           "log_factor")
+
         def get_real_coefficients(self, params):
             log_amp, log_timescale, log_period, log_factor = params
             f = np.exp(log_factor)
@@ -38,10 +42,12 @@ try:
                 np.exp(log_amp) / (2.0 + f),
                 0.0,
                 np.exp(-log_timescale),
-                2*np.pi*np.exp(-log_period),
+                2 * np.pi * np.exp(-log_period),
             )
 except:
-    print('Warning: no celerite installation found. No celerite GPs will be able to be used')
+    print(
+        'Warning: no celerite installation found. No celerite GPs will be able to be used'
+    )
 
 # Check existence of different samplers. First, import dynesty for (dynamic) nested sampling:
 try:
@@ -60,10 +66,25 @@ except:
 
 # Emcee for MCMC-ing:
 try:
+  
     import emcee
+    
 except:
-    print("Warning: no emcee installation found. Will not be able to sample using sampler = 'emcee'.")
 
+    print(
+        "Warning: no emcee installation found. Will not be able to sample using sampler = 'emcee'."
+    )
+
+# Import zeus for fast MCMC:
+try:
+  
+    import zeus
+    
+except:
+  
+    print(
+        "Warning: no zeus installation found. Will not be able to sample using sampler = 'zeus'."
+    )
 
 # Import generic useful classes:
 import os
@@ -74,13 +95,13 @@ from multiprocessing import Pool
 import contextlib
 
 # Define constants on the code:
-G = 6.67408e-11 # Gravitational constant, mks
-log2pi = np.log(2.*np.pi) # ln(2*pi)
+G = 6.67408e-11  # Gravitational constant, mks
+log2pi = np.log(2. * np.pi)  # ln(2*pi)
 
 # Import all the utils functions:
 from .utils import *
 
-__all__ = ['load','fit','gaussian_process','model']
+__all__ = ['load', 'fit', 'gaussian_process', 'model']
 
 class load(object):
     """
@@ -242,7 +263,7 @@ class load(object):
 
     """
 
-    def data_preparation(self,times,instruments,linear_regressors):
+    def data_preparation(self, times, instruments, linear_regressors):
         """
         This function generates f useful internal arrays for this class: inames which saves the instrument names, ``global_times``
         which is a "flattened" array of the ``times`` dictionary where all the times for all instruments are stacked, instrument_indexes,
@@ -256,7 +277,8 @@ class load(object):
         ninstruments = len(inames)
         instrument_indexes = {}
         for instrument in inames:
-            instrument_indexes[instrument] = np.where(instruments == instrument)[0]
+            instrument_indexes[instrument] = np.where(
+                instruments == instrument)[0]
 
         # Also generate lm_lc_boolean in case linear regressors were passed:
         lm_boolean = {}
@@ -285,10 +307,10 @@ class load(object):
         all_instruments = np.array([])
         for instrument in instruments:
             for i in range(len(t[instrument])):
-                all_times = np.append(all_times,t[instrument][i])
-                all_y = np.append(all_y,y[instrument][i])
-                all_yerr = np.append(all_yerr,yerr[instrument][i])
-                all_instruments = np.append(all_instruments,instrument)
+                all_times = np.append(all_times, t[instrument][i])
+                all_y = np.append(all_y, y[instrument][i])
+                all_yerr = np.append(all_yerr, yerr[instrument][i])
+                all_instruments = np.append(all_instruments, instrument)
         return all_times, all_y, all_yerr, all_instruments
 
     def convert_to_dictionary(self, t, y, yerr, instrument_indexes):
@@ -302,69 +324,78 @@ class load(object):
             times[instrument] = t[instrument_indexes[instrument]]
             data[instrument] = y[instrument_indexes[instrument]]
             errors[instrument] = yerr[instrument_indexes[instrument]]
-        return times,data,errors
+        return times, data, errors
 
-    def save_regressors(self,fname, GP_arguments):
+    def save_regressors(self, fname, GP_arguments):
         """
         This function saves the GP regressors to fname.
         """
-        fout = open(fname,'w')
+        fout = open(fname, 'w')
         for GP_instrument in GP_arguments.keys():
             GP_regressors = GP_arguments[GP_instrument]
             multi_dimensional = False
             if len(GP_regressors.shape) == 2:
                 multi_dimensional = True
             if multi_dimensional:
-                 for i in range(GP_regressors.shape[0]):
-                     for j in range(GP_regressors.shape[1]):
-                         fout.write('{0:.10f} '.format(GP_regressors[i,j]))
-                     fout.write('{0:}\n'.format(GP_instrument))
+                for i in range(GP_regressors.shape[0]):
+                    for j in range(GP_regressors.shape[1]):
+                        fout.write('{0:.10f} '.format(GP_regressors[i, j]))
+                    fout.write('{0:}\n'.format(GP_instrument))
             else:
-                 for i in range(GP_regressors.shape[0]):
-                     fout.write('{0:.10f} {1:}\n'.format(GP_regressors[i],GP_instrument))
+                for i in range(GP_regressors.shape[0]):
+                    fout.write('{0:.10f} {1:}\n'.format(GP_regressors[i],
+                                                        GP_instrument))
         fout.close()
 
-    def save_data(self,fname,t,y,yerr,instruments,lm_boolean,lm_arguments):
+    def save_data(self, fname, t, y, yerr, instruments, lm_boolean,
+                  lm_arguments):
         """
         This function saves t,y,yerr,instruments,lm_boolean and lm_arguments data to fname.
         """
-        fout = open(fname,'w')
+        fout = open(fname, 'w')
         lm_counters = {}
         for i in range(len(t)):
-            fout.write('{0:.10f} {1:.10f} {2:.10f} {3:}'.format(t[i],y[i],yerr[i],instruments[i]))
+            fout.write('{0:.10f} {1:.10f} {2:.10f} {3:}'.format(
+                t[i], y[i], yerr[i], instruments[i]))
             if lm_boolean[instruments[i]]:
                 if instruments[i] not in lm_counters.keys():
                     lm_counters[instruments[i]] = 0
                 for j in range(lm_arguments[instruments[i]].shape[1]):
-                    fout.write(' {0:.10f}'.format(lm_arguments[instruments[i]][lm_counters[instruments[i]]][j]))
+                    fout.write(' {0:.10f}'.format(lm_arguments[instruments[i]][
+                        lm_counters[instruments[i]]][j]))
                 lm_counters[instruments[i]] += 1
             fout.write('\n')
         fout.close()
 
-    def save_priorfile(self,fname):
+    def save_priorfile(self, fname):
         """
         This function saves a priorfile file out to fname
         """
-        fout = open(fname,'w')
+        fout = open(fname, 'w')
         for pname in self.priors.keys():
             if self.priors[pname]['distribution'].lower() != 'fixed':
-                value = ','.join(np.array(self.priors[pname]['hyperparameters']).astype(str))
+                value = ','.join(
+                    np.array(self.priors[pname]['hyperparameters']).astype(str))
                 if self.starting_point is not None:
-                    fout.write('{0: <20} {1: <20} {2: <20} {3: <20}\n'.format(pname, self.priors[pname]['distribution'], value, self.starting_point[pname]))
+                    fout.write('{0: <20} {1: <20} {2: <20} {3: <20}\n'.format(
+                        pname, self.priors[pname]['distribution'], value,
+                        self.starting_point[pname]))
                 else:
-                    fout.write('{0: <20} {1: <20} {2: <20}\n'.format(pname, self.priors[pname]['distribution'], value))
+                    fout.write('{0: <20} {1: <20} {2: <20}\n'.format(
+                        pname, self.priors[pname]['distribution'], value))
             else:
                 value = str(self.priors[pname]['hyperparameters'])
-                fout.write('{0: <20} {1: <20} {2: <20}\n'.format(pname, self.priors[pname]['distribution'], value))
+                fout.write('{0: <20} {1: <20} {2: <20}\n'.format(
+                    pname, self.priors[pname]['distribution'], value))
         fout.close()
 
-    def check_global(self,name):
+    def check_global(self, name):
         for pname in self.priors.keys():
             if name in pname.split('_')[1:]:
                 return True
         return False
 
-    def append_GP(self, ndata, instrument_indexes, GP_arguments,inames):
+    def append_GP(self, ndata, instrument_indexes, GP_arguments, inames):
         """
             This function appends all the GP regressors into one --- useful for the global models.
         """
@@ -378,7 +409,8 @@ class load(object):
             out = np.zeros(ndata)
         for instrument in inames:
             if multidimensional:
-                out[instrument_indexes[instrument],:] = GP_arguments[instrument]
+                out[instrument_indexes[instrument], :] = GP_arguments[
+                    instrument]
             else:
                 out[instrument_indexes[instrument]] = GP_arguments[instrument]
         return out
@@ -386,39 +418,51 @@ class load(object):
     def sort_GP(self, dictype):
         if dictype == 'lc':
             # Sort first times, fluxes, errors and the GP regressor:
-            idx_sort = np.argsort(self.GP_lc_arguments['lc'][:,0])
+            idx_sort = np.argsort(self.GP_lc_arguments['lc'][:, 0])
             self.t_lc = self.t_lc[idx_sort]
             self.y_lc = self.y_lc[idx_sort]
             self.yerr_lc = self.yerr_lc[idx_sort]
+
             self.GP_lc_arguments['lc'][:,0] = self.GP_lc_arguments['lc'][idx_sort,0]
+
             # Now with the sorted indices, iterate through the instrument indexes and change them according to the new
             # ordering:
             for instrument in self.inames_lc:
-                new_instrument_indexes = np.zeros(len(self.instrument_indexes_lc[instrument]))
+                new_instrument_indexes = np.zeros(
+                    len(self.instrument_indexes_lc[instrument]))
                 instrument_indexes = self.instrument_indexes_lc[instrument]
                 counter = 0
                 for i in instrument_indexes:
-                    new_instrument_indexes[counter] = np.where(i == idx_sort)[0][0]
+                    new_instrument_indexes[counter] = np.where(
+                        i == idx_sort)[0][0]
                     counter += 1
-                self.instrument_indexes_lc[instrument] = new_instrument_indexes.astype('int')
+                self.instrument_indexes_lc[
+                    instrument] = new_instrument_indexes.astype('int')
         elif dictype == 'rv':
             # Sort first times, rvs, errors and the GP regressor:
-            idx_sort = np.argsort(self.GP_rv_arguments['rv'][:,0])
+            idx_sort = np.argsort(self.GP_rv_arguments['rv'][:, 0])
             self.t_rv = self.t_rv[idx_sort]
             self.y_rv = self.y_rv[idx_sort]
             self.yerr_rv = self.yerr_rv[idx_sort]
+
             self.GP_rv_arguments['rv'][:,0] = self.GP_rv_arguments['rv'][idx_sort,0]
+            
             # Now with the sorted indices, iterate through the instrument indexes and change them according to the new
             # ordering:
             for instrument in self.inames_rv:
-                new_instrument_indexes = np.zeros(len(self.instrument_indexes_rv[instrument]))
+              
+                new_instrument_indexes = np.zeros(
+                    len(self.instrument_indexes_rv[instrument]))
+                
                 instrument_indexes = self.instrument_indexes_rv[instrument]
+                
                 counter = 0
                 for i in instrument_indexes:
+
                     new_instrument_indexes[counter] = np.where(i == idx_sort)[0][0]
                     counter += 1
+                    
                 self.instrument_indexes_rv[instrument] = new_instrument_indexes.astype('int')
-
 
     def generate_datadict(self, dictype):
         """
@@ -459,7 +503,9 @@ class load(object):
             #    self.GP_rv_arguments['rv'] = self.append_GP(len(self.t_rv), self.instrument_indexes_rv, self.GP_rv_arguments, inames)
             GP_regressors = self.GP_rv_arguments
         else:
-            raise Exception('INPUT ERROR: dictype not understood. Has to be either lc or rv.')
+            raise Exception(
+                'INPUT ERROR: dictype not understood. Has to be either lc or rv.'
+            )
 
         for i in range(ninstruments):
             instrument = inames[i]
@@ -472,6 +518,8 @@ class load(object):
             if dictype == 'lc':
                 dictionary[instrument]['TransitFit'] = False
                 dictionary[instrument]['TransitFitCatwoman'] = False
+                dictionary[instrument]['EclipseFit'] = False
+                dictionary[instrument]['TranEclFit'] = False
 
         if dictype == 'lc':
             # Extract limb-darkening law. If no limb-darkening law was given by the user, assume LD law depending on whether the user defined a prior for q1 only for a
@@ -494,23 +542,36 @@ class load(object):
                     if q1_given and (not q2_given):
                         dictionary[instrument]['ldlaw'] = 'linear'
                     elif q1_given and q2_given:
-                        dictionary[instrument]['ldlaw'] = (all_ld_laws[0].split('-')[-1]).split()[0].lower()
+                        dictionary[instrument]['ldlaw'] = (
+                            all_ld_laws[0].split('-')[-1]).split()[0].lower()
                     elif (not q1_given) and q2_given:
-                        raise Exception('INPUT ERROR: it appears q1 for instrument '+instrument+' was not defined (but q2 was) in the prior file.')
+                      
+                        raise Exception(
+                            'INPUT ERROR: it appears q1 for instrument ' +
+                            instrument +
+                            ' was not defined (but q2 was) in the prior file.')
+                        
+                    elif (not q1_given) and (not q2_given):
+                        dictionary[instrument]['ldlaw'] = 'none'
+
             else:
                 for ld_law in all_ld_laws:
-                    instrument,ld = ld_law.split('-')
-                    dictionary[instrument.split()[0]]['ldlaw'] = ld.split()[0].lower()
+                    instrument, ld = ld_law.split('-')
+                    dictionary[instrument.split()
+                               [0]]['ldlaw'] = ld.split()[0].lower()
 
         # Extract supersampling parameters if given.
         # For now this only allows inputs from lightcurves; TODO: add supersampling for RVs.
         if instrument_supersamp is not None and dictype == 'lc':
             for i in range(len(instrument_supersamp)):
                 if self.verbose:
-                    print('\t Resampling detected for instrument ',instrument_supersamp[i])
+                    print('\t Resampling detected for instrument ',
+                          instrument_supersamp[i])
                 dictionary[instrument_supersamp[i]]['resampling'] = True
-                dictionary[instrument_supersamp[i]]['nresampling'] = n_supersamp[i]
-                dictionary[instrument_supersamp[i]]['exptimeresampling'] = exptime_supersamp[i]
+                dictionary[
+                    instrument_supersamp[i]]['nresampling'] = n_supersamp[i]
+                dictionary[instrument_supersamp[i]][
+                    'exptimeresampling'] = exptime_supersamp[i]
 
         # Check that user gave periods in chronological order. If not, raise an exception, tell the user and stop this madness.
         # Note we only check if fixed or normal/truncated normal. In the uniform or log-uniform cases, we trust the user knows
@@ -519,13 +580,19 @@ class load(object):
         cp_period = np.array([])
         for pri in self.priors.keys():
             if pri[0:2] == 'P_':
-                if self.priors[pri]['distribution'].lower() in ['normal','truncated normal']:
-                    cp_pnumber = np.append(cp_pnumber,int(pri.split('_')[-1][1:]))
-                    cp_period = np.append(cp_period, self.priors[pri]['hyperparameters'][0])
+                if self.priors[pri]['distribution'].lower() in [
+                        'normal', 'truncated normal'
+                ]:
+                    cp_pnumber = np.append(cp_pnumber,
+                                           int(pri.split('_')[-1][1:]))
+                    cp_period = np.append(
+                        cp_period, self.priors[pri]['hyperparameters'][0])
                 elif self.priors[pri]['distribution'].lower() == 'fixed':
-                    cp_pnumber = np.append(cp_pnumber,int(pri.split('_')[-1][1:]))
-                    cp_period = np.append(cp_period, self.priors[pri]['hyperparameters'])
-        if len(cp_period)>1:
+                    cp_pnumber = np.append(cp_pnumber,
+                                           int(pri.split('_')[-1][1:]))
+                    cp_period = np.append(cp_period,
+                                          self.priors[pri]['hyperparameters'])
+        if len(cp_period) > 1:
             idx = np.argsort(cp_pnumber)
             cP = cp_period[idx[0]]
             cP_idx = cp_pnumber[idx[0]]
@@ -557,30 +624,60 @@ class load(object):
                         if inames[i] in pri.split('_'):
                             dictionary[inames[i]]['TransitFit'] = True
                             if self.verbose:
-                                print('\t Transit fit detected for instrument ',inames[i])
+                                print('\t Transit fit detected for instrument ',
+                                      inames[i])
                     if pri[0:3] == 'phi':
                         dictionary[inames[i]]['TransitFit'] = True
                         dictionary[inames[i]]['TransitFitCatwoman'] = True
                         if self.verbose:
-                            print('\t Transit (catwoman) fit detected for instrument ',inames[i])
+                          
+                            print('\t Transit (catwoman) fit detected for instrument ', inames[i])
+
+                    if pri[0:2] == 'fp':
+                        #dictionary[inames[i]]['TransitFit'] = True
+                        dictionary[inames[i]]['EclipseFit'] = True
+                        if self.verbose:
+                            print('\t Eclipse fit detected for instrument ',inames[i])
+
                     if pri[0:2] == 'dt' or pri[0:2] == 'T_':
                         if pri[0:2] == 'T_':
-                            dictionary[inames[i]]['TTVs'][pi]['parametrization'] = 'T'
-                        planet_number,instrument,ntransit = pri.split('_')[1:]
+                            dictionary[
+                                inames[i]]['TTVs'][pi]['parametrization'] = 'T'
+                        planet_number, instrument, ntransit = pri.split('_')[1:]
                         if inames[i] == instrument:
-                            dictionary[inames[i]]['TTVs'][int(planet_number[1:])]['status'] = True
-                            dictionary[inames[i]]['TTVs'][int(planet_number[1:])]['transit_number'].append(int(ntransit))
+
+                            dictionary[inames[i]]['TTVs'][int(
+                                planet_number[1:])]['status'] = True
+                            dictionary[inames[i]]['TTVs'][int(
+                                planet_number[1:])]['transit_number'].append(
+                                    int(ntransit))
+
+                if dictionary[inames[i]]['TransitFit'] and dictionary[inames[i]]['EclipseFit']:
+                    dictionary[inames[i]]['TranEclFit'] = True
+                    dictionary[inames[i]]['TransitFit'] = False
+                    dictionary[inames[i]]['EclipseFit'] = False
+                    print('\t Joint Transit and Eclipse fit detected for instrument ',inames[i])
+
             for pi in numbering_planets:
-                for i in range (ninstruments):
+                for i in range(ninstruments):
                     if dictionary[inames[i]]['TTVs'][pi]['status']:
-                        dictionary[inames[i]]['TTVs'][pi]['totalTTVtransits'] = len(dictionary[inames[i]]['TTVs'][pi]['transit_number'])
+
+                        dictionary[
+                            inames[i]]['TTVs'][pi]['totalTTVtransits'] = len(
+                                dictionary[
+                                    inames[i]]['TTVs'][pi]['transit_number'])
+
         # Now, implement noise models for each of the instrument. First check if model should be global or instrument-by-instrument,
         # based on the input instruments given for the GP regressors.
         if global_model:
             dictionary['global_model'] = {}
             if GP_regressors is not None:
                 dictionary['global_model']['GPDetrend'] = True
-                dictionary['global_model']['noise_model'] = gaussian_process(self, model_type = dictype,instrument = dictype, matern_eps = self.matern_eps)
+                dictionary['global_model']['noise_model'] = gaussian_process(
+                    self,
+                    model_type=dictype,
+                    instrument=dictype,
+                    matern_eps=self.matern_eps)
                 if not dictionary['global_model']['noise_model'].isInit:
                     # If not initiated, most likely kernel is a celerite one. Reorder times, values, etc. This is OK --- is expected:
                     if dictype == 'lc':
@@ -588,21 +685,38 @@ class load(object):
                     elif dictype == 'rv':
                         self.sort_GP('rv')
                     # Try again:
-                    dictionary['global_model']['noise_model'] = gaussian_process(self, model_type = dictype,instrument = dictype, matern_eps = self.matern_eps)
+                    dictionary['global_model'][
+                        'noise_model'] = gaussian_process(
+                            self,
+                            model_type=dictype,
+                            instrument=dictype,
+                            matern_eps=self.matern_eps)
                     if not dictionary['global_model']['noise_model'].isInit:
                         # Check, blame the user:
-                        raise Exception('INPUT ERROR: GP initialization for object for '+dictype+' global kernel failed.')
+                        raise Exception(
+                            'INPUT ERROR: GP initialization for object for ' +
+                            dictype + ' global kernel failed.')
             else:
                 dictionary['global_model']['GPDetrend'] = False
         else:
             for i in range(ninstruments):
                 instrument = inames[i]
+
                 if (GP_regressors is not None) and (instrument in GP_regressors.keys()):
+
                     dictionary[instrument]['GPDetrend'] = True
-                    dictionary[instrument]['noise_model'] =  gaussian_process(self, model_type = dictype, instrument = instrument, matern_eps = self.matern_eps)
+                    dictionary[instrument]['noise_model'] = gaussian_process(
+                        self,
+                        model_type=dictype,
+                        instrument=instrument,
+                        matern_eps=self.matern_eps)
                     if not dictionary[instrument]['noise_model'].isInit:
                         # Blame the user, although perhaps we could simply solve this as for the global modelling?:
-                        raise Exception('INPUT ERROR: GP regressors for instrument '+instrument+' use celerite, and are not in ascending or descending order. Please, give the input in those orders --- it will not work othersie.')
+                        raise Exception(
+                            'INPUT ERROR: GP regressors for instrument ' +
+                            instrument +
+                            ' use celerite, and are not in ascending or descending order. Please, give the input in those orders --- it will not work othersie.'
+                        )
 
         # Check which eccentricity parametrization is going to be used for each planet in the juliet numbering scheme.
         # 0 = ecc, omega  1: ecosomega,esinomega  2: sqrt(e)cosomega, sqrt(e)sinomega
@@ -610,24 +724,30 @@ class load(object):
         if dictype == 'lc':
             dictionary['efficient_bp'] = {}
         for i in numbering_planets:
-            if 'ecosomega_p'+str(i) in self.priors.keys():
+            if 'ecosomega_p' + str(i) in self.priors.keys():
                 dictionary['ecc_parametrization'][i] = 1
                 if self.verbose:
-                    print('\t >> ecosomega,esinomega parametrization detected for '+dictype+' planet p'+str(i))
-            elif 'secosomega_p'+str(i) in self.priors.keys():
+                    print(
+                        '\t >> ecosomega,esinomega parametrization detected for '
+                        + dictype + ' planet p' + str(i))
+            elif 'secosomega_p' + str(i) in self.priors.keys():
                 dictionary['ecc_parametrization'][i] = 2
                 if self.verbose:
-                    print('\t >> sqrt(e)cosomega, sqrt(e)sinomega parametrization detected for '+dictype+' planet p'+str(i))
+                    print(
+                        '\t >> sqrt(e)cosomega, sqrt(e)sinomega parametrization detected for '
+                        + dictype + ' planet p' + str(i))
             else:
                 dictionary['ecc_parametrization'][i] = 0
                 if self.verbose:
-                    print('\t >> ecc,omega parametrization detected for '+dictype+' planet p'+str(i))
+                    print('\t >> ecc,omega parametrization detected for ' +
+                          dictype + ' planet p' + str(i))
             if dictype == 'lc':
                 # Check if Espinoza (2018), (b,p) parametrization is on:
-                if 'r1_p'+str(i) in self.priors.keys():
+                if 'r1_p' + str(i) in self.priors.keys():
                     dictionary['efficient_bp'][i] = True
                     if self.verbose:
-                        print('\t >> (b,p) parametrization detected for '+dictype+' planet p'+str(i))
+                        print('\t >> (b,p) parametrization detected for ' +
+                              dictype + ' planet p' + str(i))
                 else:
                     dictionary['efficient_bp'][i] = False
 
@@ -636,7 +756,6 @@ class load(object):
             dictionary['fitrho'] = False
             if 'rho' in self.priors.keys():
                 dictionary['fitrho'] = True
-
 
         # For RV dictionaries, check if RV trend will be fitted:
         if dictype == 'rv':
@@ -658,80 +777,101 @@ class load(object):
         elif dictype == 'rv':
             self.rv_options = dictionary
         else:
-            raise Exception('INPUT ERROR: dictype not understood. Has to be either lc or rv.')
+            raise Exception(
+                'INPUT ERROR: dictype not understood. Has to be either lc or rv.'
+            )
 
-    def set_lc_data(self,t_lc, y_lc, yerr_lc, instruments_lc,instrument_indexes_lc,ninstruments_lc,inames_lc,lm_lc_boolean,lm_lc_arguments):
-            self.t_lc = t_lc.astype('float64')
-            self.y_lc = y_lc
-            self.yerr_lc = yerr_lc
-            self.inames_lc = inames_lc
-            self.instruments_lc = instruments_lc
-            self.ninstruments_lc = ninstruments_lc
-            self.instrument_indexes_lc = instrument_indexes_lc
-            self.lm_lc_boolean = lm_lc_boolean
-            self.lm_lc_arguments = lm_lc_arguments
-            self.lc_data = True
+    def set_lc_data(self, t_lc, y_lc, yerr_lc, instruments_lc,
+                    instrument_indexes_lc, ninstruments_lc, inames_lc,
+                    lm_lc_boolean, lm_lc_arguments):
+        self.t_lc = t_lc.astype('float64')
+        self.y_lc = y_lc
+        self.yerr_lc = yerr_lc
+        self.inames_lc = inames_lc
+        self.instruments_lc = instruments_lc
+        self.ninstruments_lc = ninstruments_lc
+        self.instrument_indexes_lc = instrument_indexes_lc
+        self.lm_lc_boolean = lm_lc_boolean
+        self.lm_lc_arguments = lm_lc_arguments
+        self.lc_data = True
 
-    def set_rv_data(self,t_rv, y_rv, yerr_rv, instruments_rv,instrument_indexes_rv,ninstruments_rv,inames_rv,lm_rv_boolean,lm_rv_arguments):
-            self.t_rv = t_rv.astype('float64')
-            self.y_rv = y_rv
-            self.yerr_rv = yerr_rv
-            self.inames_rv = inames_rv
-            self.instruments_rv = instruments_rv
-            self.ninstruments_rv = ninstruments_rv
-            self.instrument_indexes_rv = instrument_indexes_rv
-            self.lm_rv_boolean = lm_rv_boolean
-            self.lm_rv_arguments = lm_rv_arguments
-            self.rv_data = True
+    def set_rv_data(self, t_rv, y_rv, yerr_rv, instruments_rv,
+                    instrument_indexes_rv, ninstruments_rv, inames_rv,
+                    lm_rv_boolean, lm_rv_arguments):
+        self.t_rv = t_rv.astype('float64')
+        self.y_rv = y_rv
+        self.yerr_rv = yerr_rv
+        self.inames_rv = inames_rv
+        self.instruments_rv = instruments_rv
+        self.ninstruments_rv = ninstruments_rv
+        self.instrument_indexes_rv = instrument_indexes_rv
+        self.lm_rv_boolean = lm_rv_boolean
+        self.lm_rv_arguments = lm_rv_arguments
+        self.rv_data = True
 
     def save(self):
-            if self.out_folder[-1] != '/':
-                self.out_folder = self.out_folder + '/'
 
-            # First, save lightcurve data:
-            if not os.path.exists(self.out_folder):
-                os.makedirs(self.out_folder)
-            if (not os.path.exists(self.out_folder+'lc.dat')):
-                if self.lcfilename is not None:
-                    os.system('cp '+self.lcfilename+' '+self.out_folder+'lc.dat')
-                elif self.t_lc is not None:
-                    self.save_data(self.out_folder+'lc.dat',self.t_lc,self.y_lc,self.yerr_lc,self.instruments_lc,self.lm_lc_boolean,self.lm_lc_arguments)
+        if self.out_folder[-1] != '/':
+            self.out_folder = self.out_folder + '/'
 
-            # Now radial-velocity data:
-            if (not os.path.exists(self.out_folder+'rvs.dat')):
-                if self.rvfilename is not None:
-                    os.system('cp '+self.rvfilename+' '+self.out_folder+'rvs.dat')
-                elif self.t_rv is not None:
-                    self.save_data(self.out_folder+'rvs.dat',self.t_rv,self.y_rv,self.yerr_rv,self.instruments_rv,self.lm_rv_boolean,self.lm_rv_arguments)
+        # First, save lightcurve data:
+        if not os.path.exists(self.out_folder):
+            os.makedirs(self.out_folder, exist_ok=True)
+        if (not os.path.exists(self.out_folder + 'lc.dat')):
+            if self.lcfilename is not None:
+                os.system('cp ' + self.lcfilename + ' ' + self.out_folder +
+                          'lc.dat')
+            elif self.t_lc is not None:
+                self.save_data(self.out_folder + 'lc.dat', self.t_lc, self.y_lc,
+                               self.yerr_lc, self.instruments_lc,
+                               self.lm_lc_boolean, self.lm_lc_arguments)
 
-            # Next, save GP regressors:
-            if (not os.path.exists(self.out_folder+'GP_lc_regressors.dat')):
-                if self.GPlceparamfile is not None:
-                    os.system('cp '+self.GPlceparamfile+' '+self.out_folder+'GP_lc_regressors.dat')
-                elif self.GP_lc_arguments is not None:
-                    self.save_regressors(self.out_folder+'GP_lc_regressors.dat', self.GP_lc_arguments)
-            if (not os.path.exists(self.out_folder+'GP_rv_regressors.dat')):
-                if self.GPrveparamfile is not None:
-                    os.system('cp '+self.GPrveparamfile+' '+self.out_folder+'GP_rv_regressors.dat')
-                elif self.GP_rv_arguments is not None:
-                    self.save_regressors(self.out_folder+'GP_rv_regressors.dat', self.GP_rv_arguments)
+        # Now radial-velocity data:
+        if (not os.path.exists(self.out_folder + 'rvs.dat')):
+            if self.rvfilename is not None:
+                os.system('cp ' + self.rvfilename + ' ' + self.out_folder +
+                          'rvs.dat')
+            elif self.t_rv is not None:
+                self.save_data(self.out_folder + 'rvs.dat', self.t_rv,
+                               self.y_rv, self.yerr_rv, self.instruments_rv,
+                               self.lm_rv_boolean, self.lm_rv_arguments)
 
-            # Finally, save LM regressors if any:
-            if (not os.path.exists(self.out_folder+'LM_lc_regressors.dat')):
-                if self.LMlceparamfile is not None:
-                    os.system('cp '+self.LMlceparamfile+' '+self.out_folder+'LM_lc_regressors.dat')
-                elif self.LM_lc_arguments is not None:
-                    self.save_regressors(self.out_folder+'LM_lc_regressors.dat', self.LM_lc_arguments)
-            if (not os.path.exists(self.out_folder+'LM_rv_regressors.dat')):
-                if self.LMrveparamfile is not None:
-                    os.system('cp '+self.LMrveparamfile+' '+self.out_folder+'LM_rv_regressors.dat')
-                elif self.LM_rv_arguments is not None:
-                    self.save_regressors(self.out_folder+'LM_rv_regressors.dat', self.LM_rv_arguments)
+        # Next, save GP regressors:
+        if (not os.path.exists(self.out_folder + 'GP_lc_regressors.dat')):
+            if self.GPlceparamfile is not None:
+                os.system('cp ' + self.GPlceparamfile + ' ' + self.out_folder +
+                          'GP_lc_regressors.dat')
+            elif self.GP_lc_arguments is not None:
+                self.save_regressors(self.out_folder + 'GP_lc_regressors.dat',
+                                     self.GP_lc_arguments)
+        if (not os.path.exists(self.out_folder + 'GP_rv_regressors.dat')):
+            if self.GPrveparamfile is not None:
+                os.system('cp ' + self.GPrveparamfile + ' ' + self.out_folder +
+                          'GP_rv_regressors.dat')
+            elif self.GP_rv_arguments is not None:
+                self.save_regressors(self.out_folder + 'GP_rv_regressors.dat',
+                                     self.GP_rv_arguments)
 
-            # Save priors:
-            if (not os.path.exists(self.out_folder+'priors.dat')):
-                self.prior_fname = self.out_folder+'priors.dat'
-                self.save_priorfile(self.out_folder+'priors.dat')
+        # Finally, save LM regressors if any:
+        if (not os.path.exists(self.out_folder + 'LM_lc_regressors.dat')):
+            if self.LMlceparamfile is not None:
+                os.system('cp ' + self.LMlceparamfile + ' ' + self.out_folder +
+                          'LM_lc_regressors.dat')
+            elif self.LM_lc_arguments is not None:
+                self.save_regressors(self.out_folder + 'LM_lc_regressors.dat',
+                                     self.LM_lc_arguments)
+        if (not os.path.exists(self.out_folder + 'LM_rv_regressors.dat')):
+            if self.LMrveparamfile is not None:
+                os.system('cp ' + self.LMrveparamfile + ' ' + self.out_folder +
+                          'LM_rv_regressors.dat')
+            elif self.LM_rv_arguments is not None:
+                self.save_regressors(self.out_folder + 'LM_rv_regressors.dat',
+                                     self.LM_rv_arguments)
+
+        # Save priors:
+        if (not os.path.exists(self.out_folder + 'priors.dat')):
+            self.prior_fname = self.out_folder + 'priors.dat'
+            self.save_priorfile(self.out_folder + 'priors.dat')
 
     def fit(self, **kwargs):
         """
@@ -760,7 +900,7 @@ class load(object):
         self.starting_point = starting_point
 
         # GP options:
-        self.matern_eps = matern_eps # Epsilon parameter for celerite Matern32Term
+        self.matern_eps = matern_eps  # Epsilon parameter for celerite Matern32Term
 
         # Initialize data options for lightcurves:
         self.t_lc = None
@@ -807,23 +947,24 @@ class load(object):
                 self.input_folder = input_folder + '/'
             else:
                 self.input_folder = input_folder
-            if os.path.exists(self.input_folder+'lc.dat'):
-                lcfilename = self.input_folder+'lc.dat'
-            if os.path.exists(self.input_folder+'rvs.dat'):
-                rvfilename = self.input_folder+'rvs.dat'
-            if (not os.path.exists(self.input_folder+'lc.dat')) and (not os.path.exists(self.input_folder+'rvs.dat')):
+            if os.path.exists(self.input_folder + 'lc.dat'):
+                lcfilename = self.input_folder + 'lc.dat'
+            if os.path.exists(self.input_folder + 'rvs.dat'):
+                rvfilename = self.input_folder + 'rvs.dat'
+            if (not os.path.exists(self.input_folder + 'lc.dat')) and (
+                    not os.path.exists(self.input_folder + 'rvs.dat')):
                 raise Exception('INPUT ERROR: No lightcurve data file (lc.dat) or radial-velocity data file (rvs.dat) found in folder '+self.input_folder+\
                                 '. \n Create them and try again. For details, check juliet.load?')
-            if os.path.exists(self.input_folder+'GP_lc_regressors.dat'):
-                GPlceparamfile = self.input_folder+'GP_lc_regressors.dat'
-            if os.path.exists(self.input_folder+'GP_rv_regressors.dat'):
-                GPrveparamfile = self.input_folder+'GP_rv_regressors.dat'
-            if os.path.exists(self.input_folder+'LM_lc_regressors.dat'):
-                LMlceparamfile = self.input_folder+'LM_lc_regressors.dat'
-            if os.path.exists(self.input_folder+'LM_rv_regressors.dat'):
-                LMrveparamfile = self.input_folder+'LM_rv_regressors.dat'
-            if os.path.exists(self.input_folder+'priors.dat'):
-                priors = self.input_folder+'priors.dat'
+            if os.path.exists(self.input_folder + 'GP_lc_regressors.dat'):
+                GPlceparamfile = self.input_folder + 'GP_lc_regressors.dat'
+            if os.path.exists(self.input_folder + 'GP_rv_regressors.dat'):
+                GPrveparamfile = self.input_folder + 'GP_rv_regressors.dat'
+            if os.path.exists(self.input_folder + 'LM_lc_regressors.dat'):
+                LMlceparamfile = self.input_folder + 'LM_lc_regressors.dat'
+            if os.path.exists(self.input_folder + 'LM_rv_regressors.dat'):
+                LMrveparamfile = self.input_folder + 'LM_rv_regressors.dat'
+            if os.path.exists(self.input_folder + 'priors.dat'):
+                priors = self.input_folder + 'priors.dat'
             else:
                 raise Exception('INPUT ERROR: Prior file (priors.dat) not found in folder '+self.input_folder+'.'+\
                                 'Create it and try again. For details, check juliet.load?')
@@ -839,6 +980,7 @@ class load(object):
             self.input_folder = None
 
         if type(priors) == str:
+
            self.prior_fname = priors
            priors, n_transit, n_rv, numbering_transit, numbering_rv, n_params, starting_point = readpriors(priors)
            # Save information stored in the prior: the dictionary, number of transiting planets,
@@ -852,20 +994,24 @@ class load(object):
            self.numbering_rv_planets = numbering_rv
            self.nparams = n_params
            self.starting_point = starting_point
+            
         elif type(priors) == dict:
-           # Dictionary was passed, so save it.
-           self.priors = priors
-           # Extract same info as above if-statement but using only the dictionary:
-           n_transit, n_rv, numbering_transit, numbering_rv, n_params = readpriors(priors)
-           # Save information:
-           self.n_transiting_planets = n_transit
-           self.n_rv_planets = n_rv
-           self.numbering_transiting_planets = numbering_transit
-           self.numbering_rv_planets = numbering_rv
-           self.nparams = n_params
-           self.prior_fname = None
+            # Dictionary was passed, so save it.
+            self.priors = priors
+            # Extract same info as above if-statement but using only the dictionary:
+            n_transit, n_rv, numbering_transit, numbering_rv, n_params = readpriors(
+                priors)
+            # Save information:
+            self.n_transiting_planets = n_transit
+            self.n_rv_planets = n_rv
+            self.numbering_transiting_planets = numbering_transit
+            self.numbering_rv_planets = numbering_rv
+            self.nparams = n_params
+            self.prior_fname = None
         else:
-           raise Exception('INPUT ERROR: Prior file is not a string or a dictionary (and it has to). Do juliet.load? for details.')
+            raise Exception(
+                'INPUT ERROR: Prior file is not a string or a dictionary (and it has to). Do juliet.load? for details.'
+            )
 
         # Define cases in which data is given through files:
         if (t_lc is None):
@@ -874,14 +1020,20 @@ class load(object):
                 read_data(lcfilename)
 
                 # Save data to object:
-                self.set_lc_data(t_lc, y_lc, yerr_lc, instruments_lc,instrument_indexes_lc,ninstruments_lc,inames_lc,lm_lc_boolean,lm_lc_arguments)
+
+                self.set_lc_data(t_lc, y_lc, yerr_lc, instruments_lc,
+                                 instrument_indexes_lc, ninstruments_lc,
+                                 inames_lc, lm_lc_boolean, lm_lc_arguments)
+
         if (t_rv is None):
             if rvfilename is not None:
                 t_rv,y_rv,yerr_rv,instruments_rv,instrument_indexes_rv,ninstruments_rv,inames_rv,lm_rv_boolean,lm_rv_arguments = \
                 read_data(rvfilename)
 
                 # Save data to object:
-                self.set_rv_data(t_rv,y_rv,yerr_rv,instruments_rv,instrument_indexes_rv,ninstruments_rv,inames_rv,lm_rv_boolean,lm_rv_arguments)
+                self.set_rv_data(t_rv, y_rv, yerr_rv, instruments_rv,
+                                 instrument_indexes_rv, ninstruments_rv,
+                                 inames_rv, lm_rv_boolean, lm_rv_arguments)
 
         if (t_lc is None and t_rv is None):
             if (lcfilename is None) and (rvfilename is None):
@@ -891,14 +1043,16 @@ class load(object):
 
         # Read GP regressors if given through files or arrays. The former takes priority. First lightcurve:
         if GPlceparamfile is not None:
-            self.GP_lc_arguments, self.global_lc_model = readGPeparams(GPlceparamfile)
+            self.GP_lc_arguments, self.global_lc_model = readGPeparams(
+                GPlceparamfile)
         elif GP_regressors_lc is not None:
             self.GP_lc_arguments = GP_regressors_lc
             instruments = set(list(self.GP_lc_arguments.keys()))
 
         # Same thing for RVs:
         if GPrveparamfile is not None:
-            self.GP_rv_arguments, self.global_rv_model = readGPeparams(GPrveparamfile)
+            self.GP_rv_arguments, self.global_rv_model = readGPeparams(
+                GPrveparamfile)
         elif GP_regressors_rv is not None:
             self.GP_rv_arguments = GP_regressors_rv
             instruments = set(list(self.GP_rv_arguments.keys()))
@@ -922,19 +1076,24 @@ class load(object):
         # booleans; True for an instrument if it has linear regressors), lm_lc_arguments (dictionary containing the linear regressors for each instrument), etc.:
         if (lcfilename is None) and (t_lc is not None):
             # First check user gave all data:
-            input_error_catcher(t_lc,y_lc,yerr_lc,'lightcurve')
+            input_error_catcher(t_lc, y_lc, yerr_lc, 'lightcurve')
             # Convert times to float64 (batman really hates non-float64 inputs):
             for instrument in t_lc.keys():
                 t_lc[instrument] = t_lc[instrument].astype('float64')
             # Create global arrays:
-            tglobal_lc, yglobal_lc, yglobalerr_lc, instruments_lc = self.convert_input_data(t_lc, y_lc, yerr_lc)
+            tglobal_lc, yglobal_lc, yglobalerr_lc, instruments_lc = self.convert_input_data(
+                t_lc, y_lc, yerr_lc)
             # Save data in a format useful for global modelling:
-            inames_lc, instrument_indexes_lc, lm_lc_boolean = self.data_preparation(tglobal_lc,instruments_lc,linear_regressors_lc)
+            inames_lc, instrument_indexes_lc, lm_lc_boolean = self.data_preparation(
+                tglobal_lc, instruments_lc, linear_regressors_lc)
             lm_lc_arguments = linear_regressors_lc
             ninstruments_lc = len(inames_lc)
 
             # Save data to object:
-            self.set_lc_data(tglobal_lc, yglobal_lc, yglobalerr_lc, instruments_lc,instrument_indexes_lc,ninstruments_lc,inames_lc,lm_lc_boolean,lm_lc_arguments)
+            self.set_lc_data(tglobal_lc, yglobal_lc, yglobalerr_lc,
+                             instruments_lc, instrument_indexes_lc,
+                             ninstruments_lc, inames_lc, lm_lc_boolean,
+                             lm_lc_arguments)
 
             # Save input dictionaries:
             self.times_lc = t_lc
@@ -942,21 +1101,28 @@ class load(object):
             self.errors_lc = yerr_lc
         elif t_lc is not None:
             # In this case, convert data in array-form to dictionaries, save them so user can easily use them:
-            times_lc, data_lc, errors_lc = self.convert_to_dictionary(t_lc, y_lc, yerr_lc, instrument_indexes_lc)
+            times_lc, data_lc, errors_lc = self.convert_to_dictionary(
+                t_lc, y_lc, yerr_lc, instrument_indexes_lc)
             self.times_lc = times_lc
             self.data_lc = data_lc
             self.errors_lc = errors_lc
 
         # Same for radial-velocity data:
         if (rvfilename is None) and (t_rv is not None):
-            input_error_catcher(t_rv,y_rv,yerr_rv,'radial-velocity')
-            tglobal_rv, yglobal_rv, yglobalerr_rv, instruments_rv = self.convert_input_data(t_rv, y_rv, yerr_rv)
-            inames_rv, instrument_indexes_rv, lm_rv_boolean = self.data_preparation(tglobal_rv,instruments_rv,linear_regressors_rv)
+            input_error_catcher(t_rv, y_rv, yerr_rv, 'radial-velocity')
+            tglobal_rv, yglobal_rv, yglobalerr_rv, instruments_rv = self.convert_input_data(
+                t_rv, y_rv, yerr_rv)
+            inames_rv, instrument_indexes_rv, lm_rv_boolean = self.data_preparation(
+                tglobal_rv, instruments_rv, linear_regressors_rv)
             lm_rv_arguments = linear_regressors_rv
             ninstruments_rv = len(inames_rv)
 
             # Save data to object:
-            self.set_rv_data(tglobal_rv,yglobal_rv,yglobalerr_rv,instruments_rv,instrument_indexes_rv,ninstruments_rv,inames_rv,lm_rv_boolean,lm_rv_arguments)
+
+            self.set_rv_data(tglobal_rv, yglobal_rv, yglobalerr_rv,
+                             instruments_rv, instrument_indexes_rv,
+                             ninstruments_rv, inames_rv, lm_rv_boolean,
+                             lm_rv_arguments)
 
             # Save input dictionaries:
             self.times_rv = t_rv
@@ -964,7 +1130,8 @@ class load(object):
             self.errors_rv = yerr_rv
         elif t_rv is not None:
             # In this case, convert data in array-form to dictionaries, save them so user can easily use them:
-            times_rv, data_rv, errors_rv = self.convert_to_dictionary(t_rv, y_rv, yerr_rv, instrument_indexes_rv)
+            times_rv, data_rv, errors_rv = self.convert_to_dictionary(
+                t_rv, y_rv, yerr_rv, instrument_indexes_rv)
             self.times_rv = times_rv
             self.data_rv = data_rv
             self.errors_rv = errors_rv
@@ -981,7 +1148,9 @@ class load(object):
         if t_rv is not None:
             self.generate_datadict('rv')
 
-mcmc_samplers = ['emcee']
+
+mcmc_samplers = ['emcee', 'zeus']
+
 class fit(object):
     """
     Given a juliet data object, this class performs a fit to the data and returns a results object to explore the
@@ -1091,7 +1260,11 @@ class fit(object):
                     self.transform_prior[pname] = transform_normal
                 if dist_name == 'truncatednormal':
                     self.transform_prior[pname] = transform_truncated_normal
-                if dist_name == 'jeffreys' or dist_name =='loguniform':
+
+                if self.data.priors[pname][
+                        'distribution'] == 'jeffreys' or self.data.priors[
+                            pname]['distribution'] == 'loguniform':
+
                     self.transform_prior[pname] = transform_loguniform
                 if dist_name == 'beta':
                     self.transform_prior[pname] = transform_beta
@@ -1110,7 +1283,11 @@ class fit(object):
                     self.evaluate_logprior[pname] = evaluate_normal
                 if dist_name == 'truncatednormal':
                     self.evaluate_logprior[pname] = evaluate_truncated_normal
-                if dist_name == 'jeffreys' or dist_name =='loguniform':
+
+                if self.data.priors[pname][
+                        'distribution'] == 'jeffreys' or self.data.priors[
+                            pname]['distribution'] == 'loguniform':
+
                     self.evaluate_logprior[pname] = evaluate_loguniform
                 if dist_name == 'beta':
                     self.evaluate_logprior[pname] = evaluate_beta
@@ -1119,9 +1296,8 @@ class fit(object):
                 if dist_name == 'modjeffreys':
                     self.evaluate_logprior[pname] = evaluate_modifiedjeffreys
 
-
     # Prior transform for nested samplers:
-    def prior_transform(self, cube, ndim = None, nparams = None):
+    def prior_transform(self, cube, ndim=None, nparams=None):
         pcounter = 0
         for pname in self.model_parameters:
             if self.data.priors[pname]['distribution'].lower() != 'fixed':
@@ -1163,18 +1339,18 @@ class fit(object):
 
         # Evaluate photometric model first:
         if self.data.t_lc is not None:
-             self.lc.generate(self.posteriors)
-             if self.lc.modelOK:
-                 log_likelihood += self.lc.get_log_likelihood(self.posteriors)
-             else:
-                 return -1e101
+            self.lc.generate(self.posteriors)
+            if self.lc.modelOK:
+                log_likelihood += self.lc.get_log_likelihood(self.posteriors)
+            else:
+                return -1e101
         # Now RV model:
         if self.data.t_rv is not None:
-             self.rv.generate(self.posteriors)
-             if self.rv.modelOK:
-                 log_likelihood += self.rv.get_log_likelihood(self.posteriors)
-             else:
-                 return -1e101
+            self.rv.generate(self.posteriors)
+            if self.rv.modelOK:
+                log_likelihood += self.rv.get_log_likelihood(self.posteriors)
+            else:
+                return -1e101
         # Return total log-likelihood:
         return log_likelihood
 
@@ -1220,41 +1396,45 @@ class fit(object):
         ws3 = ' instead; for more information, check the API of juliet.fit: https://juliet.readthedocs.io/en/latest/user/api.html#juliet.fit'
         if self.use_ultranest:
             self.sampler = 'ultranest'
-            print(ws1+'use_ultranest'+ws2+'"sampler" string'+ws3)
+            print(ws1 + 'use_ultranest' + ws2 + '"sampler" string' + ws3)
         if self.use_dynesty:
-            print(ws1+'use_dynesty'+ws2+'"sampler" string'+ws3)
+            print(ws1 + 'use_dynesty' + ws2 + '"sampler" string' + ws3)
             self.sampler = 'dynesty'
             if self.dynamic:
                 self.sampler = 'dynamic_dynesty'
-                print(ws1+'dynamic'+ws2+'"sampler" string'+ws3)
+                print(ws1 + 'dynamic' + ws2 + '"sampler" string' + ws3)
             # Add the other deprecated flags to the kwargs:
             if self.dynesty_bound != 'multi':
-                print(ws1+'dynesty_bound'+ws2+'"bound" argument'+ws3)
+                print(ws1 + 'dynesty_bound' + ws2 + '"bound" argument' + ws3)
                 # kwargs take presedence:
                 if 'bound' not in kwargs.keys():
                     kwargs['bound'] = self.dynesty_bound
             if self.dynesty_sample != 'rwalk':
-                print(ws1+'dynesty_sample'+ws2+'"sample" argument'+ws3)
+                print(ws1 + 'dynesty_sample' + ws2 + '"sample" argument' + ws3)
                 # kwargs take presedence:
                 if 'sample' not in kwargs.keys():
                     kwargs['sample'] = self.dynesty_sample
             if self.dynesty_nthreads is not None:
-                print(ws1+'dynesty_nthreads'+ws2+'"nthreads" argument'+ws3)
+                print(ws1 + 'dynesty_nthreads' + ws2 + '"nthreads" argument' +
+                      ws3)
                 # The nthreads argument takes presedence now:
                 if nthreads is None:
                     self.nthreads = self.dynesty_nthreads
             if self.dynesty_n_effective is not np.inf:
-                print(ws1+'dynesty_n_effective'+ws2+'"n_effective" argument'+ws3)
+                print(ws1 + 'dynesty_n_effective' + ws2 +
+                      '"n_effective" argument' + ws3)
                 # kwargs take presedence:
                 if 'n_effective' not in kwargs.keys():
                     kwargs['n_effective'] = self.dynesty_n_effective
             if not self.dynesty_use_stop:
-                print(ws1+'dynesty_use_stop'+ws2+'"use_stop" argument'+ws3)
+                print(ws1 + 'dynesty_use_stop' + ws2 + '"use_stop" argument' +
+                      ws3)
                 # kwargs take presedence:
                 if 'use_stop' not in kwargs.keys():
                     kwargs['use_stop'] = self.dynesty_use_stop
             if self.dynesty_use_pool is not None:
-                print(ws1+'dynesty_use_pool'+ws2+'"use_pool" argument'+ws3)
+                print(ws1 + 'dynesty_use_pool' + ws2 + '"use_pool" argument' +
+                      ws3)
                 # kwargs take presedence:
                 if 'use_pool' not in kwargs.keys():
                     kwargs['use_pool'] = self.dynesty_use_pool
@@ -1281,15 +1461,21 @@ class fit(object):
         elif self.sampler == 'dynamic_dynesty':
             self.sampler_prefix = '_dynesty_DNS_'
         else:
-            self.sampler_prefix = self.sampler+'_'
+            self.sampler_prefix = self.sampler + '_'
 
         # Before starting, check if force_dynesty or force_pymultinest is on; change options accordingly:
         if force_dynesty and (self.sampler is 'multinest'):
-            print('PyMultinest installation not detected. Forcing dynesty as the sampler.')
+            print(
+                'PyMultinest installation not detected. Forcing dynesty as the sampler.'
+            )
             self.sampler = 'dynesty'
             self.sampler_prefix = '_dynesty_NS_'
+          
         if force_pymultinest and (self.sampler is 'dynesty'):
-            print('dynesty installation not detected. Forcing PyMultinest as the sampler.')
+            print(
+                'dynesty installation not detected. Forcing PyMultinest as the sampler.'
+            )
+            
             self.sampler = 'multinest'
             self.sampler_prefix = ''
 
@@ -1299,13 +1485,17 @@ class fit(object):
         self.model_parameters = list(self.data.priors.keys())
         self.paramnames = []
         for pname in self.model_parameters:
-            if self.data.priors[pname]['distribution'].lower() == 'fixed':
-                self.posteriors[pname] = self.data.priors[pname]['hyperparameters']
+
+            if self.data.priors[pname]['distribution'] == 'fixed':
+                self.posteriors[pname] = self.data.priors[pname][
+                    'hyperparameters']
+
             else:
-                if sampler == 'emcee':
+                if self.sampler in mcmc_samplers:
                     self.posteriors[pname] = self.data.starting_point[pname]
                 else:
-                    self.posteriors[pname] = 0.#self.data.priors[pname]['cvalue']
+                    self.posteriors[
+                        pname] = 0.  #self.data.priors[pname]['cvalue']
                 self.paramnames.append(pname)
         # For each of the variables in the prior that is not fixed, define an internal dictionary that will save the
         # corresponding transformation function to the prior corresponding to that variable. Idea is that with this one
@@ -1321,9 +1511,19 @@ class fit(object):
 
         # Generate light-curve and radial-velocity models:
         if self.data.t_lc is not None:
-            self.lc = model(self.data, modeltype = 'lc', pl = self.pl, pu = self.pu, ecclim = self.ecclim, log_like_calc = True)
+            self.lc = model(self.data,
+                            modeltype='lc',
+                            pl=self.pl,
+                            pu=self.pu,
+                            ecclim=self.ecclim,
+                            log_like_calc=True)
         if self.data.t_rv is not None:
-            self.rv = model(self.data, modeltype = 'rv', ecclim = self.ecclim, ta = self.ta, log_like_calc = True)
+
+            self.rv = model(self.data,
+                            modeltype='rv',
+                            ecclim=self.ecclim,
+                            ta=self.ta,
+                            log_like_calc=True)
 
         # First, check if a run has already been performed with the user-defined sampler. If it hasn't, run it.
         # If it has (detected through its output filename), skip running again and jump straight to loading the
@@ -1332,7 +1532,8 @@ class fit(object):
         runSampler = False
         if self.out_folder is None:
             self.out_folder = os.getcwd() + '/'
-        if (not os.path.exists(self.out_folder+self.sampler_prefix+'posteriors.pkl')):
+        if (not os.path.exists(self.out_folder + self.sampler_prefix +
+                               'posteriors.pkl')):
             runSampler = True
 
         # If runSampler is True, then run the sampler of choice:
@@ -1352,13 +1553,14 @@ class fit(object):
                     if arg in kwargs:
                         rns_args[arg] = kwargs[arg]
                 # ...and load the sampler:
-                sampler = ReactiveNestedSampler(self.paramnames, self.loglike, **rns_args)
+                sampler = ReactiveNestedSampler(self.paramnames, self.loglike,
+                                                **rns_args)
 
                 if 'slicesampler' in self.sampler:
                     import ultranest.stepsampler
 
                     # Match kwarfs to possible args in RegionSliceSampler:
-                    args = ultranest.stepsampler.RegionSliceSampler.__init__.__code__.co_varnames
+                    args = ultranest.stepsampler.SliceSampler.__init__.__code__.co_varnames
                     rss_args = {}
                     # First, define standard ones:
                     rss_args['nsteps'] = 400
@@ -1369,7 +1571,8 @@ class fit(object):
                             rss_args[arg] = kwargs[arg]
 
                     # Apply stepsampler:
-                    sampler.stepsampler = ultranest.stepsampler.RegionSliceSampler(**rss_args)
+                    sampler.stepsampler = ultranest.stepsampler.RegionSliceSampler(
+                        **rss_args)
 
                 # Now do the same for ReactiveNestedSampler.run --- load any kwargs the user has given as input:
                 args = ReactiveNestedSampler.run.__code__.co_varnames
@@ -1410,7 +1613,8 @@ class fit(object):
                     if arg in kwargs:
                         mn_args[arg] = kwargs[arg]
                 # Define the sampler:
-                pymultinest.run(self.loglike, self.prior_transform, self.data.nparams, **mn_args)
+                pymultinest.run(self.loglike, self.prior_transform,
+                                self.data.nparams, **mn_args)
 
                 # Now, with the sampler defined, repeat the same as above for the pymultinest.Analyzer object:
                 args = pymultinest.Analyzer.__init__.__code__.co_varnames
@@ -1425,7 +1629,8 @@ class fit(object):
                 # Run and get output:
                 output = pymultinest.Analyzer(**mna_args)
                 # Get out parameters: this matrix has (samples,n_params+1):
-                posterior_samples = output.get_equal_weighted_posterior()[:,:-1]
+                posterior_samples = output.get_equal_weighted_posterior(
+                )[:, :-1]
                 # Get INS lnZ:
                 out['lnZ'] = output.get_stats()['global evidence']
                 out['lnZerr'] = output.get_stats()['global evidence error']
@@ -1452,7 +1657,9 @@ class fit(object):
                         if arg in kwargs:
                             d_args[arg] = kwargs[arg]
                     # Define the sampler:
-                    sampler = DynestySampler(self.loglike, self.prior_transform_r, self.data.nparams, **d_args)
+                    sampler = DynestySampler(self.loglike,
+                                             self.prior_transform_r,
+                                             self.data.nparams, **d_args)
 
                     # Now do the same for the actual sampler:
                     args = sampler.run_nested.__code__.co_varnames
@@ -1480,7 +1687,9 @@ class fit(object):
                             d_args[arg] = kwargs[arg]
 
                     # Now define a mock sampler to retrieve variable names:
-                    mock_sampler = DynestySampler(self.loglike, self.prior_transform_r, self.data.nparams, **d_args)
+                    mock_sampler = DynestySampler(self.loglike,
+                                                  self.prior_transform_r,
+                                                  self.data.nparams, **d_args)
                     # Extract args:
                     args = mock_sampler.run_nested.__code__.co_varnames
                     ds_args = {}
@@ -1490,8 +1699,14 @@ class fit(object):
                             ds_args[arg] = kwargs[arg]
 
                     # Now run all with multiprocessing:
-                    with contextlib.closing(Pool(processes=self.nthreads-1)) as executor:
-                        sampler = DynestySampler(self.loglike, self.prior_transform_r, self.data.nparams, pool=executor, queue_size=self.nthreads, **d_args)
+                    with contextlib.closing(Pool(processes=self.nthreads -
+                                                 1)) as executor:
+                        sampler = DynestySampler(self.loglike,
+                                                 self.prior_transform_r,
+                                                 self.data.nparams,
+                                                 pool=executor,
+                                                 queue_size=self.nthreads,
+                                                 **d_args)
                         sampler.run_nested(**ds_args)
                         results = sampler.results
 
@@ -1508,11 +1723,16 @@ class fit(object):
                 # Initiate starting point for each walker. To this end, first load starting values.
                 initial_position = np.array([])
                 for pname in self.model_parameters:
-                    if self.data.priors[pname]['distribution'].lower() != 'fixed':
-                        initial_position = np.append(initial_position, self.posteriors[pname])
+
+                    if self.data.priors[pname]['distribution'] != 'fixed':
+
+                        initial_position = np.append(initial_position,
+                                                     self.posteriors[pname])
+
 
                 # Perturb initial position for each of the walkers:
-                pos = initial_position + self.emcee_factor * np.random.randn(self.nwalkers, len(initial_position))
+                pos = initial_position + self.emcee_factor * np.random.randn(
+                    self.nwalkers, len(initial_position))
 
                 # Before performing the sampling, catch any kwargs that go to EnsembleSampler; rest of kwargs are assumed to go
                 # to run_mcmc:
@@ -1528,33 +1748,86 @@ class fit(object):
 
                 # Now perform the sampling. If nthreads is defined, parallelize. If not, go the serial way:
                 if self.nthreads is None:
-                    sampler = emcee.EnsembleSampler(self.nwalkers, self.data.nparams, self.logprob, **ES_args)
+                    sampler = emcee.EnsembleSampler(self.nwalkers,
+                                                    self.data.nparams,
+                                                    self.logprob, **ES_args)
+                    sampler.run_mcmc(pos, self.nsteps + self.nburnin, **kwargs)
+                else:
+                    with contextlib.closing(Pool(processes=self.nthreads -
+                                                 1)) as executor:
+                        sampler = emcee.EnsembleSampler(self.nwalkers,
+                                                        self.data.nparams,
+                                                        self.logprob,
+                                                        pool=executor,
+                                                        **ES_args)
+                        sampler.run_mcmc(pos, self.nsteps + self.nburnin,
+                                         **kwargs)
+
+                # Store posterior samples. First, store the samples for each walker:
+                out['posteriors_per_walker'] = sampler.get_chain()
+
+                # And now store posteriors with all walkers flattened out:
+                posterior_samples = sampler.get_chain(discard=self.nburnin,
+                                                      flat=True)
+
+            elif 'zeus' in self.sampler:
+                # Identical implementation to emcee...?
+                # Initiate starting point for each walker. To this end, first load starting values.
+                initial_position = np.array([])
+                for pname in self.model_parameters:
+                    if self.data.priors[pname]['distribution'] != 'fixed':
+                        initial_position = np.append(initial_position, self.posteriors[pname])
+
+                # Perturb initial position for each of the walkers:
+                pos = initial_position + self.emcee_factor * np.random.randn(self.nwalkers, len(initial_position))
+
+                # Before performing the sampling, catch any kwargs that go to EnsembleSampler; rest of kwargs are assumed to go
+                # to run_mcmc:
+                args = zeus.EnsembleSampler.__init__.__code__.co_varnames
+                zeus_args = {}
+                runmcmc_args = {}
+
+                # Match them with kwargs (kwargs take preference):
+                for arg in args:
+                    if arg in kwargs:
+                        zeus_args[arg] = kwargs[arg]
+                        kwargs.pop(arg)
+
+                # Now perform the sampling. If nthreads is defined, parallelize. If not, go the serial way:
+                if self.nthreads is None:
+                    sampler = zeus.EnsembleSampler(self.nwalkers, self.data.nparams, self.logprob, **zeus_args)
                     sampler.run_mcmc(pos, self.nsteps + self.nburnin, **kwargs)
                 else:
                     with contextlib.closing(Pool(processes=self.nthreads-1)) as executor:
-                        sampler = emcee.EnsembleSampler(self.nwalkers, self.data.nparams, self.logprob, pool = executor, **ES_args)
+                        sampler = zeus.EnsembleSampler(self.nwalkers, self.data.nparams, self.logprob, pool = executor, **zeus_args)
                         sampler.run_mcmc(pos, self.nsteps + self.nburnin, **kwargs)
 
                 # Store posterior samples. First, store the samples for each walker:
                 out['posteriors_per_walker'] = sampler.get_chain()
 
                 # And now store posteriors with all walkers flattened out:
-                posterior_samples = sampler.get_chain(discard = self.nburnin, flat = True)
+
+                posterior_samples = sampler.get_chain(discard = self.nburnin, 
+                                                      flat = True)
 
             # Save posterior samples as outputted by Multinest/Dynesty:
             out['posterior_samples'] = {}
             out['posterior_samples']['unnamed'] = posterior_samples
 
             # Save log-likelihood of each of the samples:
-            out['posterior_samples']['loglike'] = np.zeros(posterior_samples.shape[0])
+            out['posterior_samples']['loglike'] = np.zeros(
+                posterior_samples.shape[0])
             for i in range(posterior_samples.shape[0]):
-                out['posterior_samples']['loglike'][i] = self.loglike(posterior_samples[i,:])
+                out['posterior_samples']['loglike'][i] = self.loglike(
+                    posterior_samples[i, :])
 
             pcounter = 0
             for pname in self.model_parameters:
                 if data.priors[pname]['distribution'] != 'fixed':
-                    self.posteriors[pname] = np.median(posterior_samples[:,pcounter])
-                    out['posterior_samples'][pname] = posterior_samples[:,pcounter]
+                    self.posteriors[pname] = np.median(
+                        posterior_samples[:, pcounter])
+                    out['posterior_samples'][
+                        pname] = posterior_samples[:, pcounter]
                     pcounter += 1
 
             # Go through the posterior samples to see if dt or T, the TTV parameters, are present. If they are, add to the posterior dictionary
@@ -1567,54 +1840,73 @@ class fit(object):
                 pvector = posterior_parameter.split('_')
                 if pvector[0] == 'dt':
                     # Extract planet number (pnum, e.g., 'p1'), instrument (ins, e.g., 'TESS') and transit number (tnum, e.g., '-1'):
-                    pnum,ins,tnum = pvector[1:]
+                    pnum, ins, tnum = pvector[1:]
                     # Extract the period; check if it was fitted. If not, assume it was fixed:
-                    if 'P_'+pnum in fitted_parameters:
-                        P = out['posterior_samples']['P_'+pnum]
+                    if 'P_' + pnum in fitted_parameters:
+                        P = out['posterior_samples']['P_' + pnum]
                     else:
-                        P = data.priors['P_'+pnum]['hyperparameters']
+                        P = data.priors['P_' + pnum]['hyperparameters']
                     # Same for t0:
-                    if 't0_'+pnum in fitted_parameters:
-                        t0 = out['posterior_samples']['t0_'+pnum]
+                    if 't0_' + pnum in fitted_parameters:
+                        t0 = out['posterior_samples']['t0_' + pnum]
                     else:
-                        t0 = data.priors['t0_'+pnum]['hyperparameters']
+                        t0 = data.priors['t0_' + pnum]['hyperparameters']
                     # Having extracted P and t0, generate the time-of-transit center for the current transit:
-                    out['posterior_samples']['T_'+pnum+'_'+ins+'_'+tnum] = t0 + np.double(tnum)*P + out['posterior_samples'][posterior_parameter]
+                    out['posterior_samples'][
+                        'T_' + pnum + '_' + ins + '_' +
+                        tnum] = t0 + np.double(tnum) * P + out[
+                            'posterior_samples'][posterior_parameter]
                 if pvector[0] == 'T':
                     if firstTime:
                         Tparametrization = True
                         Tdict = {}
                         firstTime = False
                     # Extract planet number (pnum, e.g., 'p1'), instrument (ins, e.g., 'TESS') and transit number (tnum, e.g., '-1'):
-                    pnum,ins,tnum = pvector[1:]
+                    pnum, ins, tnum = pvector[1:]
                     if pnum not in list(Tdict.keys()):
                         Tdict[pnum] = {}
-                    Tdict[pnum][int(tnum)] = out['posterior_samples'][posterior_parameter]
+                    Tdict[pnum][int(
+                        tnum)] = out['posterior_samples'][posterior_parameter]
             if Tparametrization:
                 for pnum in list(Tdict.keys()):
                     all_ns = np.array(list(Tdict[pnum].keys()))
                     Nsamples = len(Tdict[pnum][all_ns[0]])
-                    out['posterior_samples']['P_'+pnum], out['posterior_samples']['t0_'+pnum] = np.zeros(Nsamples),np.zeros(Nsamples)
+                    out['posterior_samples'][
+                        'P_' + pnum], out['posterior_samples'][
+                            't0_' +
+                            pnum] = np.zeros(Nsamples), np.zeros(Nsamples)
                     N = len(all_ns)
                     for i in range(Nsamples):
                         all_Ts = np.zeros(N)
                         for j in range(len(all_ns)):
                             all_Ts[j] = Tdict[pnum][all_ns[j]][i]
-                        XY,Y,X,X2 = np.sum(all_Ts*all_ns)/N,np.sum(all_Ts)/N,np.sum(all_ns)/N, np.sum(all_ns**2)/N
+                        XY, Y, X, X2 = np.sum(all_Ts * all_ns) / N, np.sum(
+                            all_Ts) / N, np.sum(all_ns) / N, np.sum(all_ns**
+                                                                    2) / N
                         # Get slope:
-                        out['posterior_samples']['P_'+pnum][i] = (XY - X*Y)/(X2 - (X**2))
+                        out['posterior_samples']['P_' +
+                                                 pnum][i] = (XY -
+                                                             X * Y) / (X2 -
+                                                                       (X**2))
                         # Intercept:
-                        out['posterior_samples']['t0_'+pnum][i] = Y - out['posterior_samples']['P_'+pnum][i]*X
+                        out['posterior_samples'][
+                            't0_' +
+                            pnum][i] = Y - out['posterior_samples']['P_' +
+                                                                    pnum][i] * X
             if self.data.t_lc is not None:
                 if True in self.data.lc_options['efficient_bp']:
                     out['pu'] = self.pu
                     out['pl'] = self.pl
             if self.data.t_rv is not None:
-                if self.data.rv_options['fitrvline'] or self.data.rv_options['fitrvquad']:
+                if self.data.rv_options['fitrvline'] or self.data.rv_options[
+                        'fitrvquad']:
                     out['ta'] = self.ta
 
             # Finally, save juliet output to pickle file:
-            pickle.dump(out,open(self.out_folder+self.sampler_prefix+'posteriors.pkl','wb'))
+            pickle.dump(
+                out,
+                open(self.out_folder + self.sampler_prefix + 'posteriors.pkl',
+                     'wb'))
             """
             if 'dynesty' in self.sampler:
                 if (self.sampler == 'dynamic_dynesty') and (self.out_folder is not None):
@@ -1630,39 +1922,71 @@ class fit(object):
             """
         else:
             # If the sampler was already ran, then user really wants to extract outputs from previous fit:
-            print('Detected '+self.sampler+' sampler output files --- extracting from '+self.out_folder+self.sampler_prefix+'posteriors.pkl')
+            print('Detected ' + self.sampler +
+                  ' sampler output files --- extracting from ' +
+                  self.out_folder + self.sampler_prefix + 'posteriors.pkl')
             if self.data.pickle_encoding is None:
-                out = pickle.load(open(self.out_folder+self.sampler_prefix+'posteriors.pkl','rb'))
+                out = pickle.load(
+                    open(
+                        self.out_folder + self.sampler_prefix +
+                        'posteriors.pkl', 'rb'))
             else:
-                out = pickle.load(open(self.out_folder+self.sampler_prefix+'posteriors.pkl','rb'), encoding = self.data.pickle_encoding)
+                out = pickle.load(open(
+                    self.out_folder + self.sampler_prefix + 'posteriors.pkl',
+                    'rb'),
+                                  encoding=self.data.pickle_encoding)
             """
             if (self.use_dynesty) and (self.out_folder is not None):
                 if self.dynamic:
-                    if os.path.exists(self.out_folder+'_dynesty_DNS_posteriors.pkl'):
+                    if os.path.exists(self.out_folder +
+                                      '_dynesty_DNS_posteriors.pkl'):
                         if self.data.verbose:
-                            print('Detected (dynesty) Dynamic NS output files --- extracting...')
+                            print(
+                                'Detected (dynesty) Dynamic NS output files --- extracting...'
+                            )
                         if self.data.pickle_encoding is None:
-                            out = pickle.load(open(self.out_folder+'_dynesty_DNS_posteriors.pkl','rb'))
+                            out = pickle.load(
+                                open(
+                                    self.out_folder +
+                                    '_dynesty_DNS_posteriors.pkl', 'rb'))
                         else:
-                            out = pickle.load(open(self.out_folder+'_dynesty_DNS_posteriors.pkl','rb'), encoding = self.data.pickle_encoding)
+                            out = pickle.load(
+                                open(
+                                    self.out_folder +
+                                    '_dynesty_DNS_posteriors.pkl', 'rb'),
+                                encoding=self.data.pickle_encoding)
                 else:
-                    if os.path.exists(self.out_folder+'_dynesty_NS_posteriors.pkl'):
+                    if os.path.exists(self.out_folder +
+                                      '_dynesty_NS_posteriors.pkl'):
                         if self.data.verbose:
-                            print('Detected (dynesty) NS output files --- extracting...')
+                            print(
+                                'Detected (dynesty) NS output files --- extracting...'
+                            )
                         if self.data.pickle_encoding is None:
-                            out = pickle.load(open(self.out_folder+'_dynesty_NS_posteriors.pkl','rb'))
+                            out = pickle.load(
+                                open(
+                                    self.out_folder +
+                                    '_dynesty_NS_posteriors.pkl', 'rb'))
                         else:
-                            out = pickle.load(open(self.out_folder+'_dynesty_NS_posteriors.pkl','rb'), encoding = self.data.pickle_encoding)
+                            out = pickle.load(
+                                open(
+                                    self.out_folder +
+                                    '_dynesty_NS_posteriors.pkl', 'rb'),
+                                encoding=self.data.pickle_encoding)
             elif self.out_folder is not None:
                 if self.data.verbose:
-                    print('Detected (MultiNest) NS output files --- extracting...')
+                    print(
+                        'Detected (MultiNest) NS output files --- extracting...'
+                    )
                 if self.data.pickle_encoding is None:
                     out = pickle.load(open(self.out_folder+'posteriors.pkl','rb'))
                 else:
                     out = pickle.load(open(self.out_folder+'posteriors.pkl','rb'), encoding = self.data.pickle_encoding)
             """
             if len(out.keys()) == 0:
-                print('Warning: no output generated or extracted. Check the fit options given to juliet.fit().')
+                print(
+                    'Warning: no output generated or extracted. Check the fit options given to juliet.fit().'
+                )
             else:
                 # For retro-compatibility, check for sigma_w_rv_instrument and add an extra variable on out
                 # for sigma_w_instrument:
@@ -1670,26 +1994,28 @@ class fit(object):
                 for pname in out['posterior_samples'].keys():
                     if 'sigma_w_rv' == pname[:10]:
                         instrument = pname.split('_')[-1]
-                        out_temp['sigma_w_'+instrument] = out['posterior_samples'][pname]
+                        out_temp['sigma_w_' +
+                                 instrument] = out['posterior_samples'][pname]
                 for pname in out_temp.keys():
                     out['posterior_samples'][pname] = out_temp[pname]
                 # Extract parameters:
                 for pname in self.posteriors.keys():
                     if data.priors[pname]['distribution'] != 'fixed':
-                        self.posteriors[pname] = np.median(out['posterior_samples'][pname])
+                        self.posteriors[pname] = np.median(
+                            out['posterior_samples'][pname])
                 posterior_samples = out['posterior_samples']['unnamed']
                 if 'pu' in out.keys():
                     self.pu = out['pu']
                     self.pl = out['pl']
-                    self.Ar = (self.pu - self.pl)/(2. + self.pl + self.pu)
+                    self.Ar = (self.pu - self.pl) / (2. + self.pl + self.pu)
                 if 'ta' in out.keys():
                     self.ta = out['ta']
 
         # Either fit done or extracted. If doesn't exist, create the posteriors.dat file:
         if self.out_folder is not None:
-            if not os.path.exists(self.out_folder+'posteriors.dat'):
-                outpp = open(self.out_folder+'posteriors.dat','w')
-                writepp(outpp,out, data.priors)
+            if not os.path.exists(self.out_folder + 'posteriors.dat'):
+                outpp = open(self.out_folder + 'posteriors.dat', 'w')
+                writepp(outpp, out, data.priors)
 
         # Save all results (posteriors) to the self.results object:
         self.posteriors = out
@@ -1699,6 +2025,7 @@ class fit(object):
             self.lc.set_posterior_samples(out['posterior_samples'])
         if self.data.t_rv is not None:
             self.rv.set_posterior_samples(out['posterior_samples'])
+
 
 class model(object):
     """
@@ -1727,18 +2054,19 @@ class model(object):
         models per planet (i.e., ``self.model['p1']``, ``self.model['p2']``, etc. will not exist). Default is False.
 
     """
-    def generate_rv_model(self, parameter_values, evaluate_global_errors = True):
+
+    def generate_rv_model(self, parameter_values, evaluate_global_errors=True):
         self.modelOK = True
         # Before anything continues, check the periods are chronologically ordered (this is to avoid multiple modes due to
         # periods "jumping" between planet numbering):
         first_time = True
         for i in self.numbering:
             if first_time:
-                cP = parameter_values['P_p'+str(i)]
+                cP = parameter_values['P_p' + str(i)]
                 first_time = False
             else:
-                if cP < parameter_values['P_p'+str(i)]:
-                    cP = parameter_values['P_p'+str(i)]
+                if cP < parameter_values['P_p' + str(i)]:
+                    cP = parameter_values['P_p' + str(i)]
                 else:
                     self.modelOK = False
                     return False
@@ -1748,17 +2076,24 @@ class model(object):
             i = self.numbering[n]
 
             # Semi-amplitudes, t0 and P:
-            K, t0, P = parameter_values['K_p'+str(i)], parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)]
+            K, t0, P = parameter_values['K_p' + str(i)], parameter_values[
+                't0_p' + str(i)], parameter_values['P_p' + str(i)]
 
             # Extract eccentricity and omega depending on the used parametrization for each planet:
             if self.dictionary['ecc_parametrization'][i] == 0:
-                ecc,omega = parameter_values['ecc_p'+str(i)], parameter_values['omega_p'+str(i)]*np.pi/180.
+                ecc, omega = parameter_values[
+                    'ecc_p' +
+                    str(i)], parameter_values['omega_p' + str(i)] * np.pi / 180.
             elif self.dictionary['ecc_parametrization'][i] == 1:
-                ecc = np.sqrt(parameter_values['ecosomega_p'+str(i)]**2+parameter_values['esinomega_p'+str(i)]**2)
-                omega = np.arctan2(parameter_values['esinomega_p'+str(i)],parameter_values['ecosomega_p'+str(i)])
+                ecc = np.sqrt(parameter_values['ecosomega_p' + str(i)]**2 +
+                              parameter_values['esinomega_p' + str(i)]**2)
+                omega = np.arctan2(parameter_values['esinomega_p' + str(i)],
+                                   parameter_values['ecosomega_p' + str(i)])
             else:
-                ecc = parameter_values['secosomega_p'+str(i)]**2+parameter_values['sesinomega_p'+str(i)]**2
-                omega = np.arctan2(parameter_values['sesinomega_p'+str(i)],parameter_values['secosomega_p'+str(i)])
+                ecc = parameter_values['secosomega_p' + str(
+                    i)]**2 + parameter_values['sesinomega_p' + str(i)]**2
+                omega = np.arctan2(parameter_values['sesinomega_p' + str(i)],
+                                   parameter_values['secosomega_p' + str(i)])
 
             # Generate lightcurve for the current planet if ecc is OK:
             if ecc > self.ecclim:
@@ -1766,24 +2101,32 @@ class model(object):
                 return False
 
             # Save them to radvel:
-            self.model['radvel']['per'+str(n+1)] = radvel.Parameter(value = P)
-            self.model['radvel']['tc'+str(n+1)] = radvel.Parameter(value = t0)
-            self.model['radvel']['w'+str(n+1)] = radvel.Parameter(value = omega) # note given in radians
-            self.model['radvel']['e'+str(n+1)] = radvel.Parameter(value = ecc)
-            self.model['radvel']['k'+str(n+1)] = radvel.Parameter(value = K)
+            self.model['radvel']['per' + str(n + 1)] = radvel.Parameter(value=P)
+            self.model['radvel']['tc' + str(n + 1)] = radvel.Parameter(value=t0)
+            self.model['radvel']['w' + str(n + 1)] = radvel.Parameter(
+                value=omega)  # note given in radians
+            self.model['radvel']['e' + str(n + 1)] = radvel.Parameter(value=ecc)
+            self.model['radvel']['k' + str(n + 1)] = radvel.Parameter(value=K)
 
         # If log_like_calc is True (by default during juliet.fit), don't bother saving the RVs of planet p_i:
         if self.log_like_calc:
-            self.model['Keplerian'] = radvel.model.RVModel(self.model['radvel']).__call__(self.t)
+            self.model['Keplerian'] = radvel.model.RVModel(
+                self.model['radvel']).__call__(self.t)
         else:
-            self.model['Keplerian'] = radvel.model.RVModel(self.model['radvel']).__call__(self.t)
+            self.model['Keplerian'] = radvel.model.RVModel(
+                self.model['radvel']).__call__(self.t)
             for n in range(self.nplanets):
                 i = self.numbering[n]
-                self.model['p'+str(i)] = radvel.model.RVModel(self.model['radvel']).__call__(self.t,planet_num=n+1)
+                self.model['p' + str(i)] = radvel.model.RVModel(
+                    self.model['radvel']).__call__(self.t, planet_num=n + 1)
 
         # If trends are being fitted, add them to the Keplerian+Trend model:
         if self.dictionary['fitrvline']:
-            self.model['Keplerian+Trend'] = self.model['Keplerian'] + parameter_values['rv_intercept'] + (self.t - self.ta)*parameter_values['rv_slope']
+
+            self.model['Keplerian+Trend'] = self.model[
+                'Keplerian'] + parameter_values['rv_intercept'] + (
+                    self.t - self.ta) * parameter_values['rv_slope']
+
         elif self.dictionary['fitrvquad']:
             self.model['Keplerian+Trend'] = self.model['Keplerian'] + parameter_values['rv_intercept'] + (self.t - self.ta)*parameter_values['rv_slope'] + \
                                                                       ((self.t - self.ta)**2)*parameter_values['rv_quad']
@@ -1792,45 +2135,67 @@ class model(object):
 
         # Populate the self.model[instrument]['deterministic'] array. This hosts the full (deterministic) model for each RV instrument.
         for instrument in self.inames:
-            self.model[instrument]['deterministic'] = self.model['Keplerian+Trend'][self.instrument_indexes[instrument]] + parameter_values['mu_'+instrument]
-            self.model[instrument]['deterministic_variances'] = self.errors[instrument]**2 + parameter_values['sigma_w_'+instrument]**2
+
+            self.model[instrument]['deterministic'] = self.model[
+                'Keplerian+Trend'][self.instrument_indexes[
+                    instrument]] + parameter_values['mu_' + instrument]
+            
+            self.model[instrument]['deterministic_variances'] = self.errors[
+                instrument]**2 + parameter_values['sigma_w_' + instrument]**2
+
             if self.lm_boolean[instrument]:
-                self.model[instrument]['LM'] = np.zeros(self.ndatapoints_per_instrument[instrument])
+                self.model[instrument]['LM'] = np.zeros(
+                    self.ndatapoints_per_instrument[instrument])
                 for i in range(self.lm_n[instrument]):
-                    self.model[instrument]['LM'] += parameter_values['theta'+str(i)+'_'+instrument]*self.lm_arguments[instrument][:,i]
-                self.model[instrument]['deterministic'] += self.model[instrument]['LM']
+                    self.model[instrument]['LM'] += parameter_values[
+                        'theta' + str(i) + '_' +
+                        instrument] * self.lm_arguments[instrument][:, i]
+                self.model[instrument]['deterministic'] += self.model[
+                    instrument]['LM']
             # If the model under consideration is a global model, populate the global model dictionary:
             if self.global_model:
-                self.model['global'][self.instrument_indexes[instrument]] = self.model[instrument]['deterministic']
+                self.model['global'][self.instrument_indexes[
+                    instrument]] = self.model[instrument]['deterministic']
                 if evaluate_global_errors:
                     self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
                                                                                           parameter_values['sigma_w_'+instrument]**2
 
-    def get_GP_plus_deterministic_model(self, parameter_values, instrument = None):
+
+    def get_GP_plus_deterministic_model(self,
+                                        parameter_values,
+                                        instrument=None):
+
         if self.global_model:
             if self.dictionary['global_model']['GPDetrend']:
                 #residuals = self.residuals #self.y - self.model['global']
-                self.dictionary['global_model']['noise_model'].set_parameter_vector(parameter_values)
-                self.dictionary['global_model']['noise_model'].yerr = np.sqrt(self.variances)
-                self.dictionary['global_model']['noise_model'].compute_GP(X = self.original_GPregressors)
+                self.dictionary['global_model'][
+                    'noise_model'].set_parameter_vector(parameter_values)
+                self.dictionary['global_model']['noise_model'].yerr = np.sqrt(
+                    self.variances)
+                self.dictionary['global_model']['noise_model'].compute_GP(
+                    X=self.original_GPregressors)
                 # Return mean signal plus GP model:
                 self.model['GP'] = self.dictionary['global_model']['noise_model'].GP.predict(self.residuals, self.dictionary['global_model']['noise_model'].X, \
                                                                                                    return_var=False, return_cov=False)
-                return self.model['global'], self.model['GP'], self.model['global'] + self.model['GP']
+                return self.model['global'], self.model[
+                    'GP'], self.model['global'] + self.model['GP']
             else:
                 return self.model['global']
         else:
             if self.dictionary[instrument]['GPDetrend']:
                 #residuals = self.residuals#self.data[instrument] - self.model[instrument]['deterministic']
-                self.dictionary[instrument]['noise_model'].set_parameter_vector(parameter_values)
+                self.dictionary[instrument]['noise_model'].set_parameter_vector(
+                    parameter_values)
                 self.model[instrument]['GP'] = self.dictionary[instrument]['noise_model'].GP.predict(self.residuals,self.dictionary[instrument]['noise_model'].X, \
                                                return_var=False, return_cov=False)
-                return self.model[instrument]['deterministic'], self.model[instrument]['GP'], self.model[instrument]['deterministic'] + self.model[instrument]['GP']
+                return self.model[instrument]['deterministic'], self.model[
+                    instrument]['GP'], self.model[instrument][
+                        'deterministic'] + self.model[instrument]['GP']
             else:
                 return self.model[instrument]['deterministic']
 
-    def evaluate_model(self, instrument = None, parameter_values = None, resampling = None, nresampling = None, etresampling = None, \
-                          all_samples = False, nsamples = 1000, return_samples = False, t = None, GPregressors = None, LMregressors = None, \
+    def evaluate_model(self, instrument = None, parameter_values = None,
+                          all_samples = False, nsamples = 1000, return_samples = False, t = None, GPregressors = None, LMregressors = None,
                           return_err = False, alpha = 0.68, return_components = False, evaluate_transit = False):
         """
         This function evaluates the current lc or rv model given a set of posterior distribution samples and/or parameter values. Example usage:
@@ -1852,15 +2217,6 @@ class model(object):
         Dictionary containing samples of the posterior distribution or, more generally, parameter valuesin it. Each key is a parameter name (e.g. 'p_p1',
         'q1_TESS', etc.), and inside each of those keys an array of N samples is expected (i.e., parameter_values['p_p1'] is an array of length N). The
         indexes have to be consistent between different parameters.
-
-        :param resampling: (optional, boolean)
-        Boolean indicating if the model needs to be resampled or not. Only works for lightcurves.
-
-        :param nresampling: (optional, int)
-        Number of points to resample for a given time-stamp. Only used if resampling = True. Only applicable to lightcurves.
-
-        :param etresampling: (optional, double)
-        Exposure time of the resampling (same unit as times). Only used if resampling = True. Only applicable to lightcurves.
 
         :param all_samples: (optional, boolean)
         If True, all posterior samples will be used to evaluate the model. Default is False.
@@ -1900,7 +2256,9 @@ class model(object):
         """
         if evaluate_transit:
             if self.modeltype != 'lc':
-                raise Exception("Trying to evaluate a transit (evaluate_transit = True) in a non-lightcurve model is not allowed.")
+                raise Exception(
+                    "Trying to evaluate a transit (evaluate_transit = True) in a non-lightcurve model is not allowed."
+                )
 
             # Save LM and GP booleans, turn them off:
             true_lm_boolean = self.lm_boolean[instrument]
@@ -1915,15 +2273,28 @@ class model(object):
         # If no instrument is given, assume user wants a global model evaluation:
         if instrument is None:
             if not self.global_model:
-                raise Exception("Input error: an instrument has to be defined for non-global models in order to evaluate the model.")
+                raise Exception(
+                    "Input error: an instrument has to be defined for non-global models in order to evaluate the model."
+                )
 
-        if (resampling is not None) and (self.modeltype == 'lc') and (instrument is not None):
-            if resampling:
-                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                 nresampling = nresampling,\
-                                                                                                 etresampling = etresampling)
-            else:
-                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+        if self.modeltype == 'lc':
+
+            nresampling = self.dictionary[instrument].get('nresampling')
+            etresampling = self.dictionary[instrument].get('exptimeresampling')
+        
+            if self.dictionary[instrument]['TransitFit']:
+            
+                self.model[instrument]['params'], [self.model[instrument]['m'],_] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                                nresampling=nresampling, etresampling=etresampling)
+            elif self.dictionary[instrument]['EclipseFit']:
+              
+                self.model[instrument]['params'], [_,self.model[instrument]['m']] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                                nresampling=nresampling, etresampling=etresampling)
+                
+            elif self.dictionary[instrument]['TranEclFit']:
+              
+                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                                nresampling=nresampling, etresampling=etresampling)
 
         # Save the original inames in the case of non-global models, and set self.inames to the input model. This is because if the model
         # is not global, in general we don't care about generating the models for the other instruments (and in the lightcurve and RV evaluation part,
@@ -1956,24 +2327,30 @@ class model(object):
                     nsamples = nsampled
                     idx_samples = np.arange(nsamples)
                 else:
-                    idx_samples = np.random.choice(np.arange(nsampled),np.min([nsamples,nsampled]),replace=False)
+                    idx_samples = np.random.choice(np.arange(nsampled),
+                                                   np.min([nsamples, nsampled]),
+                                                   replace=False)
                     idx_samples = idx_samples[np.argsort(idx_samples)]
 
-                # Create the output_model arrays: these will save on each iteration the full model (lc/rv + GP, output_model_samples),
-                # the GP-only model (GP, output_modelGP_samples) and the lc/rv-only model (lc/rv, output_modelDET_samples) --- the latter ones
+                # Create the output_model arrays: these will save on each iteration the full model (lc/rv + GP, output_model_samples), 
+                # the GP-only model (GP, output_modelGP_samples) and the lc/rv-only model (lc/rv, output_modelDET_samples) --- the latter ones 
                 # will make sense only if there is a GP model. If not, it will be a zero-array throughout the evaluation process:
                 if t is None:
                     # If user did not give input times, then output samples follow the times on which the model was fitted:
                     if self.global_model:
-                        output_model_samples = np.zeros([nsamples,self.ndatapoints_all_instruments])
+                        output_model_samples = np.zeros(
+                            [nsamples, self.ndatapoints_all_instruments])
                     else:
-                        output_model_samples = np.zeros([nsamples,self.ndatapoints_per_instrument[instrument]])
+                        output_model_samples = np.zeros([
+                            nsamples,
+                            self.ndatapoints_per_instrument[instrument]
+                        ])
                 else:
                     # If user gave input times (usually extrapolating from the times the model was fitted on), then
                     # save the number of points in this input array:
                     nt = len(t)
                     # And modify the length of the output samples, which will now be a matrix with dimensions (number of samples, input times):
-                    output_model_samples = np.zeros([nsamples,nt])
+                    output_model_samples = np.zeros([nsamples, nt])
                     if self.global_model:
                         # If model is global, it means there is an underlying global noise model, so we have to evaluate the model in *all* the instruments
                         # because the GP component is only extractable once we have the full residuals. Because of this, we generate dictionaries that save
@@ -1982,14 +2359,17 @@ class model(object):
                         # predictions):
                         nt_original, original_instrument_times = {}, {}
                         for ginstrument in instruments:
-                            nt_original[ginstrument] = len(self.times[ginstrument])
-                            original_instrument_times[ginstrument] = np.copy(self.times[ginstrument])
+                            nt_original[ginstrument] = len(
+                                self.times[ginstrument])
+                            original_instrument_times[ginstrument] = np.copy(
+                                self.times[ginstrument])
                     else:
                         # If model is not global, we don't care about generating the model for all the instruments --- we do it only for the instrument
                         # of interest. In this case, the nt_original and original_instrument_times are not dictionaries but "simple" arrays saving the
                         # number of datapoints for that instrument and the times for that instrument.
                         nt_original = len(self.times[instrument])
-                        original_instrument_times = np.copy(self.times[instrument])
+                        original_instrument_times = np.copy(
+                            self.times[instrument])
                     if self.modeltype == 'lc':
                         # If we are trying to evaluate a lightcurve mode then, again what we do will depend depending if this is a global model or not. In both,
                         # the idea is to save the lightcurve generating objects both using the input times and the original times:
@@ -1998,23 +2378,84 @@ class model(object):
                             # then generate the model-generating objects for those instruments using both the input times and the model-fit times. Save
                             # those in dictionaries:
                             for ginstrument in instruments:
-                                if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']:
+
+                                if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman'] or self.dictionary[ginstrument]['EclipseFit'] or self.dictionary[ginstrument]['TranEclFit']:
+    
+                                    nresampling = self.dictionary[ginstrument].get('nresampling')
+                                    etresampling = self.dictionary[ginstrument].get('exptimeresampling')
+                                    supersample_params, supersample_m = {}, {}
+                                    sample_params, sample_m = {}, {}
+            
                                     if not self.dictionary[ginstrument]['TransitFitCatwoman']:
-                                        supersample_params[ginstrument],supersample_m[ginstrument] = init_batman(t, self.dictionary[ginstrument]['ldlaw'])
-                                        sample_params[ginstrument],sample_m[ginstrument] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
+                
+                                        if self.dictionary[ginstrument]['TransitFit']:
+                
+                                            supersample_params[ginstrument],[supersample_m[ginstrument],_] = init_batman(t, self.dictionary[ginstrument]['ldlaw'],
+                                                                                                                         nresampling=nresampling, etresampling=etresampling)
+                                            sample_params[ginstrument],[sample_m[ginstrument],_] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'],
+                                                                                                               nresampling=nresampling, etresampling=etresampling)
+                    
+                                        elif self.dictionary[ginstrument]['EclipseFit']:
+                        
+                                            supersample_params[ginstrument],[_,supersample_m[ginstrument]] = init_batman(t, self.dictionary[ginstrument]['ldlaw'],
+                                                                                                                         nresampling=nresampling, etresampling=etresampling)
+                                            sample_params[ginstrument],[_,sample_m[ginstrument]] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'],
+                                                                                                               nresampling=nresampling, etresampling=etresampling)
+                            
+                                        elif self.dictionary[ginstrument]['TranEclFit']:
+                                
+                                            supersample_params[ginstrument],supersample_m[ginstrument] = init_batman(t, self.dictionary[ginstrument]['ldlaw'],
+                                                                                                                     nresampling=nresampling, etresampling=etresampling)
+                                            sample_params[ginstrument],sample_m[ginstrument] = init_batman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'],
+                                                                                                           nresampling=nresampling, etresampling=etresampling)                     
+                        
+
                                     else:
-                                        supersample_params[ginstrument],supersample_m[ginstrument] = init_catwoman(t, self.dictionary[ginstrument]['ldlaw'])
-                                        sample_params[ginstrument],sample_m[ginstrument] = init_catwoman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'])
+                                        supersample_params[ginstrument],supersample_m[ginstrument] = init_catwoman(t, self.dictionary[ginstrument]['ldlaw'],
+                                                                                                                   nresampling=nresampling, etresampling=etresampling)
+                                        sample_params[ginstrument],sample_m[ginstrument] = init_catwoman(self.times[ginstrument], self.dictionary[ginstrument]['ldlaw'],
+                                                                                                         nresampling=nresampling, etresampling=etresampling)
                         else:
                             # If model is not global, the variables saved are not dictionaries but simply the objects, as we are just going to evaluate the
                             # model for one dataset (the one of the input instrument):
-                            if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman']:
+
+                            if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+    
+                                nresampling = self.dictionary[instrument].get('nresampling')
+                                etresampling = self.dictionary[instrument].get('exptimeresampling')
+        
                                 if not self.dictionary[instrument]['TransitFitCatwoman']:
-                                    supersample_params,supersample_m = init_batman(t, self.dictionary[instrument]['ldlaw'])
-                                    sample_params,sample_m = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+            
+                                    if self.dictionary[instrument]['TransitFit']:
+
+                                        supersample_params,[supersample_m,_] = init_batman(t, self.dictionary[instrument]['ldlaw'],
+                                                                                           nresampling=nresampling, etresampling=etresampling)
+
+                                        sample_params,[sample_m,_] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                 nresampling=nresampling, etresampling=etresampling)
+                    
+                                    elif self.dictionary[instrument]['EclipseFit']:
+
+                                         supersample_params,[_,supersample_m] = init_batman(t, self.dictionary[instrument]['ldlaw'],
+                                                                                            nresampling=nresampling, etresampling=etresampling)
+
+                                         sample_params,[_,sample_m] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                  nresampling=nresampling, etresampling=etresampling)
+                            
+                                    elif self.dictionary[instrument]['TranEclFit']:
+
+                                        supersample_params,supersample_m = init_batman(t, self.dictionary[instrument]['ldlaw'],
+                                                                                       nresampling=nresampling, etresampling=etresampling)
+
+                                        sample_params,sample_m = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                             nresampling=nresampling, etresampling=etresampling)
+
                                 else:
-                                    supersample_params,supersample_m = init_catwoman(t, self.dictionary[instrument]['ldlaw'])
-                                    sample_params,sample_m = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                                    supersample_params,supersample_m = init_catwoman(t, self.dictionary[instrument]['ldlaw'],
+                                                                                     nresampling=nresampling, etresampling=etresampling)
+                                    sample_params,sample_m = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                           nresampling=nresampling, etresampling=etresampling)
+
                     else:
                         # If we are trying to evaluate radial-velocities, we don't need to generate objects because radvel receives the times as inputs
                         # on each call. In this case then we save the original times (self.t has *all* the times of all the instruments) and instrument
@@ -2022,11 +2463,13 @@ class model(object):
                         original_t = np.copy(self.t)
                         if self.global_model:
                             # If global model, copy all the possible instrument indexes to the original_instrument_indexes:
-                            original_instrument_indexes = self.instrument_indexes.copy()
+                            original_instrument_indexes = self.instrument_indexes.copy(
+                            )
                         else:
                             # If not global, assume indexes for selected instrument are all the user-inputted t's. Also, save only the instrument
                             # indexes corresponding to the instrument of interest. The others don't matter so we don't save them:
-                            original_instrument_index = self.instrument_indexes[instrument]
+                            original_instrument_index = self.instrument_indexes[
+                                instrument]
                         dummy_indexes = np.arange(len(t))
                 # Fill the components dictionary in case return_components is true; use the output_model_samples for the size of each component array.
                 # If global model, and the model being evaluated is a lightcurve, remember to give back one planet component per instrument because
@@ -2035,33 +2478,43 @@ class model(object):
                 if return_components:
                     for i in self.numbering:
                         if self.global_model and self.modeltype == 'lc':
-                            components['p'+str(i)] = {}
+                            components['p' + str(i)] = {}
                             for ginstrument in instruments:
-                                components['p'+str(i)][ginstrument] = np.zeros(output_model_samples.shape)
+                                components['p' +
+                                           str(i)][ginstrument] = np.zeros(
+                                               output_model_samples.shape)
                         else:
-                            components['p'+str(i)] = np.zeros(output_model_samples.shape)
+                            components['p' + str(i)] = np.zeros(
+                                output_model_samples.shape)
                     if self.global_model:
                         components['lm'] = {}
                         for ginstrument in instruments:
-                            components['lm'][ginstrument] = np.zeros(output_model_samples.shape)
+                            components['lm'][ginstrument] = np.zeros(
+                                output_model_samples.shape)
                     else:
                         components['lm'] = np.zeros(output_model_samples.shape)
                     if self.modeltype == 'lc':
                         if self.global_model:
                             components['transit'] = {}
                             for ginstrument in instruments:
-                                components['transit'][ginstrument] = np.zeros(output_model_samples.shape)
+                                components['transit'][ginstrument] = np.zeros(
+                                    output_model_samples.shape)
                         else:
-                            components['transit'] = np.zeros(output_model_samples.shape)
+                            components['transit'] = np.zeros(
+                                output_model_samples.shape)
                     else:
+
                         components['keplerian'] = np.zeros(output_model_samples.shape)
                         components['trend'] = np.zeros(output_model_samples.shape)
+
                         if self.global_model:
                             components['mu'] = {}
                             for ginstrument in instruments:
-                                components['mu'][ginstrument] = np.zeros(output_model_samples.shape[0])
+                                components['mu'][ginstrument] = np.zeros(
+                                    output_model_samples.shape[0])
                         else:
-                            components['mu'] = np.zeros(output_model_samples.shape[0])
+                            components['mu'] = np.zeros(
+                                output_model_samples.shape[0])
 
                 # IF GP detrend, there is an underlying GP being applied. Generate arrays that will save the GP and deterministic component:
                 if self.global_model:
@@ -2080,6 +2533,7 @@ class model(object):
                 # which are fixed:
                 for parameter in parameters:
                     if self.priors[parameter]['distribution'] == 'fixed':
+
                         current_parameter_values[parameter] = self.priors[parameter]['hyperparameters']
 
                 # If extrapolating the model, save the current GPregressors and current linear
@@ -2091,19 +2545,29 @@ class model(object):
                 # fit (to generate the residuals) and on the input regressors to this function (to generate predictions):
                 if t is not None:
                     if self.global_model:
-                        original_lm_arguments  = np.copy(self.lm_arguments)
+                        original_lm_arguments = np.copy(self.lm_arguments)
                         if self.dictionary['global_model']['GPDetrend']:
-                            self.original_GPregressors = np.copy(self.dictionary['global_model']['noise_model'].X)
-                            self.dictionary['global_model']['noise_model'].X = GPregressors
+                            self.original_GPregressors = np.copy(
+                                self.dictionary['global_model']
+                                ['noise_model'].X)
+                            self.dictionary['global_model'][
+                                'noise_model'].X = GPregressors
                             if GPregressors is None:
-                                raise Exception("\t Gobal model has a GP, and requires a GPregressors to be inputted to be evaluated.")
+                                raise Exception(
+                                    "\t Gobal model has a GP, and requires a GPregressors to be inputted to be evaluated."
+                                )
                     else:
                         if self.dictionary[instrument]['GPDetrend']:
-                            self.dictionary[instrument]['noise_model'].X = GPregressors
+                            self.dictionary[instrument][
+                                'noise_model'].X = GPregressors
                             if GPregressors is None:
-                                raise Exception("\t Model for instrument "+instrument+" has a GP, and requires a GPregressors to be inputted to be evaluated.")
+                                raise Exception(
+                                    "\t Model for instrument " + instrument +
+                                    " has a GP, and requires a GPregressors to be inputted to be evaluated."
+                                )
                         if self.lm_boolean[instrument]:
-                            original_lm_arguments  = np.copy(self.lm_arguments[instrument])
+                            original_lm_arguments = np.copy(
+                                self.lm_arguments[instrument])
 
                 # Now iterate through all samples:
                 counter = 0
@@ -2111,20 +2575,24 @@ class model(object):
                     # Get parameters for the i-th sample:
                     for parameter in input_parameters:
                         # Populate the current parameter_values
-                        current_parameter_values[parameter] = parameter_values[parameter][i]
+                        current_parameter_values[parameter] = parameter_values[
+                            parameter][i]
 
                     # Evaluate rv/lightcurve at the current parameter values, calculate residuals, save them:
                     if self.modeltype == 'lc':
-                        self.generate_lc_model(current_parameter_values, evaluate_lc = True)
+                        self.generate_lc_model(current_parameter_values,
+                                               evaluate_lc=True)
                     else:
-                        self.generate_rv_model(current_parameter_values, evaluate_global_errors = True)
+                        self.generate_rv_model(current_parameter_values,
+                                               evaluate_global_errors=True)
 
                     # Save residuals (and global errors, in the case of global models):
                     if self.global_model:
                         self.residuals = self.y - self.model['global']
                         self.variances = self.model['global_variances']
                     else:
-                        self.residuals = self.data[instrument] - self.model[instrument]['deterministic']
+                        self.residuals = self.data[instrument] - self.model[
+                            instrument]['deterministic']
 
                     # If extrapolating (t is not None), evaluate the extrapolated model with a lightcurve/rv model
                     # considering the input times and not the current dataset times:
@@ -2133,27 +2601,44 @@ class model(object):
                             if self.global_model:
                                 # If global model, set all super-sample objects to evaluate at the input times:
                                 for ginstrument in instruments:
-                                    if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']:
+
+                                    if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman'] or self.dictionary[ginstrument]['EclipseFit'] or self.dictionary[ginstrument]['TranEclFit']:
                                         self.model[ginstrument]['params'], self.model[ginstrument]['m'] = supersample_params[ginstrument],supersample_m[ginstrument]
+
                                     if self.lm_boolean[ginstrument]:
-                                        self.lm_arguments[ginstrument] = LMregressors[ginstrument]
-                                    self.model[ginstrument]['ones'] = np.ones(nt)
-                                    self.ndatapoints_per_instrument[ginstrument] = nt
-                                    self.instrument_indexes[ginstrument] = dummy_indexes
+                                        self.lm_arguments[
+                                            ginstrument] = LMregressors[
+                                                ginstrument]
+                                    self.model[ginstrument]['ones'] = np.ones(
+                                        nt)
+                                    self.ndatapoints_per_instrument[
+                                        ginstrument] = nt
+                                    self.instrument_indexes[
+                                        ginstrument] = dummy_indexes
                                 original_inames = np.copy(self.inames)
                                 self.inames = [instrument]
-                                self.generate_lc_model(current_parameter_values, evaluate_global_errors = False, evaluate_lc = True)
+                                self.generate_lc_model(
+                                    current_parameter_values,
+                                    evaluate_global_errors=False,
+                                    evaluate_lc=True)
                                 self.inames = original_inames
                             else:
                                 # If not, set them only for the instrument of interest:
-                                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman']:
+
+                                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
                                     self.model[instrument]['params'], self.model[instrument]['m'] = supersample_params,supersample_m
+
                                 if self.lm_boolean[instrument]:
                                     self.lm_arguments[instrument] = LMregressors
                                 self.model[instrument]['ones'] = np.ones(nt)
                                 self.ndatapoints_per_instrument[instrument] = nt
                                 # Generate lightcurve model:
-                                self.generate_lc_model(current_parameter_values, evaluate_global_errors = False, evaluate_lc = True)
+
+                                self.generate_lc_model(
+                                    current_parameter_values,
+                                    evaluate_global_errors=False,
+                                    evaluate_lc=True)
+
                         else:
                             # As with the lc case, RV model set-up depends on whether the model is global or not:
                             self.t = t
@@ -2164,21 +2649,29 @@ class model(object):
                                 self.model['global'] = np.ones(len(t))
                                 for ginstrument in instruments:
                                     if self.lm_boolean[ginstrument]:
-                                        self.lm_arguments[ginstrument] = LMregressors[ginstrument]
+                                        self.lm_arguments[
+                                            ginstrument] = LMregressors[
+                                                ginstrument]
                                     self.times[ginstrument] = t
-                                    self.instrument_indexes[ginstrument] = dummy_indexes
+                                    self.instrument_indexes[
+                                        ginstrument] = dummy_indexes
                                 # Generate RV model only for the instrument under consideration:
                                 original_inames = np.copy(self.inames)
                                 self.inames = [instrument]
-                                self.generate_rv_model(current_parameter_values, evaluate_global_errors = False)
+                                self.generate_rv_model(
+                                    current_parameter_values,
+                                    evaluate_global_errors=False)
                                 self.inames = original_inames
                             else:
                                 self.times[instrument] = t
-                                self.instrument_indexes[instrument] = dummy_indexes
+                                self.instrument_indexes[
+                                    instrument] = dummy_indexes
                                 if self.lm_boolean[instrument]:
                                     self.lm_arguments[instrument] = LMregressors
                                 # Generate RV model:
-                                self.generate_rv_model(current_parameter_values, evaluate_global_errors = False)
+                                self.generate_rv_model(
+                                    current_parameter_values,
+                                    evaluate_global_errors=False)
 
                     if self.global_model:
                         if self.dictionary['global_model']['GPDetrend']:
@@ -2209,60 +2702,96 @@ class model(object):
                                 for ginstrument in instruments:
                                     transit = 0.
                                     for i in self.numbering:
-                                        components['p'+str(i)][ginstrument][counter,:] = self.model[ginstrument]['p'+str(i)]
-                                        transit += (components['p'+str(i)][ginstrument][counter,:] - 1.)
-                                    components['transit'][ginstrument][counter,:] = 1. + transit
+                                        components['p' + str(i)][ginstrument][
+                                            counter, :] = self.model[
+                                                ginstrument]['p' + str(i)]
+                                        transit += (components['p' + str(i)]
+                                                    [ginstrument][counter, :] -
+                                                    1.)
+                                    components['transit'][ginstrument][
+                                        counter, :] = 1. + transit
                             else:
                                 transit = 0.
                                 for i in self.numbering:
-                                    components['p'+str(i)][counter,:] = self.model[instrument]['p'+str(i)]
-                                    transit += (components['p'+str(i)][counter,:] - 1.)
-                                components['transit'][counter,:] = 1. + transit
+                                    components['p' + str(i)][
+                                        counter, :] = self.model[instrument][
+                                            'p' + str(i)]
+                                    transit += (
+                                        components['p' + str(i)][counter, :] -
+                                        1.)
+                                components['transit'][counter, :] = 1. + transit
                         else:
+                          
                             for i in self.numbering:
+
                                 components['p'+str(i)][counter,:] = self.model['p'+str(i)]
+                                
                             components['trend'][counter,:] = self.model['Keplerian+Trend'] - self.model['Keplerian']
                             components['keplerian'][counter,:] = self.model['Keplerian']
+
                             if self.global_model:
                                 for ginstrument in instruments:
-                                    components['mu'][ginstrument][counter] = current_parameter_values['mu_'+ginstrument]
+                                    components['mu'][ginstrument][
+                                        counter] = current_parameter_values[
+                                            'mu_' + ginstrument]
                             else:
-                                components['mu'][counter] = current_parameter_values['mu_'+instrument]
+                                components['mu'][
+                                    counter] = current_parameter_values[
+                                        'mu_' + instrument]
                         if self.global_model:
                             for ginstrument in instruments:
                                 if self.lm_boolean[ginstrument]:
-                                    components['lm'][ginstrument][counter,:] = self.model[ginstrument]['LM']
+                                    components['lm'][ginstrument][
+                                        counter, :] = self.model[ginstrument][
+                                            'LM']
                         else:
                             if self.lm_boolean[instrument]:
-                                components['lm'][counter,:] = self.model[instrument]['LM']
+                                components['lm'][
+                                    counter, :] = self.model[instrument]['LM']
 
                     # Rollback in case t is not None:
                     if t is not None:
                         if self.global_model:
-                            self.instrument_indexes = original_instrument_indexes.copy()
+                            self.instrument_indexes = original_instrument_indexes.copy(
+                            )
                             for ginstrument in instruments:
-                                self.times[ginstrument] = original_instrument_times[ginstrument]
+                                self.times[
+                                    ginstrument] = original_instrument_times[
+                                        ginstrument]
                                 if self.modeltype == 'lc':
-                                    if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman']:
+
+                                    if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman'] or self.dictionary[ginstrument]['EclipseFit'] or self.dictionary[ginstrument]['TranEclFit']:
                                         self.model[ginstrument]['params'], self.model[ginstrument]['m'] = sample_params[ginstrument],sample_m[ginstrument]
+
                                     if self.lm_boolean[ginstrument]:
-                                        self.lm_arguments[ginstrument] = original_lm_arguments[ginstrument]
-                                    self.model[ginstrument]['ones'] = np.ones(nt_original[ginstrument])
+                                        self.lm_arguments[
+                                            ginstrument] = original_lm_arguments[
+                                                ginstrument]
+                                    self.model[ginstrument]['ones'] = np.ones(
+                                        nt_original[ginstrument])
                                 else:
                                     self.t = original_t
-                                    self.model['global'] = np.ones(len(original_t))
-                                self.ndatapoints_per_instrument[ginstrument] = nt_original[ginstrument]
+                                    self.model['global'] = np.ones(
+                                        len(original_t))
+                                self.ndatapoints_per_instrument[
+                                    ginstrument] = nt_original[ginstrument]
                         else:
                             self.times[instrument] = original_instrument_times
                             if self.modeltype == 'lc':
-                                if self.dictionary[instrument]['TransitFit']:
+
+                                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
                                     self.model[instrument]['params'], self.model[instrument]['m'] = sample_params,sample_m
+
                                 if self.lm_boolean[instrument]:
-                                    self.lm_arguments[instrument] = original_lm_arguments
-                                self.model[instrument]['ones'] = np.ones(nt_original)
+                                    self.lm_arguments[
+                                        instrument] = original_lm_arguments
+                                self.model[instrument]['ones'] = np.ones(
+                                    nt_original)
                             else:
                                 self.t = original_t
+
                                 self.instrument_indexes[instrument] = original_instrument_index
+                                
                             self.ndatapoints_per_instrument[instrument] = nt_original
 
                     counter += 1
@@ -2279,14 +2808,25 @@ class model(object):
                             mGP_output_model, uGP_output_model, lGP_output_model = np.copy(m_output_model), np.copy(u_output_model), \
                                                                                    np.copy(l_output_model)
                         for i in range(output_model_samples.shape[1]):
-                            m_output_model[i], u_output_model[i], l_output_model[i] = get_quantiles(output_model_samples[:,i], alpha = alpha)
+                            m_output_model[i], u_output_model[
+                                i], l_output_model[i] = get_quantiles(
+                                    output_model_samples[:, i], alpha=alpha)
                             if self.dictionary['global_model']['GPDetrend']:
-                                mDET_output_model[i], uDET_output_model[i], lDET_output_model[i] = get_quantiles(output_modelDET_samples[:,i], alpha = alpha)
-                                mGP_output_model[i], uGP_output_model[i], lGP_output_model[i] = get_quantiles(output_modelGP_samples[:,i], alpha = alpha)
+                                mDET_output_model[i], uDET_output_model[
+                                    i], lDET_output_model[i] = get_quantiles(
+                                        output_modelDET_samples[:, i],
+                                        alpha=alpha)
+                                mGP_output_model[i], uGP_output_model[
+                                    i], lGP_output_model[i] = get_quantiles(
+                                        output_modelGP_samples[:, i],
+                                        alpha=alpha)
                         if self.dictionary['global_model']['GPDetrend']:
-                            self.model['deterministic'], self.model['GP'] = mDET_output_model, mGP_output_model
-                            self.model['deterministic_uerror'], self.model['GP_uerror'] = uDET_output_model, uGP_output_model
-                            self.model['deterministic_lerror'], self.model['GP_lerror'] = lDET_output_model, lGP_output_model
+                            self.model['deterministic'], self.model[
+                                'GP'] = mDET_output_model, mGP_output_model
+                            self.model['deterministic_uerror'], self.model[
+                                'GP_uerror'] = uDET_output_model, uGP_output_model
+                            self.model['deterministic_lerror'], self.model[
+                                'GP_lerror'] = lDET_output_model, lGP_output_model
                     else:
                         if self.dictionary[instrument]['GPDetrend']:
                             mDET_output_model, uDET_output_model, lDET_output_model = np.copy(m_output_model), np.copy(u_output_model), \
@@ -2295,48 +2835,67 @@ class model(object):
                             mGP_output_model, uGP_output_model, lGP_output_model = np.copy(m_output_model), np.copy(u_output_model), \
                                                                                    np.copy(l_output_model)
                         for i in range(output_model_samples.shape[1]):
-                            m_output_model[i], u_output_model[i], l_output_model[i] = get_quantiles(output_model_samples[:,i], alpha = alpha)
+                          
+                            m_output_model[i], u_output_model[
+                                i], l_output_model[i] = get_quantiles(
+                                    output_model_samples[:, i], alpha=alpha)
+                            
                             if self.dictionary[instrument]['GPDetrend']:
+
                                 mDET_output_model[i], uDET_output_model[i], lDET_output_model[i] = get_quantiles(output_modelDET_samples[:,i], alpha = alpha)
                                 mGP_output_model[i], uGP_output_model[i], lGP_output_model[i] = get_quantiles(output_modelGP_samples[:,i], alpha = alpha)
+                                
                         if self.dictionary[instrument]['GPDetrend']:
+                          
                             self.model[instrument]['deterministic'], self.model[instrument]['GP'] = mDET_output_model, mGP_output_model
                             self.model[instrument]['deterministic_uerror'], self.model[instrument]['GP_uerror'] = uDET_output_model, uGP_output_model
                             self.model[instrument]['deterministic_lerror'], self.model[instrument]['GP_lerror'] = lDET_output_model, lGP_output_model
+
                 else:
-                    output_model = np.median(output_model_samples,axis=0)
+                    output_model = np.nanmedian(output_model_samples, axis=0)
                     if self.global_model:
                         if self.dictionary['global_model']['GPDetrend']:
-                            self.model['deterministic'], self.model['GP'] = np.median(output_modelDET_samples,axis=0), \
-                                                                            np.median(output_modelGP_samples,axis=0)
+                            self.model['deterministic'], self.model['GP'] = np.nanmedian(output_modelDET_samples,axis=0), \
+                                                                            np.nanmedian(output_modelGP_samples,axis=0)
                     else:
                         if self.dictionary[instrument]['GPDetrend']:
-                            self.model[instrument]['deterministic'], self.model[instrument]['GP'] = np.median(output_modelDET_samples,axis=0), \
-                                                                                          np.median(output_modelGP_samples,axis=0)
+                            self.model[instrument]['deterministic'], self.model[instrument]['GP'] = np.nanmedian(output_modelDET_samples,axis=0), \
+                                                                                          np.nanmedian(output_modelGP_samples,axis=0)
 
                 # If return_components is true, generate the median models for each part of the full model:
                 if return_components:
+
                     if self.modeltype == 'lc':
+                      
                         if self.global_model:
+                          
                             for k in components.keys():
                                 for ginstrument in instruments:
                                     components[k][ginstrument] = np.median(components[k][ginstrument],axis=0)
+                                    
                         else:
+                          
                             for k in components.keys():
                                 components[k] = np.median(components[k],axis=0)
                     else:
+                      
                         for i in self.numbering:
                             components['p'+str(i)] = np.median(components['p'+str(i)], axis = 0)
+                            
                         components['trend'] = np.median(components['trend'], axis = 0)
                         components['keplerian'] = np.median(components['keplerian'], axis = 0)
+                        
                         if self.global_model:
                             for ginstrument in instruments:
                                 components['mu'][ginstrument] = np.median(components['mu'][ginstrument])
+
                         else:
-                            components['mu'] = np.median(components['mu'], axis=0)
+                            components['mu'] = np.median(components['mu'],
+                                                             axis=0)
             else:
+              
                 if self.modeltype == 'lc':
-                    self.generate_lc_model(parameter_values,evaluate_lc = True)
+                    self.generate_lc_model(parameter_values, evaluate_lc=True)
                 else:
                     self.generate_rv_model(parameter_values)
 
@@ -2344,56 +2903,78 @@ class model(object):
                     self.residuals = self.y - self.model['global']
                     self.variances = self.model['global_variances']
                     if self.dictionary['global_model']['GPDetrend']:
-                        self.model['deterministic'], self.model['GP'], output_model = self.get_GP_plus_deterministic_model(parameter_values)
+                        self.model['deterministic'], self.model[
+                            'GP'], output_model = self.get_GP_plus_deterministic_model(
+                                parameter_values)
                     else:
-                        output_model = self.get_GP_plus_deterministic_model(parameter_values)
+                        output_model = self.get_GP_plus_deterministic_model(
+                            parameter_values)
                     if return_components:
                         if self.modeltype == 'lc':
                             for ginstrument in instruments:
                                 transit = 0.
                                 for i in self.numbering:
-                                    components['p'+str(i)][ginstrument] = self.model[ginstrument]['p'+str(i)]
-                                    transit += (components['p'+str(i)][ginstrument] - 1.)
-                                components['transit'][ginstrument] = 1. + transit
+                                    components['p' + str(i)][
+                                        ginstrument] = self.model[ginstrument][
+                                            'p' + str(i)]
+                                    transit += (
+                                        components['p' + str(i)][ginstrument] -
+                                        1.)
+                                components['transit'][
+                                    ginstrument] = 1. + transit
                         else:
                             for i in self.numbering:
-                                components['p'+str(i)] = self.model['p'+str(i)]
-                            components['trend'] = self.model['Keplerian+Trend'] - self.model['Keplerian']
+                                components['p' + str(i)] = self.model['p' +
+                                                                      str(i)]
+                            components['trend'] = self.model[
+                                'Keplerian+Trend'] - self.model['Keplerian']
                             components['keplerian'] = self.model['Keplerian']
                             for ginstrument in instruments:
-                                components['mu'][ginstrument] = parameter_values['mu_'+instrument]
+                                components['mu'][
+                                    ginstrument] = parameter_values['mu_' +
+                                                                    instrument]
                         for ginstrument in instruments:
                             if self.lm_boolean[ginstrument]:
-                                components['lm'][ginstrument] = self.model[ginstrument]['LM']
+                                components['lm'][ginstrument] = self.model[
+                                    ginstrument]['LM']
                 else:
-                    self.residuals = self.data[instrument] - self.model[instrument]['deterministic']
+                    self.residuals = self.data[instrument] - self.model[
+                        instrument]['deterministic']
                     if self.dictionary[instrument]['GPDetrend']:
-                        self.model['deterministic'], self.model['GP'], output_model = self.get_GP_plus_deterministic_model(parameter_values, instrument = instrument)
+                        self.model['deterministic'], self.model[
+                            'GP'], output_model = self.get_GP_plus_deterministic_model(
+                                parameter_values, instrument=instrument)
                     else:
-                        output_model = self.get_GP_plus_deterministic_model(parameter_values, instrument = instrument)
+                        output_model = self.get_GP_plus_deterministic_model(
+                            parameter_values, instrument=instrument)
                     if return_components:
                         if self.modeltype == 'lc':
 
                             transit = 0.
                             for i in self.numbering:
-                                components['p'+str(i)] = self.model[instrument]['p'+str(i)]
-                                transit += (components['p'+str(i)] - 1.)
+                                components['p' +
+                                           str(i)] = self.model[instrument][
+                                               'p' + str(i)]
+                                transit += (components['p' + str(i)] - 1.)
                             components['transit'] = 1. + transit
                         else:
                             for i in self.numbering:
-                                components['p'+str(i)] = self.model['p'+str(i)]
-                            components['trend'] = self.model['Keplerian+Trend'] - self.model['Keplerian']
+                                components['p' + str(i)] = self.model['p' +
+                                                                      str(i)]
+                            components['trend'] = self.model[
+                                'Keplerian+Trend'] - self.model['Keplerian']
                             components['keplerian'] = self.model['Keplerian']
-                            components['mu'] = parameter_values['mu_'+instrument]
+                            components['mu'] = parameter_values['mu_' +
+                                                                instrument]
                         if self.lm_boolean[instrument]:
                             components['lm'] = self.model[instrument]['LM']
         else:
 
-            x = self.evaluate_model(instrument = instrument, parameter_values = self.posteriors, resampling = resampling, \
-                                              nresampling = nresampling, etresampling = etresampling, all_samples = all_samples, \
-                                              nsamples = nsamples, return_samples = return_samples, t = t, GPregressors = GPregressors, \
-                                              LMregressors = LMregressors, return_err = return_err, return_components = return_components, alpha = alpha, \
+            x = self.evaluate_model(instrument = instrument, parameter_values = self.posteriors, all_samples = all_samples,
+                                              nsamples = nsamples, return_samples = return_samples, t = t, GPregressors = GPregressors,
+                                              LMregressors = LMregressors, return_err = return_err, return_components = return_components, alpha = alpha,
                                               evaluate_transit = evaluate_transit)
+            
             if return_samples:
                 if return_err:
                     if return_components:
@@ -2402,9 +2983,9 @@ class model(object):
                         output_model_samples, m_output_model, u_output_model, l_output_model = x
                 else:
                     if return_components:
-                        output_model_samples,output_model,components = x
+                        output_model_samples, output_model, components = x
                     else:
-                        output_model_samples,output_model = x
+                        output_model_samples, output_model = x
             else:
                 if return_err:
                     if return_components:
@@ -2417,22 +2998,13 @@ class model(object):
                     else:
                         output_model = x
 
-        if (resampling is not None) and (self.modeltype == 'lc') and (instrument is not None):
-             # get lc, return, then turn all back to normal:
-             if self.dictionary[instrument]['resampling']:
-                 self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                  nresampling = self.dictionary[instrument]['nresampling'],\
-                                                                                                  etresampling = self.dictionary[instrument]['exptimeresampling'])
-             else:
-                 self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'])
-
         if not self.global_model:
             # Return original inames back in case of non-global models:
             self.inames = original_inames
 
         if evaluate_transit:
             # Turn LM and GPs back on:
-            self.lm_boolean[instrument] =true_lm_boolean
+            self.lm_boolean[instrument] = true_lm_boolean
             if self.global_model:
                 self.dictionary['global_model']['GPDetrend'] = true_gp_boolean
             else:
@@ -2446,9 +3018,9 @@ class model(object):
                     return output_model_samples, m_output_model, u_output_model, l_output_model
             else:
                 if return_components:
-                    return output_model_samples,output_model, components
+                    return output_model_samples, output_model, components
                 else:
-                    return output_model_samples,output_model
+                    return output_model_samples, output_model
         else:
             if return_err:
                 if return_components:
@@ -2461,54 +3033,77 @@ class model(object):
                 else:
                     return output_model
 
-    def generate_lc_model(self, parameter_values, evaluate_global_errors = True, evaluate_lc = False):
+    def generate_lc_model(self,
+                          parameter_values,
+                          evaluate_global_errors=True,
+                          evaluate_lc=False):
         self.modelOK = True
         # If TTV parametrization is 'T' for planet i, store transit times. Check only if the noTflag is False (which implies
         # at least one planet uses the T-parametrization):
         if self.Tflag:
-            planet_t0,planet_P = {},{}
+            planet_t0, planet_P = {}, {}
             all_Ts, all_ns = {}, {}
             for i in self.numbering:
                 if self.Tparametrization[i]:
                     all_Ts[i], all_ns[i] = np.array([]), np.array([])
                     for instrument in self.inames:
-                        for transit_number in self.dictionary[instrument]['TTVs'][int(i)]['transit_number']:
-                            all_Ts[i] = np.append(all_Ts[i], parameter_values['T_p'+str(i)+'_'+instrument+'_'+str(transit_number)])
+                        for transit_number in self.dictionary[instrument][
+                                'TTVs'][int(i)]['transit_number']:
+                            all_Ts[i] = np.append(
+                                all_Ts[i],
+                                parameter_values['T_p' + str(i) + '_' +
+                                                 instrument + '_' +
+                                                 str(transit_number)])
                             all_ns[i] = np.append(all_ns[i], transit_number)
                     # If evaluate_lc flag is on, this means user is evaluating lightcurve. Here we do some tricks as to only evaluate
                     # models in the user-defined instrument (to speed up evaluation), so in that case we use the posterior t0 and P
                     # actually taken from the T-samples:
                     if not evaluate_lc:
-                        XY,Y,X,X2 = np.sum(all_Ts[i]*all_ns[i])/self.N_TTVs[i],np.sum(all_Ts[i])/self.N_TTVs[i],np.sum(all_ns[i])/self.N_TTVs[i], np.sum(all_ns[i]**2)/self.N_TTVs[i]
+                        XY, Y, X, X2 = np.sum(
+                            all_Ts[i] * all_ns[i]) / self.N_TTVs[i], np.sum(
+                                all_Ts[i]) / self.N_TTVs[i], np.sum(
+                                    all_ns[i]) / self.N_TTVs[i], np.sum(
+                                        all_ns[i]**2) / self.N_TTVs[i]
                         # Get slope:
-                        planet_P[i] = (XY - X*Y)/(X2 - (X**2))
+                        planet_P[i] = (XY - X * Y) / (X2 - (X**2))
                         # Intercept:
-                        planet_t0[i] = Y - planet_P[i]*X
+                        planet_t0[i] = Y - planet_P[i] * X
                     else:
+
                         planet_t0[i], planet_P[i] = parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)]
+
         # Start loop to populate the self.model[instrument]['deterministic_model'] array, which will host the complete lightcurve for a given
         # instrument (including flux from all the planets). Do the for loop per instrument for the parameter extraction, so in the
         # future we can do, e.g., wavelength-dependant rp/rs.
         for instrument in self.inames:
             # Set full array to ones by copying:
-            self.model[instrument]['M'] = np.copy(self.model[instrument]['ones'])
+            self.model[instrument]['M'] = np.copy(
+                self.model[instrument]['ones'])
             # If transit fit is on, then model the transit lightcurve:
-            if self.dictionary[instrument]['TransitFit']:
+            if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
                 # Extract and set the limb-darkening coefficients for the instrument:
-                if self.dictionary[instrument]['ldlaw'] != 'linear':
+                if self.dictionary[instrument]['ldlaw'] != 'linear' and self.dictionary[instrument]['ldlaw'] != 'none':
                     coeff1, coeff2 = reverse_ld_coeffs(self.dictionary[instrument]['ldlaw'], parameter_values['q1_'+self.ld_iname[instrument]],\
                                                        parameter_values['q2_'+self.ld_iname[instrument]])
+                elif self.dictionary[instrument]['ldlaw'] == 'none':
+                    coeff1, coeff2 = 0.1, 0.3
                 else:
-                    coeff1 = parameter_values['q1_'+self.ld_iname[instrument]]
+                    coeff1 = parameter_values['q1_' + self.ld_iname[instrument]]
 
                 # First (1) check if TTV mode is activated. If it is not, simply save the sampled planet periods and time-of transit centers for check
                 # in the next round of iteration (see below). If it is, depending on the parametrization, either shift the time-indexes accordingly (see below
                 # comments for details).
                 cP, ct0 = {}, {}
                 for i in self.numbering:
+                    ###
+                    if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+                        fp = parameter_values['fp_p' + str(i)]
+                        ac = parameter_values['ac_p' + str(i)]
+                    ###
                     # Check if we will be fitting for TTVs. If not, all goes as usual. If we are, check which parametrization (dt or T):
                     if not self.dictionary[instrument]['TTVs'][i]['status']:
-                        t0, P = parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)]
+                        t0, P = parameter_values[
+                            't0_p' + str(i)], parameter_values['P_p' + str(i)]
                         cP[i], ct0[i] = P, t0
                     else:
                         # If TTVs is on for planet i, compute the expected time of transit, and shift it. For this, use information encoded in the prior
@@ -2518,32 +3113,55 @@ class model(object):
                         # model assuming that time-of-transit; repeat for all the transits. Generally users will not do TTV analyses, so set this latter
                         # case to be the most common one by default in the if-statement:
                         dummy_time = np.copy(self.times[instrument])
-                        if self.dictionary[instrument]['TTVs'][i]['parametrization'] == 'dt':
-                            t0, P = parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)]
+                        if self.dictionary[instrument]['TTVs'][i][
+                                'parametrization'] == 'dt':
+                            t0, P = parameter_values[
+                                't0_p' + str(i)], parameter_values['P_p' +
+                                                                   str(i)]
                             cP[i], ct0[i] = P, t0
-                            for transit_number in self.dictionary[instrument]['TTVs'][int(i)]['transit_number']:
-                                transit_time = t0 + transit_number*P + parameter_values['dt_p'+str(i)+'_'+instrument+'_'+str(transit_number)]
+                            for transit_number in self.dictionary[instrument][
+                                    'TTVs'][int(i)]['transit_number']:
+                                transit_time = t0 + transit_number * P + parameter_values[
+                                    'dt_p' + str(i) + '_' + instrument + '_' +
+                                    str(transit_number)]
                                 # This implicitly sets maximum transit duration to P/2 days:
-                                idx = np.where(np.abs(self.times[instrument]-transit_time)<P/4.)[0]
-                                dummy_time[idx] = self.times[instrument][idx] - parameter_values['dt_p'+str(i)+'_'+instrument+'_'+str(transit_number)]
+                                idx = np.where(
+                                    np.abs(self.times[instrument] -
+                                           transit_time) < P / 4.)[0]
+                                dummy_time[idx] = self.times[instrument][
+                                    idx] - parameter_values['dt_p' + str(i) +
+                                                            '_' + instrument +
+                                                            '_' +
+                                                            str(transit_number)]
                         else:
                             t0, P = planet_t0[i], planet_P[i]
-                            for transit_number in self.dictionary[instrument]['TTVs'][int(i)]['transit_number']:
-                                dt = parameter_values['T_p'+str(i)+'_'+instrument+'_'+str(transit_number)] - (t0 + transit_number*P)
+                            for transit_number in self.dictionary[instrument][
+                                    'TTVs'][int(i)]['transit_number']:
+                                dt = parameter_values[
+                                    'T_p' + str(i) + '_' + instrument + '_' +
+                                    str(transit_number)] - (t0 +
+                                                            transit_number * P)
                                 # This implicitly sets maximum transit duration to P/2 days:
-                                idx = np.where(np.abs(self.times[instrument]-parameter_values['T_p'+str(i)+'_'+instrument+'_'+str(transit_number)])<P/4.)[0]
-                                dummy_time[idx] = self.times[instrument][idx] - dt
+                                idx = np.where(
+                                    np.abs(self.times[instrument] -
+                                           parameter_values[
+                                               'T_p' + str(i) + '_' +
+                                               instrument + '_' +
+                                               str(transit_number)]) < P /
+                                    4.)[0]
+                                dummy_time[
+                                    idx] = self.times[instrument][idx] - dt
                             cP[i], ct0[i] = P, t0
                 # Whether there are TTVs or not, and before anything continues, check the periods are chronologically ordered (this is to avoid multiple modes
                 # due to periods "jumping" between planet numbering):
                 first_time = True
                 for i in self.numbering:
                     if first_time:
-                        ccP = cP[i]#parameter_values['P_p'+str(i)]
+                        ccP = cP[i]  #parameter_values['P_p'+str(i)]
                         first_time = False
                     else:
-                        if ccP < cP[i]:#parameter_values['P_p'+str(i)]:
-                            ccP = cP[i]#parameter_values['P_p'+str(i)]
+                        if ccP < cP[i]:  #parameter_values['P_p'+str(i)]:
+                            ccP = cP[i]  #parameter_values['P_p'+str(i)]
                         else:
                             self.modelOK = False
                             return False
@@ -2558,7 +3176,8 @@ class model(object):
                         else:
                             rho,r1,r2 = parameter_values['rho'], parameter_values['r1_p'+str(i)],\
                                         parameter_values['r2_p'+str(i)]
-                            a = ((rho*G*((P*24.*3600.)**2))/(3.*np.pi))**(1./3.)
+                            a = ((rho * G * ((P * 24. * 3600.)**2)) /
+                                 (3. * np.pi))**(1. / 3.)
                         if r1 > self.Ar:
                             b,p = (1+self.pl)*(1. + (r1-1.)/(1.-self.Ar)),\
                                   (1-r2)*self.pl + r2*self.pu
@@ -2566,92 +3185,162 @@ class model(object):
                             b,p = (1. + self.pl) + np.sqrt(r1/self.Ar)*r2*(self.pu-self.pl),\
                                   self.pu + (self.pl-self.pu)*np.sqrt(r1/self.Ar)*(1.-r2)
                     else:
-                       if not self.dictionary['fitrho']:
-                           if not self.dictionary[instrument]['TransitFitCatwoman']:
-                               a,b,p = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
-                                       parameter_values['p_p'+str(i)]
-                           else:
-                               a,b,p1,p2,phi = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
-                                            parameter_values['p1_p'+str(i)], parameter_values['p2_p'+str(i)], \
-                                            parameter_values['phi_p'+str(i)]
-                               p = np.min([p1,p2])
-                       else:
-                           if not self.dictionary[instrument]['TransitFitCatwoman']:
+                        if not self.dictionary['fitrho']:
+                            if not self.dictionary[instrument][
+                                    'TransitFitCatwoman']:
+                                a,b,p = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
+                                        parameter_values['p_p'+str(i)]
+                            else:
+                                a,b,p1,p2,phi = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
+                                             parameter_values['p1_p'+str(i)], parameter_values['p2_p'+str(i)], \
+                                             parameter_values['phi_p'+str(i)]
+                                p = np.min([p1, p2])
+                        else:
+                            if not self.dictionary[instrument][
+                                    'TransitFitCatwoman']:
                                 rho,b,p = parameter_values['rho'], parameter_values['b_p'+str(i)],\
                                           parameter_values['p_p'+str(i)]
-                           else:
+                            else:
                                 rho,b,p1,p2,phi = parameter_values['rho'], parameter_values['b_p'+str(i)],\
                                                parameter_values['p1_p'+str(i)], parameter_values['p2_p'+str(i)],\
                                                parameter_values['phi_p'+str(i)]
-                                p = np.min([p1,p2])
-                           a = ((rho*G*((P*24.*3600.)**2))/(3.*np.pi))**(1./3.)
+                                p = np.min([p1, p2])
+                            a = ((rho * G * ((P * 24. * 3600.)**2)) /
+                                 (3. * np.pi))**(1. / 3.)
 
                     # Now extract eccentricity and omega depending on the used parametrization for each planet:
                     if self.dictionary['ecc_parametrization'][i] == 0:
-                        ecc,omega = parameter_values['ecc_p'+str(i)], parameter_values['omega_p'+str(i)]
+                        ecc, omega = parameter_values[
+                            'ecc_p' + str(i)], parameter_values['omega_p' +
+                                                                str(i)]
                     elif self.dictionary['ecc_parametrization'][i] == 1:
-                        ecc = np.sqrt(parameter_values['ecosomega_p'+str(i)]**2+parameter_values['esinomega_p'+str(i)]**2)
-                        omega = np.arctan2(parameter_values['esinomega_p'+str(i)],parameter_values['ecosomega_p'+str(i)])*180./np.pi
+                        ecc = np.sqrt(
+                            parameter_values['ecosomega_p' + str(i)]**2 +
+                            parameter_values['esinomega_p' + str(i)]**2)
+                        omega = np.arctan2(
+                            parameter_values['esinomega_p' + str(i)],
+                            parameter_values['ecosomega_p' +
+                                             str(i)]) * 180. / np.pi
                     else:
-                        ecc = parameter_values['secosomega_p'+str(i)]**2+parameter_values['sesinomega_p'+str(i)]**2
-                        omega = np.arctan2(parameter_values['sesinomega_p'+str(i)],parameter_values['secosomega_p'+str(i)])*180./np.pi
+                        ecc = parameter_values['secosomega_p' +
+                                               str(i)]**2 + parameter_values[
+                                                   'sesinomega_p' + str(i)]**2
+                        omega = np.arctan2(
+                            parameter_values['sesinomega_p' + str(i)],
+                            parameter_values['secosomega_p' +
+                                             str(i)]) * 180. / np.pi
 
                     # Generate lightcurve for the current planet if ecc is OK:
                     if ecc > self.ecclim:
                         self.modelOK = False
                         return False
                     else:
-                        ecc_factor = (1. + ecc*np.sin(omega * np.pi/180.))/(1. - ecc**2)
-                        inc_inv_factor = (b/a)*ecc_factor
-                        if not (b>1.+p or inc_inv_factor >=1.):
+                        ecc_factor = (1. + ecc * np.sin(omega * np.pi / 180.)
+                                     ) / (1. - ecc**2)
+                        inc_inv_factor = (b / a) * ecc_factor
+                        if not (b > 1. + p or inc_inv_factor >= 1.):
                             self.model[instrument]['params'].t0 = t0
                             self.model[instrument]['params'].per = P
                             self.model[instrument]['params'].a = a
+
                             self.model[instrument]['params'].inc = np.arccos(inc_inv_factor)*180./np.pi
                             self.model[instrument]['params'].ecc = ecc
                             self.model[instrument]['params'].w = omega
+
+                            if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+                                self.model[instrument]['params'].fp = fp
+                                self.model[instrument]['params'].ac = ac
+
                             if not self.dictionary[instrument]['TransitFitCatwoman']:
+
                                 self.model[instrument]['params'].rp = p
+                                
                             else:
+                              
                                 self.model[instrument]['params'].rp = p1
                                 self.model[instrument]['params'].rp2 = p2
                                 self.model[instrument]['params'].phi = phi
+                                
                             if self.dictionary[instrument]['ldlaw'] != 'linear':
-                               self.model[instrument]['params'].u = [coeff1, coeff2]
+                              
+                                self.model[instrument]['params'].u = [
+                                    coeff1, coeff2
+                                ]
+                                
                             else:
-                               self.model[instrument]['params'].u = [coeff1]
+
+                                self.model[instrument]['params'].u = [coeff1]
+
                             # If TTVs is on for planet i, compute the expected time of transit, and shift it. For this, use information encoded in the prior
                             # name; if, e.g., dt_p1_TESS1_-2, then n = -2 and the time of transit (with TTV) = t0 + n*P + dt_p1_TESS1_-2. Compute transit
                             # model assuming that time-of-transit; repeat for all the transits. Generally users will not do TTV analyses, so set this latter
                             # case to be the most common one by default in the if-statement:
-                            if not self.dictionary[instrument]['TTVs'][i]['status']:
+                            if not self.dictionary[instrument]['TTVs'][i][
+                                    'status']:
                                 # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
                                 if self.log_like_calc:
-                                    self.model[instrument]['M'] += self.model[instrument]['m'].light_curve(self.model[instrument]['params']) - 1.
+
+                                    if not self.dictionary[instrument]['TranEclFit']:
+                                        self.model[instrument]['M'] += self.model[instrument]['m'].light_curve(self.model[instrument]['params']) - 1.
+                                    else:
+                                        self.model[instrument]['M'] += (self.model[instrument]['m'][0].light_curve(self.model[instrument]['params']) * self.model[instrument]['m'][1].light_curve(self.model[instrument]['params'])) - 1.
                                 else:
-                                    self.model[instrument]['p'+str(i)] = self.model[instrument]['m'].light_curve(self.model[instrument]['params'])
-                                    self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
+                                    if not self.dictionary[instrument]['TranEclFit']:
+                                        self.model[instrument]['p'+str(i)] = self.model[instrument]['m'].light_curve(self.model[instrument]['params'])
+                                        self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
+                                    else:
+                                        self.model[instrument]['p'+str(i)] = self.model[instrument]['m'][0].light_curve(self.model[instrument]['params']) * self.model[instrument]['m'][1].light_curve(self.model[instrument]['params'])
+                                        self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
                             else:
                                 if not self.dictionary[instrument]['TransitFitCatwoman']:
                                     if self.dictionary[instrument]['resampling']:
-                                        pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'], \
-                                                                 nresampling = self.dictionary[instrument]['nresampling'], \
-                                                                 etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                        if self.dictionary[instrument]['TransitFit']:
+                                            pm, [m,_] = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'], \
+                                                                    nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                    etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                        elif self.dictionary[instrument]['EclipseFit']:
+                                            pm, [_,m] = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'],\
+                                                                    nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                    etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                        elif self.dictionary[instrument]['TranEclFit']:
+                                            pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'],\
+                                                                    nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                    etresampling = self.dictionary[instrument]['exptimeresampling'])
                                     else:
-                                        pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                        if self.dictionary[instrument]['TransitFit']:
+                                            pm, [m,_] = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                        elif self.dictionary[instrument]['EclipseFit']:
+                                            pm, [_,m] = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                        elif self.dictionary[instrument]['TranEclFit']:
+                                            pm, m = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
+
                                 else:
-                                    if self.dictionary[instrument]['resampling']:
+                                    if self.dictionary[instrument][
+                                            'resampling']:
                                         pm, m = init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'], \
                                                                  nresampling = self.dictionary[instrument]['nresampling'], \
                                                                  etresampling = self.dictionary[instrument]['exptimeresampling'])
                                     else:
-                                        pm, m = init_catwoman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                        pm, m = init_catwoman(
+                                            dummy_time,
+                                            self.dictionary[instrument]
+                                            ['ldlaw'])
                                 # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
                                 if self.log_like_calc:
-                                    self.model[instrument]['M'] += m.light_curve(self.model[instrument]['params']) - 1.
+                                  
+                                    if not self.dictionary[instrument]['TranEclFit']:
+                                        self.model[instrument]['M'] += m.light_curve(self.model[instrument]['params']) - 1. 
+                                    else:
+                                        self.model[instrument]['M'] += (m[0].light_curve(self.model[instrument]['params']) * m[1].light_curve(self.model[instrument]['params'])) - 1. 
+                                        
                                 else:
-                                    self.model[instrument]['p'+str(i)] = m.light_curve(self.model[instrument]['params'])
-                                    self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
+                                  
+                                    if not self.dictionary[instrument]['TranEclFit']:
+                                        self.model[instrument]['p'+str(i)] = m.light_curve(self.model[instrument]['params'])
+                                        self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1. 
+                                    else:
+                                        self.model[instrument]['p'+str(i)] = m[0].light_curve(self.model[instrument]['params']) * m[1].light_curve(self.model[instrument]['params'])
+                                        self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1. 
 
                         else:
                             self.modelOK = False
@@ -2659,70 +3348,107 @@ class model(object):
 
             # Once either the transit model is generated or after populating the full_model with ones if no transit fit is on,
             # convert the lightcurve so it complies with the juliet model accounting for the dilution and the mean out-of-transit flux:
-            D, M = parameter_values['mdilution_'+self.mdilution_iname[instrument]], parameter_values['mflux_'+instrument]
-            self.model[instrument]['M'] = (self.model[instrument]['M']*D + (1. - D))*(1./(1. + D*M))
+            D, M = parameter_values[
+                'mdilution_' +
+                self.mdilution_iname[instrument]], parameter_values['mflux_' +
+                                                                    instrument]
+            self.model[instrument]['M'] = (self.model[instrument]['M'] * D +
+                                           (1. - D)) * (1. / (1. + D * M))
 
             # Now, if a linear model was defined, generate it and add it to the full model:
             if self.lm_boolean[instrument]:
-                self.model[instrument]['LM'] = np.zeros(self.ndatapoints_per_instrument[instrument])
+                self.model[instrument]['LM'] = np.zeros(
+                    self.ndatapoints_per_instrument[instrument])
                 for i in range(self.lm_n[instrument]):
-                    self.model[instrument]['LM'] += parameter_values['theta'+str(i)+'_'+instrument]*self.lm_arguments[instrument][:,i]
-                self.model[instrument]['deterministic'] = self.model[instrument]['M'] + self.model[instrument]['LM']
+                    self.model[instrument]['LM'] += parameter_values[
+                        'theta' + str(i) + '_' +
+                        instrument] * self.lm_arguments[instrument][:, i]
+                self.model[instrument]['deterministic'] = self.model[
+                    instrument]['M'] + self.model[instrument]['LM']
             else:
-                self.model[instrument]['deterministic'] = self.model[instrument]['M']
-            self.model[instrument]['deterministic_variances'] = self.errors[instrument]**2 + (parameter_values['sigma_w_'+instrument]*1e-6)**2
+                self.model[instrument]['deterministic'] = self.model[
+                    instrument]['M']
+            self.model[instrument][
+                'deterministic_variances'] = self.errors[instrument]**2 + (
+                    parameter_values['sigma_w_' + instrument] * 1e-6)**2
             # Finally, if the model under consideration is a global model, populate the global model dictionary:
             if self.global_model:
-                self.model['global'][self.instrument_indexes[instrument]] = self.model[instrument]['deterministic']
+                self.model['global'][self.instrument_indexes[
+                    instrument]] = self.model[instrument]['deterministic']
                 if evaluate_global_errors:
                     self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
                                                                                           (parameter_values['sigma_w_'+instrument]*1e-6)**2
+
     def gaussian_log_likelihood(self, residuals, variances):
-        taus = 1./variances
-        return -0.5*(len(residuals)*log2pi+np.sum(-np.log(taus.astype(float))+taus*(residuals**2)))
+
+        taus = 1. / variances
+        return -0.5 * (len(residuals) * log2pi + np.sum(-np.log(taus.astype(float)) + taus * (residuals**2)))
 
     def get_log_likelihood(self, parameter_values):
         if self.global_model:
             residuals = self.y - self.model['global']
             if self.dictionary['global_model']['GPDetrend']:
-                self.dictionary['global_model']['noise_model'].set_parameter_vector(parameter_values)
-                self.dictionary['global_model']['noise_model'].yerr = np.sqrt(self.model['global_variances'])
+                self.dictionary['global_model'][
+                    'noise_model'].set_parameter_vector(parameter_values)
+                self.dictionary['global_model']['noise_model'].yerr = np.sqrt(
+                    self.model['global_variances'])
                 self.dictionary['global_model']['noise_model'].compute_GP()
-                return self.dictionary['global_model']['noise_model'].GP.log_likelihood(residuals)
+                return self.dictionary['global_model'][
+                    'noise_model'].GP.log_likelihood(residuals)
             else:
-                self.gaussian_log_likelihood(residuals,self.model['global_variances'])
+                self.gaussian_log_likelihood(residuals,
+                                             self.model['global_variances'])
         else:
             log_like = 0.0
 
             for instrument in self.inames:
-                residuals = self.data[instrument] - self.model[instrument]['deterministic']
+                residuals = self.data[instrument] - self.model[instrument][
+                    'deterministic']
                 if self.dictionary[instrument]['GPDetrend']:
-                    self.dictionary[instrument]['noise_model'].set_parameter_vector(parameter_values)
+                    self.dictionary[instrument][
+                        'noise_model'].set_parameter_vector(parameter_values)
                     # Catch possible GP evaluation errors:
                     try:
-                        log_like += self.dictionary[instrument]['noise_model'].GP.log_likelihood(residuals)
+                        log_like += self.dictionary[instrument][
+                            'noise_model'].GP.log_likelihood(residuals)
                     except:
                         log_like = -np.inf
                         break
                 else:
-                    log_like += self.gaussian_log_likelihood(residuals,self.model[instrument]['deterministic_variances'])
+
+                    log_like += self.gaussian_log_likelihood(
+                        residuals,
+                        self.model[instrument]['deterministic_variances'])
+
             return log_like
 
     def set_posterior_samples(self, posterior_samples):
         self.posteriors = posterior_samples
         self.median_posterior_samples = {}
         for parameter in self.posteriors.keys():
-            if parameter is not 'unnamed':
+
+            if parameter != 'unnamed':
                 self.median_posterior_samples[parameter] = np.median(self.posteriors[parameter])
+
         for parameter in self.priors:
             if self.priors[parameter]['distribution'] == 'fixed':
-                self.median_posterior_samples[parameter] = self.priors[parameter]['hyperparameters']
+                self.median_posterior_samples[parameter] = self.priors[
+                    parameter]['hyperparameters']
         try:
             self.generate(self.median_posterior_samples)
         except:
-            print('Warning: model evaluated at the posterior median did not compute properly.')
+            print(
+                'Warning: model evaluated at the posterior median did not compute properly.'
+            )
 
-    def __init__(self, data, modeltype, pl = 0.0, pu = 1.0, ecclim = 1., ta = 2458460., log_like_calc = False):
+    def __init__(self,
+                 data,
+                 modeltype,
+                 pl=0.0,
+                 pu=1.0,
+                 ecclim=1.,
+                 ta=2458460.,
+                 log_like_calc=False):
         # Inhert the priors dictionary from data:
         self.priors = data.priors
         # Define the ecclim value:
@@ -2762,7 +3488,7 @@ class model(object):
             self.lm_n = {}
             self.pl = pl
             self.pu = pu
-            self.Ar = (self.pu - self.pl)/(2. + self.pl + self.pu)
+            self.Ar = (self.pu - self.pl) / (2. + self.pl + self.pu)
             self.global_model = data.global_lc_model
             self.dictionary = data.lc_options
             self.numbering = data.numbering_transiting_planets
@@ -2777,7 +3503,7 @@ class model(object):
             # If limb-darkening or dilution factors will be shared by different instruments, set the correct variable name for each:
             self.ld_iname = {}
             self.mdilution_iname = {}
-            self.ndatapoints_all_instruments = 0.
+            self.ndatapoints_all_instruments = 0
             # Variable that turns to false only if there are no TTVs. Otherwise, always positive:
             self.Tflag = False
             # Variable that sets the total number of transit times in the whole dataset:
@@ -2789,66 +3515,97 @@ class model(object):
             for instrument in self.inames:
                 for pi in self.numbering:
                     if self.dictionary[instrument]['TTVs'][pi]['status']:
-                        if self.dictionary[instrument]['TTVs'][pi]['parametrization'] == 'T':
+                        if self.dictionary[instrument]['TTVs'][pi][
+                                'parametrization'] == 'T':
                             self.Tparametrization[pi] = True
                             self.Tflag = True
-                        self.N_TTVs[pi] += self.dictionary[instrument]['TTVs'][pi]['totalTTVtransits']
+                        self.N_TTVs[pi] += self.dictionary[instrument]['TTVs'][
+                            pi]['totalTTVtransits']
                 self.model[instrument] = {}
                 # Extract number of datapoints per instrument:
-                self.ndatapoints_per_instrument[instrument] = len(self.instrument_indexes[instrument])
-                self.ndatapoints_all_instruments += self.ndatapoints_per_instrument[instrument]
+                self.ndatapoints_per_instrument[instrument] = len(
+                    self.instrument_indexes[instrument])
+                self.ndatapoints_all_instruments += self.ndatapoints_per_instrument[
+                    instrument]
                 # Extract number of linear model terms per instrument:
                 if self.lm_boolean[instrument]:
-                    self.lm_n[instrument] = self.lm_arguments[instrument].shape[1]
+                    self.lm_n[instrument] = self.lm_arguments[instrument].shape[
+                        1]
                 # An array of ones to copy around:
-                self.model[instrument]['ones'] = np.ones(len(self.instrument_indexes[instrument]))
+
+                self.model[instrument]['ones'] = np.ones( len(self.instrument_indexes[instrument]) )
+
                 # Generate internal model variables of interest to the user. First, the lightcurve model in the notation of juliet (Mi)
                 # (full lightcurve plus dilution factors and mflux):
-                self.model[instrument]['M'] = np.ones(len(self.instrument_indexes[instrument]))
+                self.model[instrument]['M'] = np.ones(
+                    len(self.instrument_indexes[instrument]))
                 # Linear model (in the notation of juliet, LM):
-                self.model[instrument]['LM'] = np.zeros(len(self.instrument_indexes[instrument]))
+                self.model[instrument]['LM'] = np.zeros(
+                    len(self.instrument_indexes[instrument]))
                 # Now, generate dictionary that will save the final full, deterministic model (M + LM):
-                self.model[instrument]['deterministic'] = np.zeros(len(self.instrument_indexes[instrument]))
+                self.model[instrument]['deterministic'] = np.zeros(
+                    len(self.instrument_indexes[instrument]))
                 # Same for the errors:
-                self.model[instrument]['deterministic_errors'] = np.zeros(len(self.instrument_indexes[instrument]))
-                if self.dictionary[instrument]['TransitFit']:
+
+                self.model[instrument]['deterministic_errors'] = np.zeros( len(self.instrument_indexes[instrument]) )
+                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+
                     # First, take the opportunity to initialize transit lightcurves for each instrument:
                     if self.dictionary[instrument]['resampling']:
                         if not self.dictionary[instrument]['TransitFitCatwoman']:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                         nresampling = self.dictionary[instrument]['nresampling'],\
-                                                                                                         etresampling = self.dictionary[instrument]['exptimeresampling'])
+                            if self.dictionary[instrument]['TransitFit']:
+                                self.model[instrument]['params'], [self.model[instrument]['m'],_] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
+                                                                                                            nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                            etresampling = self.dictionary[instrument]['exptimeresampling'])
+                            elif self.dictionary[instrument]['EclipseFit']:
+                                self.model[instrument]['params'], [_,self.model[instrument]['m']] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'], \
+                                                                                                            nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                            etresampling = self.dictionary[instrument]['exptimeresampling'])
+                            elif self.dictionary[instrument]['TranEclFit']:
+                                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'], \
+                                                                                                            nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                            etresampling = self.dictionary[instrument]['exptimeresampling'])
                         else:
                             self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'],\
-                                                                                                         nresampling = self.dictionary[instrument]['nresampling'],\
-                                                                                                         etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                                                                                        nresampling = self.dictionary[instrument]['nresampling'],\
+                                                                                                        etresampling = self.dictionary[instrument]['exptimeresampling'])
                     else:
                         if not self.dictionary[instrument]['TransitFitCatwoman']:
-                            self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], \
-                                                                                                             self.dictionary[instrument]['ldlaw'])
+                            if self.dictionary[instrument]['TransitFit']:
+                                self.model[instrument]['params'], [self.model[instrument]['m'],_] = init_batman(self.times[instrument], \
+                                                                                                                self.dictionary[instrument]['ldlaw'])
+                            elif self.dictionary[instrument]['EclipseFit']:
+                                self.model[instrument]['params'], [_,self.model[instrument]['m']] = init_batman(self.times[instrument], \
+                                                                                                                self.dictionary[instrument]['ldlaw'])
+                            elif self.dictionary[instrument]['TranEclFit']:
+                                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], \
+                                                                                                                self.dictionary[instrument]['ldlaw'])
                         else:
                             self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], \
                                                                                                                self.dictionary[instrument]['ldlaw'])
                     # Individual transit lightcurves for each planet:
                     for i in self.numbering:
-                        self.model[instrument]['p'+str(i)] = np.ones(len(self.instrument_indexes[instrument]))
+                        self.model[instrument]['p' + str(i)] = np.ones(
+                            len(self.instrument_indexes[instrument]))
                     # Now proceed with instrument namings:
                     for pname in self.priors.keys():
                         # Check if variable name is a limb-darkening coefficient:
                         if pname[0:2] == 'q1':
                             vec = pname.split('_')
-                            if len(vec)>2:
+                            if len(vec) > 2:
                                 if instrument in vec:
-                                    self.ld_iname[instrument] = '_'.join(vec[1:])
+                                    self.ld_iname[instrument] = '_'.join(
+                                        vec[1:])
                             else:
                                 if instrument in vec:
                                     self.ld_iname[instrument] = vec[1]
                         # Check if it is a dilution factor:
                         if pname[0:9] == 'mdilution':
                             vec = pname.split('_')
-                            if len(vec)>2:
+                            if len(vec) > 2:
                                 if instrument in vec:
-                                    self.mdilution_iname[instrument] = '_'.join(vec[1:])
+                                    self.mdilution_iname[instrument] = '_'.join(
+                                        vec[1:])
                             else:
                                 if instrument in vec:
                                     self.mdilution_iname[instrument] = vec[1]
@@ -2858,9 +3615,11 @@ class model(object):
                         # Check if it is a dilution factor:
                         if pname[0:9] == 'mdilution':
                             vec = pname.split('_')
-                            if len(vec)>2:
+                            if len(vec) > 2:
                                 if instrument in vec:
+
                                     self.mdilution_iname[instrument] = '_'.join(vec[1:])
+                                    
                             else:
                                 if instrument in vec:
                                     self.mdilution_iname[instrument] = vec[1]
@@ -2889,7 +3648,7 @@ class model(object):
             self.numbering.sort()
             self.nplanets = len(self.numbering)
             self.model = {}
-            self.ndatapoints_all_instruments = 0.
+            self.ndatapoints_all_instruments = 0
             # First, if a global model, generate array that will save this:
             if self.global_model:
                 self.model['global'] = np.zeros(len(self.t))
@@ -2898,7 +3657,7 @@ class model(object):
             self.model['radvel'] = init_radvel(nplanets=self.nplanets)
             # First go around all planets to compute the full RV models:
             for i in self.numbering:
-                self.model['p'+str(i)] = np.ones(len(self.t))
+                self.model['p' + str(i)] = np.ones(len(self.t))
             # Now variable to save full RV Keplerian model:
             self.model['Keplerian'] = np.ones(len(self.t))
             # Same for Keplerian + trends:
@@ -2907,30 +3666,44 @@ class model(object):
             for instrument in self.inames:
                 self.model[instrument] = {}
                 # Extract number of datapoints per instrument:
-                self.ndatapoints_per_instrument[instrument] = len(self.instrument_indexes[instrument])
-                self.ndatapoints_all_instruments += self.ndatapoints_per_instrument[instrument]
+                self.ndatapoints_per_instrument[instrument] = len(
+                    self.instrument_indexes[instrument])
+                self.ndatapoints_all_instruments += self.ndatapoints_per_instrument[
+                    instrument]
                 # Extract number of linear model terms per instrument:
                 if self.lm_boolean[instrument]:
+
                     self.lm_n[instrument] = self.lm_arguments[instrument].shape[1]
+
                 # Generate internal model variables of interest to the user. First, the RV model in the notation of juliet (Mi)
                 # (full RV model plus offset velocity, plus trend):
-                self.model[instrument]['M'] = np.ones(len(self.instrument_indexes[instrument]))
+                self.model[instrument]['M'] = np.ones(
+                    len(self.instrument_indexes[instrument]))
                 # Linear model (in the notation of juliet, LM):
-                self.model[instrument]['LM'] = np.zeros(len(self.instrument_indexes[instrument]))
+                self.model[instrument]['LM'] = np.zeros(
+                    len(self.instrument_indexes[instrument]))
                 # Now, generate dictionary that will save the final full model (M + LM):
-                self.model[instrument]['deterministic'] = np.zeros(len(self.instrument_indexes[instrument]))
+                self.model[instrument]['deterministic'] = np.zeros(
+                    len(self.instrument_indexes[instrument]))
                 # Same for the errors:
-                self.model[instrument]['deterministic_errors'] = np.zeros(len(self.instrument_indexes[instrument]))
+                self.model[instrument]['deterministic_errors'] = np.zeros(
+                    len(self.instrument_indexes[instrument]))
                 # Individual keplerians for each planet:
                 for i in self.numbering:
-                    self.model[instrument]['p'+str(i)] = np.ones(len(self.instrument_indexes[instrument]))
+                    self.model[instrument]['p' + str(i)] = np.ones(
+                        len(self.instrument_indexes[instrument]))
                 # An array of ones to copy around:
-                self.model[instrument]['ones'] = np.ones(len(self.t[self.instrument_indexes[instrument]]))
+                self.model[instrument]['ones'] = np.ones(
+                    len(self.t[self.instrument_indexes[instrument]]))
             # Set the model-type to M(t):
             self.evaluate = self.evaluate_model
             self.generate = self.generate_rv_model
         else:
-            raise Exception('Model type "'+lc+'" not recognized. Currently it can only be "lc" for a light-curve model or "rv" for radial-velocity model.')
+
+            raise Exception(
+                'Model type "' + lc +
+                '" not recognized. Currently it can only be "lc" for a light-curve model or "rv" for radial-velocity model.'
+            )
 
 class gaussian_process(object):
     """
@@ -2955,7 +3728,8 @@ class gaussian_process(object):
 
     """
 
-    def get_kernel_name(self,priors):
+    def get_kernel_name(self, priors):
+
         # First, check all the GP variables in the priors file that are of the form GP_variable_instrument1_instrument2_...:
         variables_that_match = []
         for pname in priors.keys():
@@ -2965,15 +3739,20 @@ class gaussian_process(object):
         # Now we have all the variables that match the current instrument in variables_that_match. Check which of the
         # implemented GP models gives a perfect match to all the variables; that will give us the name of the kernel:
         n_variables_that_match = len(variables_that_match)
-        if n_variables_that_match  == 0:
-            raise Exception('Input error: it seems instrument '+self.instrument+' has no defined priors in the prior file for a Gaussian Process. Check the prior file and try again.')
+        if n_variables_that_match == 0:
+            raise Exception(
+                'Input error: it seems instrument ' + self.instrument +
+                ' has no defined priors in the prior file for a Gaussian Process. Check the prior file and try again.'
+            )
 
         for kernel_name in self.all_kernel_variables.keys():
             counter = 0
             for variable_name in self.all_kernel_variables[kernel_name]:
                 if variable_name in variables_that_match:
                     counter += 1
-            if (n_variables_that_match == counter) and (len(self.all_kernel_variables[kernel_name]) == n_variables_that_match):
+            if (n_variables_that_match
+                    == counter) and (len(self.all_kernel_variables[kernel_name])
+                                     == n_variables_that_match):
                 return kernel_name
 
     def init_GP(self):
@@ -2998,19 +3777,20 @@ class gaussian_process(object):
                                         fit_white_noise = True)
         self.compute_GP()
 
-    def compute_GP(self, X = None):
+    def compute_GP(self, X=None):
         if self.yerr is not None:
             if X is None:
-                self.GP.compute(self.X, yerr = self.yerr)
+                self.GP.compute(self.X, yerr=self.yerr)
             else:
-                self.GP.compute(X, yerr = self.yerr)
+                self.GP.compute(X, yerr=self.yerr)
         else:
             if X is None:
                 self.GP.compute(self.X)
             else:
                 self.GP.compute(X)
 
-    def set_input_instrument(self,input_variables):
+    def set_input_instrument(self, input_variables):
+
         # This function sets the "input instrument" (self.input_instrument) name for each variable (self.variables).
         # If, for example, GP_Prot_TESS_K2_rv and GP_Gamma_TESS, and self.variables = ['Prot','Gamma'],
         # then self.input_instrument = ['TESS_K2_rv','TESS'].
@@ -3018,7 +3798,9 @@ class gaussian_process(object):
             GPvariable = self.variables[i]
             for pnames in input_variables.keys():
                 vec = pnames.split('_')
-                if (vec[0] == 'GP') and (GPvariable in vec[1]) and (self.instrument in vec):
+                if (vec[0] == 'GP') and (GPvariable
+                                         in vec[1]) and (self.instrument
+                                                         in vec):
                     self.input_instrument.append('_'.join(vec[2:]))
 
     def set_parameter_vector(self, parameter_values):
@@ -3030,54 +3812,157 @@ class gaussian_process(object):
         # modified directly by changing the self.yerr vector; in the latter, we have to manually add a jitter term in the GP parameter
         # vector. This base_index is only important for the george kernels though --- an if statement suffices for the celerite ones.
         base_index = 0
-        if (self.kernel_name == 'SEKernel') or (self.kernel_name == 'M32Kernel'):
+        if (self.kernel_name == 'SEKernel') or (self.kernel_name
+                                                == 'M32Kernel'):
             if not self.global_GP:
-                self.parameter_vector[base_index] = np.log((parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)**2)
+                self.parameter_vector[base_index] = np.log(
+                    (parameter_values['sigma_w_' + self.instrument] *
+                     self.sigma_factor)**2)
                 base_index += 1
-            self.parameter_vector[base_index] = np.log((parameter_values['GP_sigma_'+self.input_instrument[0]]*self.sigma_factor)**2.)
+            self.parameter_vector[base_index] = np.log(
+                (parameter_values['GP_sigma_' + self.input_instrument[0]] *
+                 self.sigma_factor)**2.)
             alpha_name = 'alpha' if self.kernel_name == 'SEKernel' else 'malpha'
             for i in range(self.nX):
-                self.parameter_vector[base_index + 1 + i] = np.log(1./parameter_values[f'GP_{alpha_name}'+str(i)+'_'+self.input_instrument[1+i]])
+                self.parameter_vector[base_index + 1 + i] = np.log(
+                    1. / parameter_values[f'GP_{alpha_name}' + str(i) + '_' +
+                                          self.input_instrument[1 + i]])
         elif self.kernel_name == 'ExpSineSquaredSEKernel':
             if not self.global_GP:
-                self.parameter_vector[base_index] = np.log((parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)**2)
+                self.parameter_vector[base_index] = np.log(
+                    (parameter_values['sigma_w_' + self.instrument] *
+                     self.sigma_factor)**2)
                 base_index += 1
-            self.parameter_vector[base_index] = np.log((parameter_values['GP_sigma_'+self.input_instrument[0]]*self.sigma_factor)**2.)
-            self.parameter_vector[base_index + 1] = np.log(1./(parameter_values['GP_alpha_'+self.input_instrument[1]]))
-            self.parameter_vector[base_index + 2] = parameter_values['GP_Gamma_'+self.input_instrument[2]]
-            self.parameter_vector[base_index + 3] = np.log(parameter_values['GP_Prot_'+self.input_instrument[3]])
+            self.parameter_vector[base_index] = np.log(
+                (parameter_values['GP_sigma_' + self.input_instrument[0]] *
+                 self.sigma_factor)**2.)
+            self.parameter_vector[base_index + 1] = np.log(
+                1. / (parameter_values['GP_alpha_' + self.input_instrument[1]]))
+            self.parameter_vector[base_index + 2] = parameter_values[
+                'GP_Gamma_' + self.input_instrument[2]]
+            self.parameter_vector[base_index + 3] = np.log(
+                parameter_values['GP_Prot_' + self.input_instrument[3]])
         elif self.kernel_name == 'CeleriteQPKernel':
-            self.parameter_vector[0] = np.log(parameter_values['GP_B_'+self.input_instrument[0]])
-            self.parameter_vector[1] = np.log(parameter_values['GP_L_'+self.input_instrument[1]])
-            self.parameter_vector[2] = np.log(parameter_values['GP_Prot_'+self.input_instrument[2]])
-            self.parameter_vector[3] = np.log(parameter_values['GP_C_'+self.input_instrument[3]])
+            self.parameter_vector[0] = np.log(
+                parameter_values['GP_B_' + self.input_instrument[0]])
+            self.parameter_vector[1] = np.log(
+                parameter_values['GP_L_' + self.input_instrument[1]])
+            self.parameter_vector[2] = np.log(
+                parameter_values['GP_Prot_' + self.input_instrument[2]])
+            self.parameter_vector[3] = np.log(
+                parameter_values['GP_C_' + self.input_instrument[3]])
             if not self.global_GP:
-                self.parameter_vector[4] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
+                self.parameter_vector[4] = np.log(
+                    parameter_values['sigma_w_' + self.instrument] *
+                    self.sigma_factor)
         elif self.kernel_name == 'CeleriteExpKernel':
-            self.parameter_vector[0] = np.log(parameter_values['GP_sigma_'+self.input_instrument[0]])
-            self.parameter_vector[1] = np.log(parameter_values['GP_timescale_'+self.input_instrument[1]])
+            self.parameter_vector[0] = np.log(
+                parameter_values['GP_sigma_' + self.input_instrument[0]])
+            self.parameter_vector[1] = np.log(
+                parameter_values['GP_timescale_' + self.input_instrument[1]])
             if not self.global_GP:
-                self.parameter_vector[2] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
+                self.parameter_vector[2] = np.log(
+                    parameter_values['sigma_w_' + self.instrument] *
+                    self.sigma_factor)
         elif self.kernel_name == 'CeleriteMaternKernel':
-            self.parameter_vector[0] = np.log(parameter_values['GP_sigma_'+self.input_instrument[0]])
-            self.parameter_vector[1] = np.log(parameter_values['GP_rho_'+self.input_instrument[1]])
+            self.parameter_vector[0] = np.log(
+                parameter_values['GP_sigma_' + self.input_instrument[0]])
+            self.parameter_vector[1] = np.log(
+                parameter_values['GP_rho_' + self.input_instrument[1]])
             if not self.global_GP:
-                self.parameter_vector[2] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
+                self.parameter_vector[2] = np.log(
+                    parameter_values['sigma_w_' + self.instrument] *
+                    self.sigma_factor)
         elif self.kernel_name == 'CeleriteMaternExpKernel':
-            self.parameter_vector[0] = np.log(parameter_values['GP_sigma_'+self.input_instrument[0]])
-            self.parameter_vector[1] = np.log(parameter_values['GP_timescale_'+self.input_instrument[1]])
-            self.parameter_vector[3] = np.log(parameter_values['GP_rho_'+self.input_instrument[2]])
+            self.parameter_vector[0] = np.log(
+                parameter_values['GP_sigma_' + self.input_instrument[0]])
+            self.parameter_vector[1] = np.log(
+                parameter_values['GP_timescale_' + self.input_instrument[1]])
+            self.parameter_vector[3] = np.log(
+                parameter_values['GP_rho_' + self.input_instrument[2]])
             if not self.global_GP:
-                self.parameter_vector[4] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
+                self.parameter_vector[4] = np.log(
+                    parameter_values['sigma_w_' + self.instrument] *
+                    self.sigma_factor)
         elif self.kernel_name == 'CeleriteSHOKernel':
-            self.parameter_vector[0] = np.log(parameter_values['GP_S0_'+self.input_instrument[0]])
-            self.parameter_vector[1] = np.log(parameter_values['GP_Q_'+self.input_instrument[1]])
-            self.parameter_vector[2] = np.log(parameter_values['GP_omega0_'+self.input_instrument[2]])
+            self.parameter_vector[0] = np.log(
+                parameter_values['GP_S0_' + self.input_instrument[0]])
+            self.parameter_vector[1] = np.log(
+                parameter_values['GP_Q_' + self.input_instrument[1]])
+            self.parameter_vector[2] = np.log(
+                parameter_values['GP_omega0_' + self.input_instrument[2]])
+            
             if not self.global_GP:
-                self.parameter_vector[3] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
+
+                self.parameter_vector[3] = np.log(
+                    parameter_values['sigma_w_' + self.instrument] *
+                    self.sigma_factor)
+                
+        elif self.kernel_name == 'CeleriteDoubleSHOKernel':
+            # The parametrization follows the "RotationTerm" implemented in
+            # celerite2 https://celerite2.readthedocs.io/en/latest/api/python/#celerite2.terms.RotationTerm
+            sigma = parameter_values['GP_sigma_' + self.input_instrument[0]]
+            Q0 = parameter_values['GP_Q0_' + self.input_instrument[1]]
+            P = parameter_values['GP_period_' + self.input_instrument[2]]
+            f = parameter_values['GP_f_' + self.input_instrument[3]]
+            dQ = parameter_values['GP_dQ_' + self.input_instrument[4]]
+
+            Q1 = 1 / 2 + Q0 + dQ
+            omega1 = 4 * np.pi * Q1 / (P * np.sqrt(4 * Q1**2 - 1))
+            S1 = sigma**2 / ((1 + f) * omega1 * Q1)
+
+            Q2 = 1 / 2 + Q0
+            omega2 = 8 * np.pi * Q1 / (P * np.sqrt(4 * Q1**2 - 1))
+            S2 = f * sigma**2 / ((1 + f) * omega2 * Q2)
+
+            self.parameter_vector[0] = np.log(S1)
+            self.parameter_vector[1] = np.log(Q1)
+            self.parameter_vector[2] = np.log(omega1)
+            self.parameter_vector[3] = np.log(S2)
+            self.parameter_vector[4] = np.log(Q2)
+            self.parameter_vector[5] = np.log(omega2)
+
+            if not self.global_GP:
+
+                self.parameter_vector[6] = np.log(
+                    parameter_values['sigma_w_' + self.instrument] *
+                    self.sigma_factor)
+
+        elif self.kernel_name == 'CeleriteTripleSHOKernel':
+            self.parameter_vector[0] = np.log(
+                parameter_values['GP_S0_' + self.input_instrument[0]])
+            self.parameter_vector[1] = np.log(
+                parameter_values['GP_Q0_' + self.input_instrument[1]])
+            self.parameter_vector[2] = np.log(
+                2 * np.pi /
+                parameter_values['GP_period_' + self.input_instrument[2]])
+            self.parameter_vector[3] = np.log(
+                parameter_values['GP_f_' + self.input_instrument[3]] *
+                parameter_values['GP_S0_' + self.input_instrument[0]])
+            self.parameter_vector[4] = np.log(
+                parameter_values['GP_Q0_' + self.input_instrument[1]] -
+                parameter_values['GP_dQ_' + self.input_instrument[4]])
+            self.parameter_vector[5] = np.log(
+                np.pi /
+                parameter_values['GP_period_' + self.input_instrument[2]])
+            self.parameter_vector[6] = np.log(
+                parameter_values['GP_S0sc_' + self.input_instrument[5]])
+            self.parameter_vector[7] = np.log(
+                parameter_values['GP_omega0sc_' + self.input_instrument[6]])
+
+            if not self.global_GP:
+                self.parameter_vector[8] = np.log(
+                    parameter_values['sigma_w_' + self.instrument] *
+                    self.sigma_factor)
+                
         self.GP.set_parameter_vector(self.parameter_vector)
 
-    def __init__(self, data, model_type, instrument, george_hodlr = True, matern_eps = 0.01):
+    def __init__(self,
+                 data,
+                 model_type,
+                 instrument,
+                 george_hodlr=True,
+                 matern_eps=0.01):
         self.isInit = False
         self.model_type = model_type.lower()
         # Perform changes that define the model_type. For example, the juliet input sigmas (both jitters and GP amplitudes) are
@@ -3092,7 +3977,10 @@ class gaussian_process(object):
                 instrument = 'rv'
             self.sigma_factor = 1.
         else:
-            raise Exception('Model type '+model_type+' currently not supported. Only "lc" or "rv" can serve as inputs for now.')
+            raise Exception(
+                'Model type ' + model_type +
+                ' currently not supported. Only "lc" or "rv" can serve as inputs for now.'
+            )
 
         # Name of input instrument if given:
         self.instrument = instrument
@@ -3111,9 +3999,10 @@ class gaussian_process(object):
             # Save errors (if any):
             if data.yerr_lc is not None:
                 if instrument != 'lc':
-                     self.yerr = data.yerr_lc[data.instrument_indexes_lc[instrument]]
+                    self.yerr = data.yerr_lc[
+                        data.instrument_indexes_lc[instrument]]
                 else:
-                     self.yerr = data.yerr_lc
+                    self.yerr = data.yerr_lc
             else:
                 self.yerr = None
         elif self.model_type == 'rv':
@@ -3126,7 +4015,8 @@ class gaussian_process(object):
             # Save errors (if any):
             if data.yerr_rv is not None:
                 if instrument != 'rv':
-                    self.yerr = data.yerr_rv[data.instrument_indexes_rv[instrument]]
+                    self.yerr = data.yerr_rv[
+                        data.instrument_indexes_rv[instrument]]
                 else:
                     self.yerr = data.yerr_rv
             else:
@@ -3137,7 +4027,7 @@ class gaussian_process(object):
             if self.X.shape[1] != 1:
                 self.nX = self.X.shape[1]
             else:
-                self.X = self.X[:,0]
+                self.X = self.X[:, 0]
                 self.nX = 1
         else:
             self.nX = 1
@@ -3147,14 +4037,23 @@ class gaussian_process(object):
         self.all_kernel_variables['SEKernel'] = ['sigma']
         self.all_kernel_variables['M32Kernel'] = ['sigma']
         for i in range(self.nX):
-            self.all_kernel_variables['SEKernel'] = self.all_kernel_variables['SEKernel'] + ['alpha'+str(i)]
-            self.all_kernel_variables['M32Kernel'] = self.all_kernel_variables['M32Kernel'] + ['malpha'+str(i)]
-        self.all_kernel_variables['ExpSineSquaredSEKernel'] = ['sigma','alpha','Gamma','Prot']
-        self.all_kernel_variables['CeleriteQPKernel'] = ['B','L','Prot','C']
-        self.all_kernel_variables['CeleriteExpKernel'] = ['sigma','timescale']
-        self.all_kernel_variables['CeleriteMaternKernel'] = ['sigma','rho']
-        self.all_kernel_variables['CeleriteMaternExpKernel'] = ['sigma','timescale','rho']
-        self.all_kernel_variables['CeleriteSHOKernel'] = ['S0','Q','omega0']
+            self.all_kernel_variables['SEKernel'] = self.all_kernel_variables[
+                'SEKernel'] + ['alpha' + str(i)]
+            self.all_kernel_variables['M32Kernel'] = self.all_kernel_variables[
+                'M32Kernel'] + ['malpha' + str(i)]
+        self.all_kernel_variables['ExpSineSquaredSEKernel'] = [
+            'sigma', 'alpha', 'Gamma', 'Prot'
+        ]
+        self.all_kernel_variables['CeleriteQPKernel'] = ['B', 'L', 'Prot', 'C']
+        self.all_kernel_variables['CeleriteExpKernel'] = ['sigma', 'timescale']
+        self.all_kernel_variables['CeleriteMaternKernel'] = ['sigma', 'rho']
+        self.all_kernel_variables['CeleriteMaternExpKernel'] = [
+            'sigma', 'timescale', 'rho'
+        ]
+        self.all_kernel_variables['CeleriteSHOKernel'] = ['S0', 'Q', 'omega0']
+        self.all_kernel_variables['CeleriteDoubleSHOKernel'] = [
+            'sigma', 'Q0', 'period', 'f', 'dQ'
+        ]
 
         # Find kernel name (and save it to self.kernel_name):
         self.kernel_name = self.get_kernel_name(data.priors)
@@ -3177,17 +4076,19 @@ class gaussian_process(object):
         phantomvariable = 0
         if self.kernel_name == 'SEKernel':
             # Generate GPExpSquared base kernel:
-            self.kernel = 1.*george.kernels.ExpSquaredKernel(np.ones(self.nX),ndim = self.nX, axes = range(self.nX))
+            self.kernel = 1. * george.kernels.ExpSquaredKernel(
+                np.ones(self.nX), ndim=self.nX, axes=range(self.nX))
             # (Note no jitter kernel is given, as with george one defines this in the george.GP call):
         elif self.kernel_name == 'M32Kernel':
             # Generate GPMatern32 base kernel:
-            self.kernel = 1.*george.kernels.Matern32Kernel(np.ones(self.nX),ndim = self.nX, axes = range(self.nX))
+            self.kernel = 1. * george.kernels.Matern32Kernel(
+                np.ones(self.nX), ndim=self.nX, axes=range(self.nX))
             # (Note no jitter kernel is given, as with george one defines this in the george.GP call):
         elif self.kernel_name == 'ExpSineSquaredSEKernel':
             # Generate the kernels:
-            K1 = 1.*george.kernels.ExpSquaredKernel(metric = 1.0)
-            K2 = george.kernels.ExpSine2Kernel(gamma=1.0,log_period=1.0)
-            self.kernel = K1*K2
+            K1 = 1. * george.kernels.ExpSquaredKernel(metric=1.0)
+            K2 = george.kernels.ExpSine2Kernel(gamma=1.0, log_period=1.0)
+            self.kernel = K1 * K2
             # (Note no jitter kernel is given, as with george one defines this in the george.GP call):
         elif self.kernel_name == 'CeleriteQPKernel':
             # Generate rotational kernel:
@@ -3196,9 +4097,10 @@ class gaussian_process(object):
                                                     log_period=np.log(3.0),\
                                                     log_factor=np.log(1.0)))
             # Jitter term:
-            kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
+            kernel_jitter = terms.JitterTerm(np.log(100 * 1e-6))
             # Wrap GP kernel and object:
-            if self.instrument in ['rv','lc']:
+
+            if self.instrument in ['rv', 'lc']:
                 self.kernel = rot_kernel
             else:
                 self.kernel = rot_kernel + kernel_jitter
@@ -3208,9 +4110,9 @@ class gaussian_process(object):
             # Generate exponential kernel:
             exp_kernel = terms.RealTerm(log_a=np.log(10.), log_c=np.log(10.))
             # Jitter term:
-            kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
+            kernel_jitter = terms.JitterTerm(np.log(100 * 1e-6))
             # Wrap GP kernel and object:
-            if self.instrument in ['rv','lc']:
+            if self.instrument in ['rv', 'lc']:
                 self.kernel = exp_kernel
             else:
                 self.kernel = exp_kernel + kernel_jitter
@@ -3218,27 +4120,33 @@ class gaussian_process(object):
             self.use_celerite = True
         elif self.kernel_name == 'CeleriteMaternKernel':
             # Generate matern kernel:
-            matern_kernel = terms.Matern32Term(log_sigma=np.log(10.), log_rho=np.log(10.), eps = matern_eps)
+            matern_kernel = terms.Matern32Term(log_sigma=np.log(10.),
+                                               log_rho=np.log(10.),
+                                               eps=matern_eps)
             # Jitter term:
-            kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
+            kernel_jitter = terms.JitterTerm(np.log(100 * 1e-6))
             # Wrap GP kernel and object:
-            if self.instrument in ['rv','lc']:
-                 self.kernel = matern_kernel
+            if self.instrument in ['rv', 'lc']:
+                self.kernel = matern_kernel
             else:
-                 self.kernel = matern_kernel + kernel_jitter
+                self.kernel = matern_kernel + kernel_jitter
             # We are using celerite:
             self.use_celerite = True
         elif self.kernel_name == 'CeleriteMaternExpKernel':
             # Generate matern and exponential kernels:
-            matern_kernel = terms.Matern32Term(log_sigma=np.log(10.), log_rho=np.log(10.), eps = matern_eps)
+            matern_kernel = terms.Matern32Term(log_sigma=np.log(10.),
+                                               log_rho=np.log(10.),
+                                               eps=matern_eps)
             exp_kernel = terms.RealTerm(log_a=np.log(10.), log_c=np.log(10.))
             # Jitter term:
-            kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
+            kernel_jitter = terms.JitterTerm(np.log(100 * 1e-6))
             # Wrap GP kernel and object:
-            if self.instrument in ['rv','lc']:
-                self.kernel = exp_kernel*matern_kernel
+            if self.instrument in ['rv', 'lc']:
+                self.kernel = exp_kernel * matern_kernel
             else:
-                self.kernel = exp_kernel*matern_kernel + kernel_jitter
+
+                self.kernel = exp_kernel * matern_kernel + kernel_jitter
+
             # We add a phantom variable because we want to leave index 2 without value ON PURPOSE: the idea is
             # that here, that is always 0 (because this defines the log(sigma) of the matern kernel in the
             # multiplication, which we set to 1).
@@ -3247,14 +4155,38 @@ class gaussian_process(object):
             self.use_celerite = True
         elif self.kernel_name == 'CeleriteSHOKernel':
             # Generate kernel:
-            sho_kernel = terms.SHOTerm(log_S0=np.log(10.), log_Q=np.log(10.),log_omega0=np.log(10.))
+            sho_kernel = terms.SHOTerm(log_S0=np.log(10.),
+                                       log_Q=np.log(10.),
+                                       log_omega0=np.log(10.))
             # Jitter term:
-            kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
+            kernel_jitter = terms.JitterTerm(np.log(100 * 1e-6))
             # Wrap GP kernel and object:
-            if self.instrument in ['rv','lc']:
+            if self.instrument in ['rv', 'lc']:
                 self.kernel = sho_kernel
             else:
                 self.kernel = sho_kernel + kernel_jitter
+            # We are using celerite:
+            self.use_celerite = True
+        elif self.kernel_name == 'CeleriteDoubleSHOKernel':
+            # Generate kernel
+            #This kernel is adapted from the "RotationTerm" in celerite2 https://celerite2.readthedocs.io/en/latest/api/python/#celerite2.terms.RotationTerm
+            sho_kernel1 = terms.SHOTerm(log_S0=np.log(10.),
+                                        log_Q=np.log(10.),
+                                        log_omega0=np.log(10.))
+            sho_kernel2 = terms.SHOTerm(log_S0=np.log(10.),
+                                        log_Q=np.log(10.),
+                                        log_omega0=np.log(10.))
+
+            double_sho_kernel = sho_kernel1 + sho_kernel2
+
+            phantomvariable = 1
+            # Jitter term:
+            kernel_jitter = terms.JitterTerm(np.log(100 * 1e-6))
+            # Wrap GP kernel and object:
+            if self.instrument in ['rv', 'lc']:
+                self.kernel = double_sho_kernel
+            else:
+                self.kernel = double_sho_kernel + kernel_jitter
             # We are using celerite:
             self.use_celerite = True
         # Check if use_celerite is True; if True, check that the regressor is ordered. If not, don't do the self.init_GP():
@@ -3275,8 +4207,10 @@ class gaussian_process(object):
             # (e.g., global photometric signal, or global RV signal) that assumes a given
             # GP realization for all instruments (but allows different jitters for each
             # instrument, added in quadrature to the self.yerr):
-            self.parameter_vector = np.zeros(len(self.variables)+phantomvariable)
+            self.parameter_vector = np.zeros(
+                len(self.variables) + phantomvariable)
         else:
             # If GP per instrument, then there is one jitter term per instrument directly added in the model:
-            self.parameter_vector = np.zeros(len(self.variables)+1+phantomvariable)
+            self.parameter_vector = np.zeros(
+                len(self.variables) + 1 + phantomvariable)
         self.set_input_instrument(data.priors)
