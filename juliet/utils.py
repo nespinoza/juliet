@@ -313,8 +313,16 @@ def evaluate_beta(x, hyperparameters):
         return -np.inf
 
 def evaluate_exponential(x, hyperparameters):
+
     a = hyperparameters
-    return gamma.logpdf(x, a)
+
+    if x > 0:
+
+        return gamma.logpdf(x, a)
+
+    else:
+
+        return -np.inf
 
 def evaluate_truncated_normal(x, hyperparameters):
     mu, sigma, a, b = hyperparameters
