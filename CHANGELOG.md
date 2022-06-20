@@ -12,10 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Secondary eclipse fitting thanks to contribution from Jayshil Patel.
 - Additional GP kernels thanks to contribution from Jonas Kemmer.
 - Added lowercase priors (thanks to @rosteen; #80).
+- Option to activate/deactivate HODLR solver when using `george` GP kernels.
 
 ### Fixed
 - Bug when multiple planets using and not `efficient_bp` thanks to @tronsgaard.
 - Keywords that made `juliet` incompatible with `dynesty` 1.2.2 (this makes `juliet` incompatible with pervious `dynesty` versions)
+- `exponential` prior which was not working.
 
 ### Removed
 - Removed the `juliet.py` (and associated `utils.py`, `FLAGS.md`) which hosted the original version of the code, to not confuse contributors.
