@@ -258,6 +258,9 @@ class load(object):
     :param matern_eps: (optional, float)
         Epsilon parameter for the Matern approximation (see celerite documentation).
 
+    :param george_hodlr: (optional, bool)
+        Flag to define if you want to use the HODLR solver for george GP's or not (see http://dfm.io/george/current/user/solvers/).
+
     :param pickle_encoding: (optional, string)
         Define pickle encoding in case fit was done with Python 2.7 and results are read with Python 3.
 
@@ -677,7 +680,8 @@ class load(object):
                     self,
                     model_type=dictype,
                     instrument=dictype,
-                    matern_eps=self.matern_eps)
+                    matern_eps=self.matern_eps, 
+                    george_hodlr=self.george_hodlr)
                 if not dictionary['global_model']['noise_model'].isInit:
                     # If not initiated, most likely kernel is a celerite one. Reorder times, values, etc. This is OK --- is expected:
                     if dictype == 'lc':
@@ -690,7 +694,8 @@ class load(object):
                             self,
                             model_type=dictype,
                             instrument=dictype,
-                            matern_eps=self.matern_eps)
+                            matern_eps=self.matern_eps,
+                            george_hodlr=self.george_hodlr)
                     if not dictionary['global_model']['noise_model'].isInit:
                         # Check, blame the user:
                         raise Exception(
@@ -709,7 +714,8 @@ class load(object):
                         self,
                         model_type=dictype,
                         instrument=instrument,
-                        matern_eps=self.matern_eps)
+                        matern_eps=self.matern_eps,
+                        george_hodlr=self.george_hodlr)
                     if not dictionary[instrument]['noise_model'].isInit:
                         # Blame the user, although perhaps we could simply solve this as for the global modelling?:
                         raise Exception(
@@ -887,7 +893,8 @@ class load(object):
                  out_folder = None, lcfilename = None, rvfilename = None, GPlceparamfile = None,\
                  GPrveparamfile = None, LMlceparamfile = None, LMrveparamfile = None, lctimedef = 'TDB', rvtimedef = 'UTC',\
                  ld_laws = 'quadratic', priorfile = None, lc_n_supersamp = None, lc_exptime_supersamp = None, \
-                 lc_instrument_supersamp = None, mag_to_flux = True, verbose = False, matern_eps = 0.01, pickle_encoding = None):
+                 lc_instrument_supersamp = None, mag_to_flux = True, verbose = False, matern_eps = 0.01, george_hodlr = True, \
+                 pickle_encoding = None):
 
         self.lcfilename = lcfilename
         self.rvfilename = rvfilename
@@ -901,6 +908,7 @@ class load(object):
 
         # GP options:
         self.matern_eps = matern_eps  # Epsilon parameter for celerite Matern32Term
+        self.george_hodlr = george_hodlr # Wheter to use HODLR solver or not (see: http://dfm.io/george/current/user/solvers/)
 
         # Initialize data options for lightcurves:
         self.t_lc = None
