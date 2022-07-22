@@ -1699,7 +1699,7 @@ class fit(object):
                     # Define some standard ones (for back-compatibility with previous juliet versions):
                     d_args['bound'] = 'multi'
                     d_args['sample'] = 'rwalk'
-                    d_args[nlive_arg] = self.n_live_points
+                    d_args['nlive'] = self.n_live_points
 
                     # Match them with kwargs:
                     for arg in args:
