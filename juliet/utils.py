@@ -440,104 +440,165 @@ def readpriors(priorname):
     planets, etc.)
     """
     input_dict = False
+
     if type(priorname) == str:
+
         fin = open(priorname)
         priors = {}
         starting_point = {}
+
     else:
+
         counter = -1
         priors = priorname
         input_dict = True
         all_parameters = list(priors.keys())
         n_allkeys = len(all_parameters)
+
     n_transit = 0
     n_rv = 0
     n_params = 0
     numbering_transit = np.array([])
     numbering_rv = np.array([])
+
     while True:
+
         if not input_dict:
+
             line = fin.readline()
+
         else:
+
             # Dummy variable so we enter the while:
             line = 'nc'
             counter += 1
+
         if line != '':
+
             if line[0] != '#':
+
                 if not input_dict:
+
                     prior_vector = line.split()
+
                     if len(prior_vector) == 3:
+
                         parameter, prior_name, vals = prior_vector
                         has_sp = False
+
                     else:
+
                         parameter, prior_name, vals, sp = prior_vector
                         has_sp = True
+
                     parameter = parameter.split()[0]
+
                     # For retro-compatibility, if parameter is of the form sigma_w_rv_instrument change to
                     # sigma_w_instrument:
                     if parameter[:10] == 'sigma_w_rv':
+
                         instrument = parameter.split('_')[-1]
                         parameter = 'sigma_w_' + instrument
+
                     prior_name = prior_name.split()[0]
                     vals = vals.split()[0]
                     priors[parameter] = {}
+
                     if has_sp:
+
                         starting_point[parameter] = np.double(sp)
+
                 else:
+
                     param = all_parameters[counter]
                     parameter, prior_name = param, priors[param]['distribution']
+
                 pvector = parameter.split('_')
+
                 # Check if parameter/planet is from a transiting planet:
                 if pvector[0] == 'r1' or pvector[0] == 'p' or pvector[
                         0] == 'phi':
+
                     pnumber = int(pvector[1][1:])
                     numbering_transit = np.append(numbering_transit, pnumber)
                     n_transit += 1
+
                 # Check if parameter/planet is from a RV planet:
                 if pvector[0] == 'K':
+
                     pnumber = int(pvector[1][1:])
                     numbering_rv = np.append(numbering_rv, pnumber)
                     n_rv += 1
+
                 #if parameter == 'r1_p'+str(n_transit+1) or parameter == 'p_p'+str(n_transit+1):
                 #    numbering_transit = np.append(numbering_transit,n_transit+1)
                 #    n_transit += 1
                 #if parameter == 'K_p'+str(n_rv+1):
                 #    numbering_rv = np.append(numbering_rv,n_rv+1)
                 #    n_rv += 1
+
                 if prior_name.lower() == 'fixed':
+
                     if not input_dict:
                         priors[parameter]['distribution'] = prior_name.lower()
                         priors[parameter]['hyperparameters'] = np.double(vals)
                         priors[parameter]['cvalue'] = np.double(vals)
+
                 else:
+
                     n_params += 1
+
                     if not input_dict:
+
                         priors[parameter]['distribution'] = prior_name.lower()
+
                         if priors[parameter][
                                 'distribution'] != 'truncatednormal':
-                            v1, v2 = vals.split(',')
-                            priors[parameter]['hyperparameters'] = [
-                                np.double(v1), np.double(v2)
-                            ]
+
+                            if priors[parameter][['distribution'] == 'exponential':
+
+                                priors[parameter]['hyperparameters'] = [ np.double(vals) ]
+
+                            else:
+
+                                v1, v2 = vals.split(',')
+
+                                priors[parameter]['hyperparameters'] = [
+                                    np.double(v1), np.double(v2)
+                                ]
+
                         else:
+
                             v1, v2, v3, v4 = vals.split(',')
                             priors[parameter]['hyperparameters'] = [
                                 np.double(v1),
                                 np.double(v2),
                                 np.double(v3),
                                 np.double(v4)
+
                             ]
                         priors[parameter]['cvalue'] = 0.
+
         else:
+
             break
+
         if input_dict:
+
             if counter == n_allkeys - 1:
+
                 break
+
     if not input_dict:
+
         if len(starting_point.keys()) == 0:
+
             starting_point = None
+
         return priors, n_transit, n_rv, numbering_transit.astype('int'), numbering_rv.astype('int'), n_params, starting_point
+
     else:
+
         return n_transit, n_rv, numbering_transit.astype('int'), numbering_rv.astype('int'), n_params
 
 def get_phases(t, P, t0, phmin=0.5):
