@@ -555,7 +555,7 @@ def readpriors(priorname):
                         if priors[parameter][
                                 'distribution'] != 'truncatednormal':
 
-                            if priors[parameter][['distribution'] == 'exponential':
+                            if priors[parameter]['distribution'] == 'exponential':
 
                                 priors[parameter]['hyperparameters'] = [ np.double(vals) ]
 
