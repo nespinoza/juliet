@@ -2069,7 +2069,7 @@ class model(object):
                                                                                  nresampling=nresampling, etresampling=etresampling)
                     
                                     elif self.dictionary[instrument]['EclipseFit']:
-                                         supersample_params,[_,supersample_m] = init_batman(t, self.dictionary[instrument]['ldlaw'],
+                                        supersample_params,[_,supersample_m] = init_batman(t, self.dictionary[instrument]['ldlaw'],
                                                                                             nresampling=nresampling, etresampling=etresampling)
                                         sample_params,[_,sample_m] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
                                                                                  nresampling=nresampling, etresampling=etresampling)
@@ -3194,6 +3194,15 @@ class gaussian_process(object):
             self.parameter_vector[2] = np.log(parameter_values['GP_omega0_'+self.input_instrument[2]])
             if not self.global_GP:
                 self.parameter_vector[3] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
+        # For Matern+SHO kernel
+        elif self.kernel_name == 'CeleriteMaternSHOKernel':
+            self.parameter_vector[0] = np.log(parameter_values['GP_sigma_'+self.input_instrument[0]])
+            self.parameter_vector[1] = np.log(parameter_values['GP_rho_'+self.input_instrument[1]])
+            self.parameter_vector[2] = np.log(parameter_values['GP_S0_'+self.input_instrument[2]])
+            self.parameter_vector[3] = np.log(parameter_values['GP_Q_'+self.input_instrument[3]])
+            self.parameter_vector[4] = np.log(parameter_values['GP_omega0_'+self.input_instrument[4]])
+            if not self.global_GP:
+                self.parameter_vector[5] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
         self.GP.set_parameter_vector(self.parameter_vector)
 
     def __init__(self, data, model_type, instrument, george_hodlr = True, matern_eps = 0.01):
@@ -3274,6 +3283,8 @@ class gaussian_process(object):
         self.all_kernel_variables['CeleriteMaternKernel'] = ['sigma','rho']
         self.all_kernel_variables['CeleriteMaternExpKernel'] = ['sigma','timescale','rho']
         self.all_kernel_variables['CeleriteSHOKernel'] = ['S0','Q','omega0']
+        # For Matern+SHO kernel
+        self.all_kernel_variables['CeleriteMaternSHOKernel'] = ['sigma', 'rho', 'S0', 'Q', 'omega0']
 
         # Find kernel name (and save it to self.kernel_name):
         self.kernel_name = self.get_kernel_name(data.priors)
@@ -3375,6 +3386,21 @@ class gaussian_process(object):
             else:
                 self.kernel = sho_kernel + kernel_jitter
             # We are using celerite:
+            self.use_celerite = True
+        ## For Matern+SHO kernel
+        elif self.kernel_name == 'CeleriteMaternSHOKernel':
+            # Matern kernel:
+            matern_kernel = terms.Matern32Term(log_sigma=np.log(10.), log_rho=np.log(10.), eps = matern_eps)
+            # SHO kernel:
+            sho_kernel = terms.SHOTerm(log_S0=np.log(10.), log_Q=np.log(10.),log_omega0=np.log(10.))
+            # Jitter term:
+            kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
+            # Wrap GP kernel and object:
+            if self.instrument in ['rv','lc']:
+                self.kernel = matern_kernel + sho_kernel
+            else:
+                self.kernel = matern_kernel + sho_kernel + kernel_jitter
+            # And we are using celerite
             self.use_celerite = True
         # Check if use_celerite is True; if True, check that the regressor is ordered. If not, don't do the self.init_GP():
         if self.use_celerite:
