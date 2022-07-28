@@ -659,7 +659,8 @@ class load(object):
                     dictionary[inames[i]]['TranEclFit'] = True
                     dictionary[inames[i]]['TransitFit'] = False
                     dictionary[inames[i]]['EclipseFit'] = False
-                    print('\t Joint Transit and Eclipse fit detected for instrument ',inames[i])
+                    if self.verbose:
+                        print('\t Joint Transit and Eclipse fit detected for instrument ',inames[i])
 
             for pi in numbering_planets:
                 for i in range(ninstruments):
@@ -3113,16 +3114,19 @@ class model(object):
                 else:
                     coeff1 = parameter_values['q1_' + self.ld_iname[instrument]]
 
+                ### For instrument dependent eclipse depth:
+                ### We only want to make eclipse depth instrument depended, not the time correction factor
+                for i in self.numbering:
+                    if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+                        fp = parameter_values['fp_p' + str(i) + '_' + self.fp_iname[instrument]]
+                        ac = parameter_values['ac_p' + str(i)]
+                ###
+
                 # First (1) check if TTV mode is activated. If it is not, simply save the sampled planet periods and time-of transit centers for check
                 # in the next round of iteration (see below). If it is, depending on the parametrization, either shift the time-indexes accordingly (see below
                 # comments for details).
                 cP, ct0 = {}, {}
                 for i in self.numbering:
-                    ###
-                    if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
-                        fp = parameter_values['fp_p' + str(i)]
-                        ac = parameter_values['ac_p' + str(i)]
-                    ###
                     # Check if we will be fitting for TTVs. If not, all goes as usual. If we are, check which parametrization (dt or T):
                     if not self.dictionary[instrument]['TTVs'][i]['status']:
                         t0, P = parameter_values[
@@ -3523,9 +3527,10 @@ class model(object):
                 self.model['global'] = np.zeros(len(self.t))
                 self.model['global_variances'] = np.zeros(len(self.t))
                 self.model['deterministic'] = np.zeros(len(self.t))
-            # If limb-darkening or dilution factors will be shared by different instruments, set the correct variable name for each:
+            # If limb-darkening, dilution factors or eclipse depth will be shared by different instruments, set the correct variable name for each:
             self.ld_iname = {}
             self.mdilution_iname = {}
+            self.fp_iname = {}
             self.ndatapoints_all_instruments = 0
             # Variable that turns to false only if there are no TTVs. Otherwise, always positive:
             self.Tflag = False
@@ -3632,6 +3637,15 @@ class model(object):
                             else:
                                 if instrument in vec:
                                     self.mdilution_iname[instrument] = vec[1]
+                        if pname[0:2] == 'fp':
+                            # Note that eclipse depth is planetary and instrumental parameter
+                            vec = pname.split('_')
+                            if len(vec) > 3:
+                                if instrument in vec:
+                                    self.fp_iname[instrument] = '_'.join(vec[2:])
+                            else:
+                                if instrument in vec:
+                                    self.fp_iname[instrument] = vec[2]
                 else:
                     # Now proceed with instrument namings:
                     for pname in self.priors.keys():
