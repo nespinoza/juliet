@@ -3114,14 +3114,6 @@ class model(object):
                 else:
                     coeff1 = parameter_values['q1_' + self.ld_iname[instrument]]
 
-                ### For instrument dependent eclipse depth:
-                ### We only want to make eclipse depth instrument depended, not the time correction factor
-                for i in self.numbering:
-                    if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
-                        fp = parameter_values['fp_p' + str(i) + '_' + self.fp_iname[instrument]]
-                        ac = parameter_values['ac_p' + str(i)]
-                ###
-
                 # First (1) check if TTV mode is activated. If it is not, simply save the sampled planet periods and time-of transit centers for check
                 # in the next round of iteration (see below). If it is, depending on the parametrization, either shift the time-indexes accordingly (see below
                 # comments for details).
@@ -3196,6 +3188,11 @@ class model(object):
                 # Once all is OK with the periods and time-of-transit centers, loop through all the planets, getting the lightcurve model for each:
                 for i in self.numbering:
                     P, t0 = cP[i], ct0[i]
+                    ### For instrument dependent eclipse depth:
+                    ### We only want to make eclipse depth instrument depended, not the time correction factor
+                    if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+                        fp = parameter_values['fp_p' + str(i) + '_' + self.fp_iname[instrument]]
+                        ac = parameter_values['ac_p' + str(i)]
                     if self.dictionary['efficient_bp'][i]:
                         if not self.dictionary['fitrho']:
                             a,r1,r2   = parameter_values['a_p'+str(i)], parameter_values['r1_p'+str(i)],\
