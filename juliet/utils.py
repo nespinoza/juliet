@@ -540,6 +540,7 @@ def readpriors(priorname):
                 if prior_name.lower() == 'fixed':
 
                     if not input_dict:
+
                         priors[parameter]['distribution'] = prior_name.lower()
                         priors[parameter]['hyperparameters'] = np.double(vals)
                         priors[parameter]['cvalue'] = np.double(vals)
@@ -552,8 +553,7 @@ def readpriors(priorname):
 
                         priors[parameter]['distribution'] = prior_name.lower()
 
-                        if priors[parameter][
-                                'distribution'] != 'truncatednormal':
+                        if priors[parameter]['distribution'] != 'truncatednormal':
 
                             if priors[parameter]['distribution'] == 'exponential':
 
