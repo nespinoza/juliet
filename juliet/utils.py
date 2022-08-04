@@ -516,8 +516,8 @@ def readpriors(priorname):
                 pvector = parameter.split('_')
 
                 # Check if parameter/planet is from a transiting planet:
-                if pvector[0] == 'r1' or pvector[0] == 'p' or pvector[
-                        0] == 'phi':
+                if pvector[0] == 'r1' or pvector[0] == 'b':#'p' or pvector[
+                        #0] == 'phi':
 
                     pnumber = int(pvector[1][1:])
                     numbering_transit = np.append(numbering_transit, pnumber)
