@@ -36,7 +36,7 @@ def init_batman(t, ld_law, nresampling=None, etresampling=None):
          params.limb_dark = ld_law
 
      params.fp = 0.001
-
+     
      params.t_secondary = params.t0 + (params.per/2)
 
      if nresampling is None or etresampling is None:
@@ -539,6 +539,7 @@ def readpriors(priorname):
                 if prior_name.lower() == 'fixed':
 
                     if not input_dict:
+
                         priors[parameter]['distribution'] = prior_name.lower()
                         priors[parameter]['hyperparameters'] = np.double(vals)
                         priors[parameter]['cvalue'] = np.double(vals)
@@ -551,8 +552,7 @@ def readpriors(priorname):
 
                         priors[parameter]['distribution'] = prior_name.lower()
 
-                        if priors[parameter][
-                                'distribution'] != 'truncatednormal':
+                        if priors[parameter]['distribution'] != 'truncatednormal':
 
                             if priors[parameter]['distribution'] == 'exponential':
 
