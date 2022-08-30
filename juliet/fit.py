@@ -3193,7 +3193,7 @@ class model(object):
                     ### We only want to make eclipse depth instrument depended, not the time correction factor
                     if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
                         fp = parameter_values['fp_p' + str(i) + '_' + self.fp_iname['p' + str(i)][instrument]]
-                        ac = parameter_values['ac_p' + str(i)]
+                        t_secondary = parameter_values['t_secondary_p' + str(i)]
                     if self.dictionary['efficient_bp'][i]:
                         if not self.dictionary['fitrho']:
                             a,r1,r2   = parameter_values['a_p'+str(i)], parameter_values['r1_p'+str(i)],\
@@ -3274,7 +3274,7 @@ class model(object):
 
                             if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
                                 self.model[instrument]['params'].fp = fp
-                                self.model[instrument]['params'].ac = ac
+                                self.model[instrument]['params'].t_secondary = t_secondary
 
                             if not self.dictionary[instrument]['TransitFitCatwoman']:
 

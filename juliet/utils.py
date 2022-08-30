@@ -35,10 +35,9 @@ def init_batman(t, ld_law, nresampling=None, etresampling=None):
      else:
          params.limb_dark = ld_law
 
-     params.ac = 0.001
      params.fp = 0.001
 
-     params.t_secondary = params.t0 + (params.per/2) + params.ac
+     params.t_secondary = params.t0 + (params.per/2)
 
      if nresampling is None or etresampling is None:
 
