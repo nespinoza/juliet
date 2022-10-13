@@ -36,8 +36,8 @@ def init_batman(t, ld_law, nresampling=None, etresampling=None):
          params.limb_dark = ld_law
 
      params.fp = 0.001
-
-     params.t_secondary = params.t0 + (params.per/2) 
+     
+     params.t_secondary = params.t0 + (params.per/2)
 
      if nresampling is None or etresampling is None:
 
@@ -515,8 +515,8 @@ def readpriors(priorname):
                 pvector = parameter.split('_')
 
                 # Check if parameter/planet is from a transiting planet:
-                if pvector[0] == 'r1' or pvector[0] == 'p' or pvector[
-                        0] == 'phi':
+                if pvector[0] == 'r1' or pvector[0] == 'b':#'p' or pvector[
+                        #0] == 'phi':
 
                     pnumber = int(pvector[1][1:])
                     numbering_transit = np.append(numbering_transit, pnumber)

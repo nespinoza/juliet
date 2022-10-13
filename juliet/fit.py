@@ -629,18 +629,19 @@ class load(object):
                             if self.verbose:
                                 print('\t Transit fit detected for instrument ',
                                       inames[i])
-                    if pri[0:3] == 'phi':
-                        dictionary[inames[i]]['TransitFit'] = True
-                        dictionary[inames[i]]['TransitFitCatwoman'] = True
-                        if self.verbose:
-                          
-                            print('\t Transit (catwoman) fit detected for instrument ', inames[i])
+                    if pri[0:2] == 'p1':
+                        if inames[i] in pri.split('_'):
+                            dictionary[inames[i]]['TransitFit'] = True
+                            dictionary[inames[i]]['TransitFitCatwoman'] = True
+                            if self.verbose:
+                            
+                                print('\t Transit (catwoman) fit detected for instrument ', inames[i])
 
                     if pri[0:2] == 'fp':
-                        #dictionary[inames[i]]['TransitFit'] = True
-                        dictionary[inames[i]]['EclipseFit'] = True
-                        if self.verbose:
-                            print('\t Eclipse fit detected for instrument ',inames[i])
+                        if inames[i] in pri.split('_'):
+                            dictionary[inames[i]]['EclipseFit'] = True
+                            if self.verbose:
+                                print('\t Eclipse fit detected for instrument ',inames[i])
 
                     if pri[0:2] == 'dt' or pri[0:2] == 'T_':
                         if pri[0:2] == 'T_':
@@ -659,7 +660,8 @@ class load(object):
                     dictionary[inames[i]]['TranEclFit'] = True
                     dictionary[inames[i]]['TransitFit'] = False
                     dictionary[inames[i]]['EclipseFit'] = False
-                    print('\t Joint Transit and Eclipse fit detected for instrument ',inames[i])
+                    if self.verbose:
+                        print('\t Joint Transit and Eclipse fit detected for instrument ',inames[i])
 
             for pi in numbering_planets:
                 for i in range(ninstruments):
@@ -3118,11 +3120,6 @@ class model(object):
                 # comments for details).
                 cP, ct0 = {}, {}
                 for i in self.numbering:
-                    ###
-                    if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
-                        fp = parameter_values['fp_p' + str(i)]
-                        t_secondary = parameter_values['t_secondary_p' + str(i)]
-                    ###
                     # Check if we will be fitting for TTVs. If not, all goes as usual. If we are, check which parametrization (dt or T):
                     if not self.dictionary[instrument]['TTVs'][i]['status']:
                         t0, P = parameter_values[
@@ -3192,6 +3189,11 @@ class model(object):
                 # Once all is OK with the periods and time-of-transit centers, loop through all the planets, getting the lightcurve model for each:
                 for i in self.numbering:
                     P, t0 = cP[i], ct0[i]
+                    ### For instrument dependent eclipse depth:
+                    ### We only want to make eclipse depth instrument depended, not the time correction factor
+                    if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+                        fp = parameter_values['fp_p' + str(i) + '_' + self.fp_iname['p' + str(i)][instrument]]
+                        t_secondary = parameter_values['t_secondary_p' + str(i)]
                     if self.dictionary['efficient_bp'][i]:
                         if not self.dictionary['fitrho']:
                             a,r1,r2   = parameter_values['a_p'+str(i)], parameter_values['r1_p'+str(i)],\
@@ -3212,20 +3214,20 @@ class model(object):
                             if not self.dictionary[instrument][
                                     'TransitFitCatwoman']:
                                 a,b,p = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
-                                        parameter_values['p_p'+str(i)]
+                                        parameter_values['p_p'+str(i)+'_'+self.p_iname['p' + str(i)][instrument]]
                             else:
                                 a,b,p1,p2,phi = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
-                                             parameter_values['p1_p'+str(i)], parameter_values['p2_p'+str(i)], \
+                                             parameter_values['p1_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]], parameter_values['p2_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]], \
                                              parameter_values['phi_p'+str(i)]
                                 p = np.min([p1, p2])
                         else:
                             if not self.dictionary[instrument][
                                     'TransitFitCatwoman']:
                                 rho,b,p = parameter_values['rho'], parameter_values['b_p'+str(i)],\
-                                          parameter_values['p_p'+str(i)]
+                                          parameter_values['p_p'+str(i)+'_'+self.p_iname['p' + str(i)][instrument]]
                             else:
                                 rho,b,p1,p2,phi = parameter_values['rho'], parameter_values['b_p'+str(i)],\
-                                               parameter_values['p1_p'+str(i)], parameter_values['p2_p'+str(i)],\
+                                               parameter_values['p1_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]], parameter_values['p2_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]],\
                                                parameter_values['phi_p'+str(i)]
                                 p = np.min([p1, p2])
                             a = ((rho * G * ((P * 24. * 3600.)**2)) /
@@ -3523,9 +3525,19 @@ class model(object):
                 self.model['global'] = np.zeros(len(self.t))
                 self.model['global_variances'] = np.zeros(len(self.t))
                 self.model['deterministic'] = np.zeros(len(self.t))
-            # If limb-darkening or dilution factors will be shared by different instruments, set the correct variable name for each:
+            # If limb-darkening, dilution factors or eclipse depth will be shared by different instruments, set the correct variable name for each:
             self.ld_iname = {}
             self.mdilution_iname = {}
+            self.fp_iname = {}
+            # To make transit depth (for batman and catwoman models) will be shared by different instruments, set the correct variable name for each:
+            self.p_iname = {}
+            self.p1_iname = {}
+            # Since p, p1 (p2) and fp are all planetary and instrumental parameters,
+            # we want to make sure that we have correct variable name for each instruments (when the instruments are shared) for _every_ planets.
+            for i in self.numbering:
+                self.p_iname['p' + str(i)] = {}
+                self.p1_iname['p' + str(i)] = {}
+                self.fp_iname['p' + str(i)] = {}
             self.ndatapoints_all_instruments = 0
             # Variable that turns to false only if there are no TTVs. Otherwise, always positive:
             self.Tflag = False
@@ -3632,6 +3644,28 @@ class model(object):
                             else:
                                 if instrument in vec:
                                     self.mdilution_iname[instrument] = vec[1]
+                        if pname[0:2] == 'fp':
+                            # Note that eclipse depth is planetary and instrumental parameter
+                            vec = pname.split('_')
+                            if len(vec) > 3:
+                                if instrument in vec:
+                                    self.fp_iname[vec[1]][instrument] = '_'.join(vec[2:])
+                            else:
+                                if instrument in vec:
+                                    self.fp_iname[vec[1]][instrument] = vec[2]
+                        if pname[0:2] == 'p_':
+                            vec = pname.split('_')
+                            if len(vec) > 3:
+                                if instrument in vec:
+                                    self.p_iname[vec[1]][instrument] = '_'.join(vec[2:])
+                            else:
+                                if instrument in vec:
+                                    self.p_iname[vec[1]][instrument] = vec[2]
+                        if pname[0:2] == 'p1':
+                            vec = pname.split('_')
+                            if len(vec) > 3:
+                                if instrument in vec:
+                                    self.p1_iname[vec[1]][instrument] = '_'.join(vec[2:])
                 else:
                     # Now proceed with instrument namings:
                     for pname in self.priors.keys():
@@ -3977,6 +4011,16 @@ class gaussian_process(object):
                 self.parameter_vector[8] = np.log(
                     parameter_values['sigma_w_' + self.instrument] *
                     self.sigma_factor)
+        
+        # For Matern+SHO kernel
+        elif self.kernel_name == 'CeleriteMaternSHOKernel':
+            self.parameter_vector[0] = np.log(parameter_values['GP_sigma_'+self.input_instrument[0]])
+            self.parameter_vector[1] = np.log(parameter_values['GP_rho_'+self.input_instrument[1]])
+            self.parameter_vector[2] = np.log(parameter_values['GP_S0_'+self.input_instrument[2]])
+            self.parameter_vector[3] = np.log(parameter_values['GP_Q_'+self.input_instrument[3]])
+            self.parameter_vector[4] = np.log(parameter_values['GP_omega0_'+self.input_instrument[4]])
+            if not self.global_GP:
+                self.parameter_vector[5] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
                 
         self.GP.set_parameter_vector(self.parameter_vector)
 
@@ -4077,6 +4121,8 @@ class gaussian_process(object):
         self.all_kernel_variables['CeleriteDoubleSHOKernel'] = [
             'sigma', 'Q0', 'period', 'f', 'dQ'
         ]
+        # For Matern+SHO kernel
+        self.all_kernel_variables['CeleriteMaternSHOKernel'] = ['sigma', 'rho', 'S0', 'Q', 'omega0']
 
         # Find kernel name (and save it to self.kernel_name):
         self.kernel_name = self.get_kernel_name(data.priors)
@@ -4211,6 +4257,21 @@ class gaussian_process(object):
             else:
                 self.kernel = double_sho_kernel + kernel_jitter
             # We are using celerite:
+            self.use_celerite = True
+        ## For Matern+SHO kernel
+        elif self.kernel_name == 'CeleriteMaternSHOKernel':
+            # Matern kernel:
+            matern_kernel = terms.Matern32Term(log_sigma=np.log(10.), log_rho=np.log(10.), eps = matern_eps)
+            # SHO kernel:
+            sho_kernel = terms.SHOTerm(log_S0=np.log(10.), log_Q=np.log(10.),log_omega0=np.log(10.))
+            # Jitter term:
+            kernel_jitter = terms.JitterTerm(np.log(100*1e-6))
+            # Wrap GP kernel and object:
+            if self.instrument in ['rv','lc']:
+                self.kernel = matern_kernel + sho_kernel
+            else:
+                self.kernel = matern_kernel + sho_kernel + kernel_jitter
+            # And we are using celerite
             self.use_celerite = True
         # Check if use_celerite is True; if True, check that the regressor is ordered. If not, don't do the self.init_GP():
         if self.use_celerite:
