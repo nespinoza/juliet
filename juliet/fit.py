@@ -3666,6 +3666,9 @@ class model(object):
                             if len(vec) > 3:
                                 if instrument in vec:
                                     self.p1_iname[vec[1]][instrument] = '_'.join(vec[2:])
+                            else:
+                                if instrument in vec:
+                                    self.p1_iname[vec[1]][instrument] = vec[2]
                 else:
                     # Now proceed with instrument namings:
                     for pname in self.priors.keys():
