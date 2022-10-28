@@ -3216,20 +3216,31 @@ class model(object):
                                 a,b,p = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
                                         parameter_values['p_p'+str(i)+'_'+self.p_iname['p' + str(i)][instrument]]
                             else:
+
                                 a,b,p1,p2,phi = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
-                                             parameter_values['p1_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]], parameter_values['p2_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]], \
+                                             parameter_values['p1_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]], \
+                                             parameter_values['p2_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]], \
                                              parameter_values['phi_p'+str(i)]
+
                                 p = np.min([p1, p2])
+
                         else:
+
                             if not self.dictionary[instrument][
                                     'TransitFitCatwoman']:
+
                                 rho,b,p = parameter_values['rho'], parameter_values['b_p'+str(i)],\
                                           parameter_values['p_p'+str(i)+'_'+self.p_iname['p' + str(i)][instrument]]
+
                             else:
+
                                 rho,b,p1,p2,phi = parameter_values['rho'], parameter_values['b_p'+str(i)],\
-                                               parameter_values['p1_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]], parameter_values['p2_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]],\
+                                               parameter_values['p1_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]], \
+                                               parameter_values['p2_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]],\
                                                parameter_values['phi_p'+str(i)]
+
                                 p = np.min([p1, p2])
+
                             a = ((rho * G * ((P * 24. * 3600.)**2)) /
                                  (3. * np.pi))**(1. / 3.)
 
@@ -3547,6 +3558,7 @@ class model(object):
             self.Tparametrization = {}
             for pi in self.numbering:
                 self.N_TTVs[pi] = 0.
+
             for instrument in self.inames:
                 for pi in self.numbering:
                     if self.dictionary[instrument]['TTVs'][pi]['status']:
@@ -3662,8 +3674,10 @@ class model(object):
                                 if instrument in vec:
                                     self.p_iname[vec[1]][instrument] = vec[2]
                         if pname[0:2] == 'p1':
+
                             vec = pname.split('_')
-                            if len(vec) > 3:
+
+                            if len(vec) > 2:
                                 if instrument in vec:
                                     self.p1_iname[vec[1]][instrument] = '_'.join(vec[2:])
                 else:
@@ -3680,6 +3694,7 @@ class model(object):
                             else:
                                 if instrument in vec:
                                     self.mdilution_iname[instrument] = vec[1]
+
             # Set the model-type to M(t):
             self.evaluate = self.evaluate_model
             self.generate = self.generate_lc_model
