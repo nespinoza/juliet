@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Support to instrument-dependant `fp`, `p`, `p1` and `p2` thanks to @Jayshil (#85).
 - Matern+SHO kernel thanks to @Jayshil (#85).
+- Support to instrument-dependant `mflux`, `sigma_w`, and linear models (e.g., `theta0_inst1_inst2`).
 
 ## [2.2.1] - 2022-08-17
 ### Fixed
