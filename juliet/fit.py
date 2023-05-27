@@ -3387,7 +3387,7 @@ class model(object):
             D, M = parameter_values[
                 'mdilution_' +
                 self.mdilution_iname[instrument]], parameter_values['mflux_' +
-                                                                    instrument]
+                                                                    self.mflux_iname[instrument]]
             self.model[instrument]['M'] = (self.model[instrument]['M'] * D +
                                            (1. - D)) * (1. / (1. + D * M))
 
@@ -3539,6 +3539,7 @@ class model(object):
             # If limb-darkening, dilution factors or eclipse depth will be shared by different instruments, set the correct variable name for each:
             self.ld_iname = {}
             self.mdilution_iname = {}
+            self.mflux_iname = {}
             self.fp_iname = {}
             # To make transit depth (for batman and catwoman models) will be shared by different instruments, set the correct variable name for each:
             self.p_iname = {}
@@ -3656,6 +3657,15 @@ class model(object):
                             else:
                                 if instrument in vec:
                                     self.mdilution_iname[instrument] = vec[1]
+                        if pname[0:5] == 'mflux':
+                            vec = pname.split('_')
+                            if len(vec) > 2:
+                                if instrument in vec:
+                                    self.mflux_iname[instrument] = '_'.join(
+                                        vec[1:])
+                            else:
+                                if instrument in vec:
+                                    self.mflux_iname[instrument] = vec[1]
                         if pname[0:2] == 'fp':
                             # Note that eclipse depth is planetary and instrumental parameter
                             vec = pname.split('_')
@@ -3677,16 +3687,17 @@ class model(object):
 
                             vec = pname.split('_')
 
-                            if len(vec) > 2:
+                            if len(vec) > 3:
                                 if instrument in vec:
                                     self.p1_iname[vec[1]][instrument] = '_'.join(vec[2:])
                             else:
                                 if instrument in vec:
                                     self.p1_iname[vec[1]][instrument] = vec[2]
+
                 else:
                     # Now proceed with instrument namings:
                     for pname in self.priors.keys():
-                        # Check if it is a dilution factor:
+                        # Check if it is a dilution factor or mflux:
                         if pname[0:9] == 'mdilution':
                             vec = pname.split('_')
                             if len(vec) > 2:
@@ -3697,6 +3708,17 @@ class model(object):
                             else:
                                 if instrument in vec:
                                     self.mdilution_iname[instrument] = vec[1]
+
+                        if pname[0:5] == 'mflux':
+                            vec = pname.split('_')
+                            if len(vec) > 2:
+                                if instrument in vec:
+
+                                    self.mflux_iname[instrument] = '_'.join(vec[1:])
+
+                            else:
+                                if instrument in vec:
+                                    self.mflux_iname[instrument] = vec[1]
 
             # Set the model-type to M(t):
             self.evaluate = self.evaluate_model
