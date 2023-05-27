@@ -2174,7 +2174,7 @@ class model(object):
                 for i in range(self.lm_n[instrument]):
                     self.model[instrument]['LM'] += parameter_values[
                         'theta' + str(i) + '_' +
-                        instrument] * self.lm_arguments[instrument][:, i]
+                        self.theta_iname[str(i)+instrument]] * self.lm_arguments[instrument][:, i]
                 self.model[instrument]['deterministic'] += self.model[
                     instrument]['LM']
             # If the model under consideration is a global model, populate the global model dictionary:
@@ -3398,7 +3398,7 @@ class model(object):
                 for i in range(self.lm_n[instrument]):
                     self.model[instrument]['LM'] += parameter_values[
                         'theta' + str(i) + '_' +
-                        instrument] * self.lm_arguments[instrument][:, i]
+                        self.theta_iname[str(i)+instrument]] * self.lm_arguments[instrument][:, i]
                 self.model[instrument]['deterministic'] = self.model[
                     instrument]['M'] + self.model[instrument]['LM']
             else:
@@ -3540,6 +3540,7 @@ class model(object):
             self.ld_iname = {}
             self.mdilution_iname = {}
             self.mflux_iname = {}
+            self.theta_iname = {}
             self.fp_iname = {}
             # To make transit depth (for batman and catwoman models) will be shared by different instruments, set the correct variable name for each:
             self.p_iname = {}
@@ -3647,6 +3648,17 @@ class model(object):
                             else:
                                 if instrument in vec:
                                     self.ld_iname[instrument] = vec[1]
+                        # Check if it is a theta LM:
+                        if pname[0:5] == 'theta':
+                            vec = pname.split('_')
+                            theta_number = vec[0][5:]
+                            if len(vec) > 2: 
+                                if instrument in vec:
+                                    self.theta_iname[theta_number+instrument] = '_'.join(
+                                        vec[1:])
+                            else:
+                                if instrument in vec: 
+                                    self.theta_iname[theta_number+instrument] = vec[1]
                         # Check if it is a dilution factor:
                         if pname[0:9] == 'mdilution':
                             vec = pname.split('_')
