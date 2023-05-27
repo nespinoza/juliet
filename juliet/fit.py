@@ -2020,7 +2020,7 @@ class fit(object):
                     if 'sigma_w_rv' == pname[:10]:
                         instrument = pname.split('_')[-1]
                         out_temp['sigma_w_' +
-                                 instrument] = out['posterior_samples'][pname]
+                                 self.sigmaw_iname[instrument]] = out['posterior_samples'][pname]
                 for pname in out_temp.keys():
                     out['posterior_samples'][pname] = out_temp[pname]
                 # Extract parameters:
@@ -2166,7 +2166,7 @@ class model(object):
                     instrument]] + parameter_values['mu_' + instrument]
             
             self.model[instrument]['deterministic_variances'] = self.errors[
-                instrument]**2 + parameter_values['sigma_w_' + instrument]**2
+                instrument]**2 + parameter_values['sigma_w_' + self.sigmaw_iname[instrument]]**2
 
             if self.lm_boolean[instrument]:
                 self.model[instrument]['LM'] = np.zeros(
@@ -2183,7 +2183,7 @@ class model(object):
                     instrument]] = self.model[instrument]['deterministic']
                 if evaluate_global_errors:
                     self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
-                                                                                          parameter_values['sigma_w_'+instrument]**2
+                                                                                          parameter_values['sigma_w_'+self.sigmaw_iname[instrument]]**2
 
 
     def get_GP_plus_deterministic_model(self,
@@ -3406,7 +3406,7 @@ class model(object):
                     instrument]['M']
             self.model[instrument][
                 'deterministic_variances'] = self.errors[instrument]**2 + (
-                    parameter_values['sigma_w_' + instrument] * 1e-6)**2
+                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] * 1e-6)**2
             # Finally, if the model under consideration is a global model, populate the global model dictionary:
             if self.global_model:
                 self.model['global'][self.instrument_indexes[
@@ -3538,6 +3538,7 @@ class model(object):
                 self.model['deterministic'] = np.zeros(len(self.t))
             # If limb-darkening, dilution factors or eclipse depth will be shared by different instruments, set the correct variable name for each:
             self.ld_iname = {}
+            self.sigmaw_iname = {}
             self.mdilution_iname = {}
             self.mflux_iname = {}
             self.theta_iname = {}
@@ -3659,6 +3660,16 @@ class model(object):
                             else:
                                 if instrument in vec: 
                                     self.theta_iname[theta_number+instrument] = vec[1]
+                        # Check if sigma_w:
+                        if pname[0:7] == 'sigma_w':
+                            vec = pname.split('_')
+                            if len(vec) > 3: 
+                                if instrument in vec: 
+                                    self.sigmaw_iname[instrument] = '_'.join(
+                                        vec[2:])
+                            else:
+                                if instrument in vec: 
+                                    self.sigmaw_iname[instrument] = vec[2] 
                         # Check if it is a dilution factor:
                         if pname[0:9] == 'mdilution':
                             vec = pname.split('_')
@@ -3925,7 +3936,7 @@ class gaussian_process(object):
                                                 == 'M32Kernel'):
             if not self.global_GP:
                 self.parameter_vector[base_index] = np.log(
-                    (parameter_values['sigma_w_' + self.instrument] *
+                    (parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
                      self.sigma_factor)**2)
                 base_index += 1
             self.parameter_vector[base_index] = np.log(
@@ -3939,7 +3950,7 @@ class gaussian_process(object):
         elif self.kernel_name == 'ExpSineSquaredSEKernel':
             if not self.global_GP:
                 self.parameter_vector[base_index] = np.log(
-                    (parameter_values['sigma_w_' + self.instrument] *
+                    (parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
                      self.sigma_factor)**2)
                 base_index += 1
             self.parameter_vector[base_index] = np.log(
@@ -3962,7 +3973,7 @@ class gaussian_process(object):
                 parameter_values['GP_C_' + self.input_instrument[3]])
             if not self.global_GP:
                 self.parameter_vector[4] = np.log(
-                    parameter_values['sigma_w_' + self.instrument] *
+                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
                     self.sigma_factor)
         elif self.kernel_name == 'CeleriteExpKernel':
             self.parameter_vector[0] = np.log(
@@ -3971,7 +3982,7 @@ class gaussian_process(object):
                 parameter_values['GP_timescale_' + self.input_instrument[1]])
             if not self.global_GP:
                 self.parameter_vector[2] = np.log(
-                    parameter_values['sigma_w_' + self.instrument] *
+                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
                     self.sigma_factor)
         elif self.kernel_name == 'CeleriteMaternKernel':
             self.parameter_vector[0] = np.log(
@@ -3980,7 +3991,7 @@ class gaussian_process(object):
                 parameter_values['GP_rho_' + self.input_instrument[1]])
             if not self.global_GP:
                 self.parameter_vector[2] = np.log(
-                    parameter_values['sigma_w_' + self.instrument] *
+                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
                     self.sigma_factor)
         elif self.kernel_name == 'CeleriteMaternExpKernel':
             self.parameter_vector[0] = np.log(
@@ -3991,7 +4002,7 @@ class gaussian_process(object):
                 parameter_values['GP_rho_' + self.input_instrument[2]])
             if not self.global_GP:
                 self.parameter_vector[4] = np.log(
-                    parameter_values['sigma_w_' + self.instrument] *
+                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
                     self.sigma_factor)
         elif self.kernel_name == 'CeleriteSHOKernel':
             self.parameter_vector[0] = np.log(
@@ -4004,7 +4015,7 @@ class gaussian_process(object):
             if not self.global_GP:
 
                 self.parameter_vector[3] = np.log(
-                    parameter_values['sigma_w_' + self.instrument] *
+                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
                     self.sigma_factor)
                 
         elif self.kernel_name == 'CeleriteDoubleSHOKernel':
@@ -4034,7 +4045,7 @@ class gaussian_process(object):
             if not self.global_GP:
 
                 self.parameter_vector[6] = np.log(
-                    parameter_values['sigma_w_' + self.instrument] *
+                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
                     self.sigma_factor)
 
         elif self.kernel_name == 'CeleriteTripleSHOKernel':
@@ -4061,7 +4072,7 @@ class gaussian_process(object):
 
             if not self.global_GP:
                 self.parameter_vector[8] = np.log(
-                    parameter_values['sigma_w_' + self.instrument] *
+                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
                     self.sigma_factor)
         
         # For Matern+SHO kernel
@@ -4072,7 +4083,7 @@ class gaussian_process(object):
             self.parameter_vector[3] = np.log(parameter_values['GP_Q_'+self.input_instrument[3]])
             self.parameter_vector[4] = np.log(parameter_values['GP_omega0_'+self.input_instrument[4]])
             if not self.global_GP:
-                self.parameter_vector[5] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
+                self.parameter_vector[5] = np.log(parameter_values['sigma_w_'+self.sigmaw_iname[instrument]]*self.sigma_factor)
                 
         self.GP.set_parameter_vector(self.parameter_vector)
 
