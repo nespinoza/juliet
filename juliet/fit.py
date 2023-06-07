@@ -3936,7 +3936,7 @@ class gaussian_process(object):
                                                 == 'M32Kernel'):
             if not self.global_GP:
                 self.parameter_vector[base_index] = np.log(
-                    (parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
+                    (parameter_values['sigma_w_' + self.instrument] *
                      self.sigma_factor)**2)
                 base_index += 1
             self.parameter_vector[base_index] = np.log(
@@ -3950,7 +3950,7 @@ class gaussian_process(object):
         elif self.kernel_name == 'ExpSineSquaredSEKernel':
             if not self.global_GP:
                 self.parameter_vector[base_index] = np.log(
-                    (parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
+                    (parameter_values['sigma_w_' + self.instrument] *
                      self.sigma_factor)**2)
                 base_index += 1
             self.parameter_vector[base_index] = np.log(
@@ -3973,7 +3973,7 @@ class gaussian_process(object):
                 parameter_values['GP_C_' + self.input_instrument[3]])
             if not self.global_GP:
                 self.parameter_vector[4] = np.log(
-                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
+                    parameter_values['sigma_w_' + self.instrument] *
                     self.sigma_factor)
         elif self.kernel_name == 'CeleriteExpKernel':
             self.parameter_vector[0] = np.log(
@@ -3982,7 +3982,7 @@ class gaussian_process(object):
                 parameter_values['GP_timescale_' + self.input_instrument[1]])
             if not self.global_GP:
                 self.parameter_vector[2] = np.log(
-                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
+                    parameter_values['sigma_w_' + self.instrument] *
                     self.sigma_factor)
         elif self.kernel_name == 'CeleriteMaternKernel':
             self.parameter_vector[0] = np.log(
@@ -3991,7 +3991,7 @@ class gaussian_process(object):
                 parameter_values['GP_rho_' + self.input_instrument[1]])
             if not self.global_GP:
                 self.parameter_vector[2] = np.log(
-                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
+                    parameter_values['sigma_w_' + self.instrument] *
                     self.sigma_factor)
         elif self.kernel_name == 'CeleriteMaternExpKernel':
             self.parameter_vector[0] = np.log(
@@ -4002,7 +4002,7 @@ class gaussian_process(object):
                 parameter_values['GP_rho_' + self.input_instrument[2]])
             if not self.global_GP:
                 self.parameter_vector[4] = np.log(
-                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
+                    parameter_values['sigma_w_' + self.instrument] *
                     self.sigma_factor)
         elif self.kernel_name == 'CeleriteSHOKernel':
             self.parameter_vector[0] = np.log(
@@ -4015,7 +4015,7 @@ class gaussian_process(object):
             if not self.global_GP:
 
                 self.parameter_vector[3] = np.log(
-                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
+                    parameter_values['sigma_w_' + self.instrument] *
                     self.sigma_factor)
                 
         elif self.kernel_name == 'CeleriteDoubleSHOKernel':
@@ -4045,7 +4045,7 @@ class gaussian_process(object):
             if not self.global_GP:
 
                 self.parameter_vector[6] = np.log(
-                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
+                    parameter_values['sigma_w_' + self.instrument] *
                     self.sigma_factor)
 
         elif self.kernel_name == 'CeleriteTripleSHOKernel':
@@ -4072,7 +4072,7 @@ class gaussian_process(object):
 
             if not self.global_GP:
                 self.parameter_vector[8] = np.log(
-                    parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] *
+                    parameter_values['sigma_w_' + self.instrument] *
                     self.sigma_factor)
         
         # For Matern+SHO kernel
@@ -4083,7 +4083,7 @@ class gaussian_process(object):
             self.parameter_vector[3] = np.log(parameter_values['GP_Q_'+self.input_instrument[3]])
             self.parameter_vector[4] = np.log(parameter_values['GP_omega0_'+self.input_instrument[4]])
             if not self.global_GP:
-                self.parameter_vector[5] = np.log(parameter_values['sigma_w_'+self.sigmaw_iname[instrument]]*self.sigma_factor)
+                self.parameter_vector[5] = np.log(parameter_values['sigma_w_'+self.instrument]*self.sigma_factor)
                 
         self.GP.set_parameter_vector(self.parameter_vector)
 
