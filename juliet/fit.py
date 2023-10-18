@@ -2166,7 +2166,7 @@ class model(object):
                     instrument]] + parameter_values['mu_' + instrument]
             
             self.model[instrument]['deterministic_variances'] = self.errors[
-                instrument]**2 + parameter_values['sigma_w_' + self.sigmaw_iname[instrument]]**2
+                instrument]**2 + parameter_values['sigma_w_' + instrument]**2
 
             if self.lm_boolean[instrument]:
                 self.model[instrument]['LM'] = np.zeros(
@@ -2183,7 +2183,7 @@ class model(object):
                     instrument]] = self.model[instrument]['deterministic']
                 if evaluate_global_errors:
                     self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
-                                                                                          parameter_values['sigma_w_'+self.sigmaw_iname[instrument]]**2
+                                                                                          parameter_values['sigma_w_'+instrument]**2
 
 
     def get_GP_plus_deterministic_model(self,
