@@ -652,16 +652,42 @@ def get_quantiles(dist, alpha=0.68, method='median'):
                    ordered_dist[med_idx-nsamples_at_each_side]
 
 
-def bin_data(x, y, n_bin):
+def bin_data(x, y, n_bin, yerr = None, method = 'median'):
+
     x_bins = []
     y_bins = []
     y_err_bins = []
+
     for i in range(0, len(x), n_bin):
-        x_bins.append(np.median(x[i:i + n_bin - 1]))
-        y_bins.append(np.median(y[i:i + n_bin - 1]))
-        y_err_bins.append(
-            np.sqrt(np.var(y[i:i + n_bin - 1])) /
-            np.sqrt(len(y[i:i + n_bin - 1])))
+
+        if method == 'median':
+
+            x_bins.append(np.median(x[i:i + n_bin - 1]))
+            y_bins.append(np.median(y[i:i + n_bin - 1]))
+
+        elif method == 'mean':
+
+            x_bins.append(np.mean(x[i:i + n_bin - 1]))
+            y_bins.append(np.mean(y[i:i + n_bin - 1]))
+
+        else:
+
+            raise Exception('Error: method "'+method+'" not recognized --- needs to be "mean" or "median".')
+
+
+        if yerr is None:
+
+            y_err_bins.append(
+                np.sqrt(np.var(y[i:i + n_bin - 1])) /
+                np.sqrt(len(y[i:i + n_bin - 1]))
+                             )
+
+        else:
+
+            y_err_bins.append(
+                np.sqrt( np.sum( yerr[i: i + n_bin - 1]**2 ) / len( yerr[i: i + n_bin - 1] )  )
+                            ) 
+
     return np.array(x_bins), np.array(y_bins), np.array(y_err_bins)
 
 
