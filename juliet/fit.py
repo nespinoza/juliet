@@ -1659,7 +1659,7 @@ class fit(object):
                 if self.nthreads is None:
 
                     # As with the other samplers, first extract list of possible args:
-                    args = DynestySampler.__code__.co_varnames
+                    args = vars(DynestySampler).keys()
                     d_args = {}
 
                     # Define some standard ones (for back-compatibility with previous juliet versions):
@@ -1678,7 +1678,7 @@ class fit(object):
                                              self.data.nparams, **d_args)
 
                     # Now do the same for the actual sampler:
-                    args = sampler.run_nested.__code__.co_varnames
+                    args = vars(sampler).keys()
                     ds_args = {}
 
                     # Load ones from kwargs:
@@ -1695,7 +1695,7 @@ class fit(object):
                 else:
 
                     # Before running the whole multithread magic, match kwargs with functional arguments:
-                    args = DynestySampler.__code__.co_varnames
+                    args = vars(DynestySampler).keys()
                     d_args = {}
 
                     # Define some standard ones (for back-compatibility with previous juliet versions):
@@ -1713,7 +1713,7 @@ class fit(object):
                                                   self.prior_transform_r,
                                                   self.data.nparams, **d_args)
                     # Extract args:
-                    args = mock_sampler.run_nested.__code__.co_varnames
+                    args = vars(mock_sampler).keys()
                     ds_args = {}
 
                     # Load ones from kwargs:
