@@ -2306,20 +2306,26 @@ class model(object):
 
             nresampling = self.dictionary[instrument].get('nresampling')
             etresampling = self.dictionary[instrument].get('exptimeresampling')
-        
-            if self.dictionary[instrument]['TransitFit']:
-            
-                self.model[instrument]['params'], [self.model[instrument]['m'],_] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
-                                                                                                nresampling=nresampling, etresampling=etresampling)
-            elif self.dictionary[instrument]['EclipseFit']:
-              
-                self.model[instrument]['params'], [_,self.model[instrument]['m']] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
-                                                                                                nresampling=nresampling, etresampling=etresampling)
+
+            if not self.dictionary[instrument]['TransitFitCatwoman']:
+
+                if self.dictionary[instrument]['TransitFit']:
                 
-            elif self.dictionary[instrument]['TranEclFit']:
-              
-                self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                    self.model[instrument]['params'], [self.model[instrument]['m'],_] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                                    nresampling=nresampling, etresampling=etresampling)
+                elif self.dictionary[instrument]['EclipseFit']:
+                
+                    self.model[instrument]['params'], [_,self.model[instrument]['m']] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                                    nresampling=nresampling, etresampling=etresampling)
+                    
+                elif self.dictionary[instrument]['TranEclFit']:
+                
+                    self.model[instrument]['params'], self.model[instrument]['m'] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
+                                                                                                    nresampling=nresampling, etresampling=etresampling)
+            else:
+                self.model[instrument]['params'], self.model[instrument]['m'] = init_catwoman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
                                                                                                 nresampling=nresampling, etresampling=etresampling)
+
 
         # Save the original inames in the case of non-global models, and set self.inames to the input model. This is because if the model
         # is not global, in general we don't care about generating the models for the other instruments (and in the lightcurve and RV evaluation part,

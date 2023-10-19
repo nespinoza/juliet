@@ -55,7 +55,7 @@ def init_catwoman(t, ld_law, nresampling = None, etresampling = None):
     This function initializes the catwoman code.
     """
 
-    params = batman.TransitParams()
+    params = catwoman.TransitParams()
     params.t0 = 0.
     params.per = 1.
     params.rp = 0.1
