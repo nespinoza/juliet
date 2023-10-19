@@ -1474,14 +1474,14 @@ class fit(object):
             self.sampler_prefix = self.sampler + '_'
 
         # Before starting, check if force_dynesty or force_pymultinest is on; change options accordingly:
-        if force_dynesty and (self.sampler is 'multinest'):
+        if force_dynesty and (self.sampler == 'multinest'):
             print(
                 'PyMultinest installation not detected. Forcing dynesty as the sampler.'
             )
             self.sampler = 'dynesty'
             self.sampler_prefix = '_dynesty_NS_'
           
-        if force_pymultinest and (self.sampler is 'dynesty'):
+        if force_pymultinest and (self.sampler == 'dynesty'):
             print(
                 'dynesty installation not detected. Forcing PyMultinest as the sampler.'
             )
@@ -3198,7 +3198,7 @@ class model(object):
                     ### For instrument dependent eclipse depth:
                     ### We only want to make eclipse depth instrument depended, not the time correction factor
                     if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
-                        fp = parameter_values['fp_p' + str(i) + '_' + self.fp_iname['p' + str(i)][instrument]]
+                        fp = parameter_values['fp_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
                         t_secondary = parameter_values['t_secondary_p' + str(i)]
                     if self.dictionary['efficient_bp'][i]:
                         if not self.dictionary['fitrho']:
@@ -3220,12 +3220,12 @@ class model(object):
                             if not self.dictionary[instrument][
                                     'TransitFitCatwoman']:
                                 a,b,p = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
-                                        parameter_values['p_p'+str(i)+'_'+self.p_iname['p' + str(i)][instrument]]
+                                        parameter_values['p_p'+str(i) + self.p_iname['p' + str(i)][instrument]]
                             else:
 
                                 a,b,p1,p2,phi = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
-                                             parameter_values['p1_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]], \
-                                             parameter_values['p2_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]], \
+                                             parameter_values['p1_p'+str(i) + self.p1_iname['p' + str(i)][instrument]], \
+                                             parameter_values['p2_p'+str(i) + self.p1_iname['p' + str(i)][instrument]], \
                                              parameter_values['phi_p'+str(i)]
 
                                 p = np.min([p1, p2])
@@ -3236,13 +3236,13 @@ class model(object):
                                     'TransitFitCatwoman']:
 
                                 rho,b,p = parameter_values['rho'], parameter_values['b_p'+str(i)],\
-                                          parameter_values['p_p'+str(i)+'_'+self.p_iname['p' + str(i)][instrument]]
+                                          parameter_values['p_p'+str(i) + self.p_iname['p' + str(i)][instrument]]
 
                             else:
 
                                 rho,b,p1,p2,phi = parameter_values['rho'], parameter_values['b_p'+str(i)],\
-                                               parameter_values['p1_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]], \
-                                               parameter_values['p2_p'+str(i)+'_'+self.p1_iname['p' + str(i)][instrument]],\
+                                               parameter_values['p1_p'+str(i) + self.p1_iname['p' + str(i)][instrument]], \
+                                               parameter_values['p2_p'+str(i) + self.p1_iname['p' + str(i)][instrument]],\
                                                parameter_values['phi_p'+str(i)]
 
                                 p = np.min([p1, p2])
@@ -3695,33 +3695,67 @@ class model(object):
                             else:
                                 if instrument in vec:
                                     self.mflux_iname[instrument] = vec[1]
+
                         if pname[0:2] == 'fp':
-                            # Note that eclipse depth is planetary and instrumental parameter
+
+                            # Note that eclipse and transit depths can be a planetary and instrumental parameter
                             vec = pname.split('_')
+
                             if len(vec) > 3:
+
                                 if instrument in vec:
-                                    self.fp_iname[vec[1]][instrument] = '_'.join(vec[2:])
+
+                                    self.fp_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+
                             else:
-                                if instrument in vec:
-                                    self.fp_iname[vec[1]][instrument] = vec[2]
+
+                                if len(vec) == 3:
+
+                                    self.fp_iname[vec[1]][instrument] = '_' + vec[2]
+
+                                else:
+
+                                    self.fp_iname[vec[1]][instrument] = ''
+
                         if pname[0:2] == 'p_':
+
                             vec = pname.split('_')
+
                             if len(vec) > 3:
+
                                 if instrument in vec:
-                                    self.p_iname[vec[1]][instrument] = '_'.join(vec[2:])
+
+                                    self.p_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+
                             else:
-                                if instrument in vec:
-                                    self.p_iname[vec[1]][instrument] = vec[2]
+
+                                if len(vec) == 3:
+
+                                    self.p_iname[vec[1]][instrument] = '_' + vec[2]
+
+                                else:
+
+                                    self.p_iname[vec[1]][instrument] = ''
+
                         if pname[0:2] == 'p1':
 
                             vec = pname.split('_')
 
                             if len(vec) > 3:
+
                                 if instrument in vec:
-                                    self.p1_iname[vec[1]][instrument] = '_'.join(vec[2:])
+
+                                    self.p1_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+
                             else:
-                                if instrument in vec:
-                                    self.p1_iname[vec[1]][instrument] = vec[2]
+
+                                if len(vec) == 3:
+
+                                    self.p1_iname[vec[1]][instrument] = '_' + vec[2]
+
+                                else:
+
+                                    self.p_iname[vec[1]][instrument] = ''
 
                 else:
                     # Now proceed with instrument namings:
