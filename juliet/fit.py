@@ -43,6 +43,7 @@ try:
                 0.0,
                 np.exp(-log_timescale),
                 2 * np.pi * np.exp(-log_period),
+
             )
 except:
     print(
@@ -449,7 +450,7 @@ class load(object):
             self.yerr_rv = self.yerr_rv[idx_sort]
 
             self.GP_rv_arguments['rv'][:,0] = self.GP_rv_arguments['rv'][idx_sort,0]
-            
+
             # Now with the sorted indices, iterate through the instrument indexes and change them according to the new
             # ordering:
             for instrument in self.inames_rv:
@@ -644,6 +645,7 @@ class load(object):
                                 print('\t Eclipse fit detected for instrument ',inames[i])
 
                     if pri[0:2] == 'dt' or pri[0:2] == 'T_':
+                      
                         if pri[0:2] == 'T_':
                             dictionary[
                                 inames[i]]['TTVs'][pi]['parametrization'] = 'T'
@@ -1754,7 +1756,6 @@ class fit(object):
                         initial_position = np.append(initial_position,
                                                      self.posteriors[pname])
 
-
                 # Perturb initial position for each of the walkers:
                 pos = initial_position + self.emcee_factor * np.random.randn(
                     self.nwalkers, len(initial_position))
@@ -2160,7 +2161,7 @@ class model(object):
 
         # Populate the self.model[instrument]['deterministic'] array. This hosts the full (deterministic) model for each RV instrument.
         for instrument in self.inames:
-
+          
             self.model[instrument]['deterministic'] = self.model[
                 'Keplerian+Trend'][self.instrument_indexes[
                     instrument]] + parameter_values['mu_' + instrument]
@@ -2184,7 +2185,6 @@ class model(object):
                 if evaluate_global_errors:
                     self.model['global_variances'][self.instrument_indexes[instrument]] = self.yerr[self.instrument_indexes[instrument]]**2 + \
                                                                                           parameter_values['sigma_w_'+instrument]**2
-
 
     def get_GP_plus_deterministic_model(self,
                                         parameter_values,
@@ -2915,7 +2915,7 @@ class model(object):
                             
                         components['trend'] = np.median(components['trend'], axis = 0)
                         components['keplerian'] = np.median(components['keplerian'], axis = 0)
-                        
+
                         if self.global_model:
                             for ginstrument in instruments:
                                 components['mu'][ginstrument] = np.median(components['mu'][ginstrument])
@@ -3588,7 +3588,6 @@ class model(object):
                     self.lm_n[instrument] = self.lm_arguments[instrument].shape[
                         1]
                 # An array of ones to copy around:
-
                 self.model[instrument]['ones'] = np.ones( len(self.instrument_indexes[instrument]) )
 
                 # Generate internal model variables of interest to the user. First, the lightcurve model in the notation of juliet (Mi)
@@ -3767,7 +3766,7 @@ class model(object):
                                 if instrument in vec:
 
                                     self.mdilution_iname[instrument] = '_'.join(vec[1:])
-                                    
+
                             else:
                                 if instrument in vec:
                                     self.mdilution_iname[instrument] = vec[1]
@@ -4273,6 +4272,7 @@ class gaussian_process(object):
             # Wrap GP kernel and object:
 
             if self.instrument in ['rv', 'lc']:
+
                 self.kernel = rot_kernel
             else:
                 self.kernel = rot_kernel + kernel_jitter
