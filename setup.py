@@ -18,7 +18,7 @@ setup(name='juliet',
       author_email='nespinoza@stsci.edu',
       license='MIT',
       packages=['juliet'],
-      install_requires=['batman-package','radvel','dynesty','george','celerite','astropy','numpy','scipy', 'emcee', 'ultranest'],
+      install_requires=['batman-package','radvel','dynesty>=1.2.2','george','celerite','astropy','numpy','scipy', 'emcee', 'ultranest'],
       python_requires='>=2.7',
       extras_requires={
             'seaborn':['seaborn'],

@@ -136,3 +136,14 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+/juliet/test.py
+/juliet/kelt-11_tra.dat
+/juliet/wasp-189_ecl.dat
+/juliet/juls/
+juliet/wasp-189_701.dat
+juliet/wasp-189_visit1.dat
+juliet/test1.py
+juliet/wasp-189_ecl_tra.dat
+juliet/test*.py
+juliet/*.dat

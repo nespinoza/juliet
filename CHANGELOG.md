@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2] - 
+### Added
+- Support to instrument-dependant `fp`, `p`, `p1` and `p2` thanks to @Jayshil (#85).
+- Matern+SHO kernel thanks to @Jayshil (#85).
+- Support to instrument-dependant `mflux`, `sigma_w`, and linear models (e.g., `theta0_inst1_inst2`).
+- Added `method` to `utils.bin_data`.
+
+## [2.2.1] - 2022-08-17
+### Fixed
+- Changed `ac` for `t_secondary` as the fitting parameter for time of eclipses.
+
+## [2.2.0] - 2022-08-02
+### Added
+- Upgraded list of contributors.
+- `tests` folder where code tests will be saved.
+- `zeus` sampler thanks to contribution from Rachel Cooper.
+- Secondary eclipse fitting thanks to contribution from Jayshil Patel.
+- Additional GP kernels thanks to contribution from Jonas Kemmer.
+- Added lowercase priors (thanks to @rosteen; #80).
+- Option to activate/deactivate HODLR solver when using `george` GP kernels.
+
+### Fixed
+- Bug when multiple planets using and not `efficient_bp` thanks to @tronsgaard.
+- Keywords that made `juliet` incompatible with `dynesty` 1.2.2 (this makes `juliet` incompatible with pervious `dynesty` versions)
+- `exponential` prior which was not working.
+- Problem with `dynesty`, whose newest version crashed with `juliet`.
+
+### Removed
+- Removed the `juliet.py` (and associated `utils.py`, `FLAGS.md`) which hosted the original version of the code, to not confuse contributors.
+
+### Fixed
+- Supersampling bug when evaluating models.
+
 ## [2.1.2] - 2021-03-20
 ### Removed
 - Files for pink noise in deference of building a new package.
