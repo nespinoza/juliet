@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Matern+SHO kernel thanks to @Jayshil (#85).
 - Support to instrument-dependant `mflux`, `sigma_w`, and linear models (e.g., `theta0_inst1_inst2`).
 - Added `method` to `utils.bin_data`.
+- Upgraded list of contributors.
+
+### Fixed
+- Made changes in #85 back-compatible with non-instrument dependant `fp`, `p`, `p1` and `p2`.
+- Issue with new version of `dynesty` thanks to @andres-jordan (#98).
+- Fixed bug when evaluating `catwoman` models thanks to @Jayshil (#96).
+- Fixed deprecated `is` comparisons with `==` on samplers thanks to @rosteen (#86).
+- Fixed issue #81 thanks to @ssagear (#82).
 
 ## [2.2.1] - 2022-08-17
 ### Fixed
