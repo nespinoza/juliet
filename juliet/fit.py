@@ -3642,145 +3642,120 @@ class model(object):
                     for i in self.numbering:
                         self.model[instrument]['p' + str(i)] = np.ones(
                             len(self.instrument_indexes[instrument]))
-                    # Now proceed with instrument namings:
-                    for pname in self.priors.keys():
-                        # Check if variable name is a limb-darkening coefficient:
-                        if pname[0:2] == 'q1':
-                            vec = pname.split('_')
-                            if len(vec) > 2:
-                                if instrument in vec:
-                                    self.ld_iname[instrument] = '_'.join(
-                                        vec[1:])
-                            else:
-                                if instrument in vec:
-                                    self.ld_iname[instrument] = vec[1]
-                        # Check if it is a theta LM:
-                        if pname[0:5] == 'theta':
-                            vec = pname.split('_')
-                            theta_number = vec[0][5:]
-                            if len(vec) > 2: 
-                                if instrument in vec:
-                                    self.theta_iname[theta_number+instrument] = '_'.join(
-                                        vec[1:])
-                            else:
-                                if instrument in vec: 
-                                    self.theta_iname[theta_number+instrument] = vec[1]
-                        # Check if sigma_w:
-                        if pname[0:7] == 'sigma_w':
-                            vec = pname.split('_')
-                            if len(vec) > 3: 
-                                if instrument in vec: 
-                                    self.sigmaw_iname[instrument] = '_'.join(
-                                        vec[2:])
-                            else:
-                                if instrument in vec: 
-                                    self.sigmaw_iname[instrument] = vec[2] 
-                        # Check if it is a dilution factor:
-                        if pname[0:9] == 'mdilution':
-                            vec = pname.split('_')
-                            if len(vec) > 2:
-                                if instrument in vec:
-                                    self.mdilution_iname[instrument] = '_'.join(
-                                        vec[1:])
-                            else:
-                                if instrument in vec:
-                                    self.mdilution_iname[instrument] = vec[1]
-                        if pname[0:5] == 'mflux':
-                            vec = pname.split('_')
-                            if len(vec) > 2:
-                                if instrument in vec:
-                                    self.mflux_iname[instrument] = '_'.join(
-                                        vec[1:])
-                            else:
-                                if instrument in vec:
-                                    self.mflux_iname[instrument] = vec[1]
 
-                        if pname[0:2] == 'fp':
+                # Now proceed with instrument namings:
+                for pname in self.priors.keys():
+                    # Check if variable name is a limb-darkening coefficient:
+                    if pname[0:2] == 'q1':
+                        vec = pname.split('_')
+                        if len(vec) > 2:
+                            if instrument in vec:
+                                self.ld_iname[instrument] = '_'.join(
+                                    vec[1:])
+                        else:
+                            if instrument in vec:
+                                self.ld_iname[instrument] = vec[1]
+                    # Check if it is a theta LM:
+                    if pname[0:5] == 'theta':
+                        vec = pname.split('_')
+                        theta_number = vec[0][5:]
+                        if len(vec) > 2: 
+                            if instrument in vec:
+                                self.theta_iname[theta_number+instrument] = '_'.join(
+                                    vec[1:])
+                        else:
+                            if instrument in vec: 
+                                self.theta_iname[theta_number+instrument] = vec[1]
+                    # Check if sigma_w:
+                    if pname[0:7] == 'sigma_w':
+                        vec = pname.split('_')
+                        if len(vec) > 3: 
+                            if instrument in vec: 
+                                self.sigmaw_iname[instrument] = '_'.join(
+                                    vec[2:])
+                        else:
+                            if instrument in vec: 
+                                self.sigmaw_iname[instrument] = vec[2] 
+                    # Check if it is a dilution factor:
+                    if pname[0:9] == 'mdilution':
+                        vec = pname.split('_')
+                        if len(vec) > 2:
+                            if instrument in vec:
+                                self.mdilution_iname[instrument] = '_'.join(
+                                    vec[1:])
+                        else:
+                            if instrument in vec:
+                                self.mdilution_iname[instrument] = vec[1]
+                    if pname[0:5] == 'mflux':
+                        vec = pname.split('_')
+                        if len(vec) > 2:
+                            if instrument in vec:
+                                self.mflux_iname[instrument] = '_'.join(
+                                    vec[1:])
+                        else:
+                            if instrument in vec:
+                                self.mflux_iname[instrument] = vec[1]
 
-                            # Note that eclipse and transit depths can be a planetary and instrumental parameter
-                            vec = pname.split('_')
+                    if pname[0:2] == 'fp':
 
-                            if len(vec) > 3:
+                        # Note that eclipse and transit depths can be a planetary and instrumental parameter
+                        vec = pname.split('_')
 
-                                if instrument in vec:
+                        if len(vec) > 3:
 
-                                    self.fp_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+                            if instrument in vec:
 
-                            else:
+                                self.fp_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
 
-                                if len(vec) == 3:
+                        else:
 
-                                    self.fp_iname[vec[1]][instrument] = '_' + vec[2]
+                            if len(vec) == 3:
 
-                                else:
-
-                                    self.fp_iname[vec[1]][instrument] = ''
-
-                        if pname[0:2] == 'p_':
-
-                            vec = pname.split('_')
-
-                            if len(vec) > 3:
-
-                                if instrument in vec:
-
-                                    self.p_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+                                self.fp_iname[vec[1]][instrument] = '_' + vec[2]
 
                             else:
 
-                                if len(vec) == 3:
+                                self.fp_iname[vec[1]][instrument] = ''
 
-                                    self.p_iname[vec[1]][instrument] = '_' + vec[2]
+                    if pname[0:2] == 'p_':
 
-                                else:
+                        vec = pname.split('_')
 
-                                    self.p_iname[vec[1]][instrument] = ''
+                        if len(vec) > 3:
 
-                        if pname[0:2] == 'p1':
+                            if instrument in vec:
 
-                            vec = pname.split('_')
+                                self.p_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
 
-                            if len(vec) > 3:
+                        else:
 
-                                if instrument in vec:
+                            if len(vec) == 3:
 
-                                    self.p1_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+                                self.p_iname[vec[1]][instrument] = '_' + vec[2]
+
+                            else:
+
+                                self.p_iname[vec[1]][instrument] = ''
+
+                    if pname[0:2] == 'p1':
+
+                        vec = pname.split('_')
+
+                        if len(vec) > 3:
+
+                            if instrument in vec:
+
+                                self.p1_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+
+                        else:
+
+                            if len(vec) == 3:
+
+                                self.p1_iname[vec[1]][instrument] = '_' + vec[2]
 
                             else:
 
-                                if len(vec) == 3:
-
-                                    self.p1_iname[vec[1]][instrument] = '_' + vec[2]
-
-                                else:
-
-                                    self.p_iname[vec[1]][instrument] = ''
-
-                else:
-                    # Now proceed with instrument namings:
-                    for pname in self.priors.keys():
-                        # Check if it is a dilution factor or mflux:
-                        if pname[0:9] == 'mdilution':
-                            vec = pname.split('_')
-                            if len(vec) > 2:
-                                if instrument in vec:
-
-                                    self.mdilution_iname[instrument] = '_'.join(vec[1:])
-
-                            else:
-                                if instrument in vec:
-                                    self.mdilution_iname[instrument] = vec[1]
-
-                        if pname[0:5] == 'mflux':
-                            vec = pname.split('_')
-                            if len(vec) > 2:
-                                if instrument in vec:
-
-                                    self.mflux_iname[instrument] = '_'.join(vec[1:])
-
-                            else:
-                                if instrument in vec:
-                                    self.mflux_iname[instrument] = vec[1]
+                                self.p_iname[vec[1]][instrument] = ''
 
             # Set the model-type to M(t):
             self.evaluate = self.evaluate_model

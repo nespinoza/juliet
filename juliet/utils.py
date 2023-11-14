@@ -840,7 +840,6 @@ def writepp(fout, posteriors, priors):
                     '{0:18} \t \t {1:.10f} \t \t {2:.10f} \t \t {3:.10f}\n'.
                     format('ecc_' + planet, val, usigma, dsigma))
 
-                idx = np.where(omega > 0.)[0]
                 val, valup, valdown = get_quantiles(omega[idx])
                 usigma = valup - val
                 dsigma = val - valdown
