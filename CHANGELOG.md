@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.2.4] - 
 ### Fixed
-- Homogeneized instrument namings on code, which fixed a photometry-only fit bug (#104).
+- Homogeneized instrument namings on code, which fixed a photometry-only fit bug (fixes #104).
+- Removed the `posteriors.dat` file printing out only `omega` values larger than 0 (fixes #90).
 
 ## [2.2.3] - 2023-10-30 
 ### Added
