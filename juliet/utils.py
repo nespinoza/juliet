@@ -185,7 +185,8 @@ def get_all_TESS_data(object_name, radius = ".02 deg", get_PDC = True, get_all =
                                   str(sector)] = fserr[idx_goodsap] / med
                 # Remove downloaded folder if not required to save it:
                 if not save_data:
-                    os.system('rm -r mastDownload')
+                    lc_folder = os.path.split(manifest[0][0])[0]
+                    os.system('rm -r '+lc_folder)
     if get_all:
         return out_dict, times, fluxes, fluxes_errors
     else:
