@@ -646,11 +646,12 @@ class load(object):
 
                     if pri[0:2] == 'dt' or pri[0:2] == 'T_':
                       
-                        if pri[0:2] == 'T_':
-                            dictionary[
-                                inames[i]]['TTVs'][pi]['parametrization'] = 'T'
                         planet_number, instrument, ntransit = pri.split('_')[1:]
+
                         if inames[i] == instrument:
+                            if pri[0:2] == 'T_':
+                                dictionary[inames[i]]['TTVs'][int(
+                                    planet_number[1:])]['parametrization'] = 'T'
 
                             dictionary[inames[i]]['TTVs'][int(
                                 planet_number[1:])]['status'] = True
