@@ -120,14 +120,14 @@ try:
 except:
     has_astroquery = False
 
-def get_all_TESS_data(object_name, radius = ".02 deg", get_PDC = True, get_all = False, get_lightcurves_only = True):
+def get_all_TESS_data(object_name, radius = ".02 deg", get_PDC = True, get_all = False, get_lightcurves_only = True, save_data = False):
     """
     Given a planet name, this function returns a dictionary of times, fluxes and
     errors on fluxes in a juliet-friendly format for usage. The function does an
     astroquery to MAST using a default radius of .02 deg around the target name. If get_PDC is True,
     this function returns PDC fluxes. False returns SAP fluxes. If get_all is true, this function
     returns a dictionary that in addition to the times, fluxes and errors, returns other
-    metadata.
+    metadata. If save_data is True, it will keep the downloaded lightcurves.
     """
     if not has_astroquery:
         print(
@@ -183,8 +183,10 @@ def get_all_TESS_data(object_name, radius = ".02 deg", get_PDC = True, get_all =
                     fluxes['TESS' + str(sector)] = fs[idx_goodsap] / med
                     fluxes_errors['TESS' +
                                   str(sector)] = fserr[idx_goodsap] / med
-                # Remove downloaded folder:
-                os.system('rm -r mastDownload')
+                # Remove downloaded folder if not required to save it:
+                if not save_data:
+                    lc_folder = os.path.split(manifest[0][0])[0]
+                    os.system('rm -r '+lc_folder)
     if get_all:
         return out_dict, times, fluxes, fluxes_errors
     else:
