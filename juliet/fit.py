@@ -3697,65 +3697,41 @@ class model(object):
                                 self.mflux_iname[instrument] = vec[1]
 
                     if pname[0:2] == 'fp':
-
                         # Note that eclipse and transit depths can be a planetary and instrumental parameter
                         vec = pname.split('_')
-
                         if len(vec) > 3:
-
                             if instrument in vec:
-
                                 self.fp_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
-
                         else:
-
-                            if len(vec) == 3:
-
-                                self.fp_iname[vec[1]][instrument] = '_' + vec[2]
-
-                            else:
-
-                                self.fp_iname[vec[1]][instrument] = ''
+                            if instrument in vec:
+                                if len(vec) == 3:
+                                    self.fp_iname[vec[1]][instrument] = '_' + vec[2]
+                                else:
+                                    self.fp_iname[vec[1]][instrument] = ''
 
                     if pname[0:2] == 'p_':
-
                         vec = pname.split('_')
-
                         if len(vec) > 3:
-
                             if instrument in vec:
-
                                 self.p_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
-
                         else:
-
-                            if len(vec) == 3:
-
-                                self.p_iname[vec[1]][instrument] = '_' + vec[2]
-
-                            else:
-
-                                self.p_iname[vec[1]][instrument] = ''
+                            if instrument in vec:
+                                if len(vec) == 3:
+                                    self.p_iname[vec[1]][instrument] = '_' + vec[2]
+                                else:
+                                    self.p_iname[vec[1]][instrument] = ''
 
                     if pname[0:2] == 'p1':
-
                         vec = pname.split('_')
-
                         if len(vec) > 3:
-
                             if instrument in vec:
-
                                 self.p1_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
-
                         else:
-
-                            if len(vec) == 3:
-
-                                self.p1_iname[vec[1]][instrument] = '_' + vec[2]
-
-                            else:
-
-                                self.p_iname[vec[1]][instrument] = ''
+                            if instrument in vec:
+                                if len(vec) == 3:
+                                    self.p1_iname[vec[1]][instrument] = '_' + vec[2]
+                                else:
+                                    self.p_iname[vec[1]][instrument] = ''
 
             # Set the model-type to M(t):
             self.evaluate = self.evaluate_model
