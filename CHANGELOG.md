@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [2.2.5] - 
+### Fixed
+- Bug of multi-instrument fits not updating posteriors by @Jayshil (PR #112).
+- Bug of multi-planet TTV fits (issues #110 and #97) by @melissa-hobson (PR #111).
+
+### Added
+- Now `get_all_TESS_lightcurves` has an extra flag to save lightcurves (`save_data = True`; PR #106 by @melissa-hobson).
+- Support for light-travel time delay in eclipse and transit+eclipse fits (PR #XXX by Taylor Bell).
+
 ## [2.2.4] - 2023-11-14 
 ### Fixed
 - Homogeneized instrument namings on code, which fixed a photometry-only fit bug (fixes #104).
