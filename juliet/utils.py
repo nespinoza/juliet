@@ -79,6 +79,16 @@ def init_catwoman(t, ld_law, nresampling = None, etresampling = None):
                                   exp_time=etresampling)
     return params, m
 
+def correct_light_travel_time(times, params):
+    """
+    Tayler to ingest correction here. Inputs:
+
+    time: numpy array of times
+
+    params: batman params object 
+    """
+    
+    return times
 
 def init_radvel(nplanets=1):
     return radvel.model.Parameters(nplanets, basis='per tc e w k')

@@ -1215,6 +1215,9 @@ class fit(object):
     :param nthreads: (optinal, int)
         Define the number of threads to use within dynesty or emcee. Default is to use just 1. Note this will not impact PyMultiNest or UltraNest runs --- these can be parallelized via MPI only.
 
+    :param light_travel_delay: (optinal, bool)
+        Boolean indicating if light travel time delay wants to be included on eclipse time calculations.
+
     In addition, any number of extra optional keywords can be given to the call, which will be directly ingested into the sampler of choice. For a full list of optional keywords for...
 
     - ...PyMultiNest, check the docstring of ``PyMultiNest``'s ``run`` `function <https://github.com/JohannesBuchner/PyMultiNest/blob/master/pymultinest/run.py>`_.
@@ -1376,7 +1379,7 @@ class fit(object):
             return lp
 
     def __init__(self, data, sampler = 'multinest', n_live_points = 500, nwalkers = 100, nsteps = 300, nburnin = 500, emcee_factor = 1e-4, \
-                 ecclim = 1., pl = 0.0, pu = 1.0, ta = 2458460., nthreads = None, \
+                 ecclim = 1., pl = 0.0, pu = 1.0, ta = 2458460., nthreads = None, light_travel_delay = False, \
                  use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
                  dynesty_n_effective = np.inf, dynesty_use_stop = True, dynesty_use_pool = None, **kwargs):
 
@@ -1402,6 +1405,9 @@ class fit(object):
         self.emcee_factor = emcee_factor
         self.nburnin = nburnin
         self.nthreads = nthreads
+
+        # Extract physical model details:
+        self.light_travel_delay = light_travel_delay
 
         # Update sampler inputs in case user still using deprecated inputs. We'll remove this in some future. First, define standard pre-fix and sufix for the warnings:
         ws1 = 'WARNING: use of the '
@@ -1529,6 +1535,7 @@ class fit(object):
                             pl=self.pl,
                             pu=self.pu,
                             ecclim=self.ecclim,
+                            light_travel_delay = self.light_travel_delay,
                             log_like_calc=True)
         if self.data.t_rv is not None:
 
@@ -2075,6 +2082,9 @@ class model(object):
 
     :param ecclim: (optional, float)
         This parameter sets the maximum eccentricity allowed such that a model is actually evaluated. Default is ``1``.
+
+    :param light_travel_delay: (optinal, bool)
+        Boolean indicating if light travel time delay wants to be included on eclipse time calculations.
 
     :param log_like_calc: (optional, boolean)
         If True, it is assumed the model is generated to generate likelihoods values, and thus this skips the saving/calculation of the individual
@@ -3195,12 +3205,19 @@ class model(object):
 
                 # Once all is OK with the periods and time-of-transit centers, loop through all the planets, getting the lightcurve model for each:
                 for i in self.numbering:
+
                     P, t0 = cP[i], ct0[i]
+
                     ### For instrument dependent eclipse depth:
                     ### We only want to make eclipse depth instrument depended, not the time correction factor
                     if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+
                         fp = parameter_values['fp_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
-                        t_secondary = parameter_values['t_secondary_p' + str(i)]
+
+                        if not self.light_travel_delay:
+
+                            t_secondary = parameter_values['t_secondary_p' + str(i)]
+
                     if self.dictionary['efficient_bp'][i]:
                         if not self.dictionary['fitrho']:
                             a,r1,r2   = parameter_values['a_p'+str(i)], parameter_values['r1_p'+str(i)],\
@@ -3275,13 +3292,18 @@ class model(object):
 
                     # Generate lightcurve for the current planet if ecc is OK:
                     if ecc > self.ecclim:
+
                         self.modelOK = False
                         return False
+
                     else:
+
                         ecc_factor = (1. + ecc * np.sin(omega * np.pi / 180.)
                                      ) / (1. - ecc**2)
                         inc_inv_factor = (b / a) * ecc_factor
+
                         if not (b > 1. + p or inc_inv_factor >= 1.):
+
                             self.model[instrument]['params'].t0 = t0
                             self.model[instrument]['params'].per = P
                             self.model[instrument]['params'].a = a
@@ -3291,8 +3313,32 @@ class model(object):
                             self.model[instrument]['params'].w = omega
 
                             if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+
                                 self.model[instrument]['params'].fp = fp
-                                self.model[instrument]['params'].t_secondary = t_secondary
+
+                                if not self.light_travel_delay:
+
+                                    self.model[instrument]['params'].t_secondary = t_secondary
+
+                                else:
+
+                                    # If light-travel time is activated, self-consistently calculate time of secondary eclipse:
+                                    self.model[instrument]['params'].t_secondary = self.model[instrument]['m'].get_t_secondary(self.model[instrument]['params'])
+
+                                    # Get time-delayed times:
+                                    corrected_t = correct_light_travel_time(self.t, self.model[instrument]['params'])
+
+                                    # Dynamically modify the batman model for the eclipse part:
+                                    if self.dictionary[instrument]['resampling']:
+
+                                        _, [_, self.model[instrument]['m'][1]] = init_batman(corrected_t, self.dictionary[instrument]['ldlaw'], \
+                                                                                     nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                                     etresampling = self.dictionary[instrument]['exptimeresampling'])
+
+                                    else:
+
+                                        _, [_, self.model[instrument]['m'][1]] = init_batman(corrected_t, self.dictionary[instrument]['ldlaw'])
+
 
                             if not self.dictionary[instrument]['TransitFitCatwoman']:
 
@@ -3318,23 +3364,35 @@ class model(object):
                             # name; if, e.g., dt_p1_TESS1_-2, then n = -2 and the time of transit (with TTV) = t0 + n*P + dt_p1_TESS1_-2. Compute transit
                             # model assuming that time-of-transit; repeat for all the transits. Generally users will not do TTV analyses, so set this latter
                             # case to be the most common one by default in the if-statement:
+
                             if not self.dictionary[instrument]['TTVs'][i][
                                     'status']:
+
                                 # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
+
                                 if self.log_like_calc:
 
                                     if not self.dictionary[instrument]['TranEclFit']:
+
                                         self.model[instrument]['M'] += self.model[instrument]['m'].light_curve(self.model[instrument]['params']) - 1.
+
                                     else:
+
                                         self.model[instrument]['M'] += (self.model[instrument]['m'][0].light_curve(self.model[instrument]['params']) * self.model[instrument]['m'][1].light_curve(self.model[instrument]['params'])) - 1.
                                 else:
+
                                     if not self.dictionary[instrument]['TranEclFit']:
+
                                         self.model[instrument]['p'+str(i)] = self.model[instrument]['m'].light_curve(self.model[instrument]['params'])
                                         self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
+
                                     else:
+
                                         self.model[instrument]['p'+str(i)] = self.model[instrument]['m'][0].light_curve(self.model[instrument]['params']) * self.model[instrument]['m'][1].light_curve(self.model[instrument]['params'])
                                         self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
+
                             else:
+
                                 if not self.dictionary[instrument]['TransitFitCatwoman']:
                                     if self.dictionary[instrument]['resampling']:
                                         if self.dictionary[instrument]['TransitFit']:
@@ -3491,6 +3549,7 @@ class model(object):
                  pu=1.0,
                  ecclim=1.,
                  ta=2458460.,
+                 light_travel_delay = False,
                  log_like_calc=False):
         # Inhert the priors dictionary from data:
         self.priors = data.priors
@@ -3498,6 +3557,8 @@ class model(object):
         self.ecclim = ecclim
         # Define ta:
         self.ta = ta
+        # Define light travel time option:
+        self.light_travel_delay = light_travel_delay
         # Save the log_like_calc boolean:
         self.log_like_calc = log_like_calc
         # Define variable that at each iteration defines if the model is OK or not (not OK means something failed in terms of the
