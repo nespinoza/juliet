@@ -623,24 +623,39 @@ class load(object):
                     dictionary[inames[i]]['TTVs'][pi]['status'] = False
                     dictionary[inames[i]]['TTVs'][pi]['parametrization'] = 'dt'
                     dictionary[inames[i]]['TTVs'][pi]['transit_number'] = []
+
                 for pri in self.priors.keys():
+
                     if pri[0:2] == 'q1':
+
                         if inames[i] in pri.split('_'):
+
                             dictionary[inames[i]]['TransitFit'] = True
+
                             if self.verbose:
+
                                 print('\t Transit fit detected for instrument ',
                                       inames[i])
+
                     if pri[0:2] == 'p1':
-                        if inames[i] in pri.split('_'):
+
+                        # If CW defined on instrument, or, there's a single CW for all instruments:
+                        if (inames[i] in pri.split('_')) or (len(pri.split('_')) == 2):
+
                             dictionary[inames[i]]['TransitFit'] = True
                             dictionary[inames[i]]['TransitFitCatwoman'] = True
+
                             if self.verbose:
                             
                                 print('\t Transit (catwoman) fit detected for instrument ', inames[i])
 
                     if pri[0:2] == 'fp':
-                        if inames[i] in pri.split('_'):
+
+                        # If an eclipse for instrument or there's a single depth for all instruments:
+                        if (inames[i] in pri.split('_')) or (len(pri.split('_')) == 2):
+
                             dictionary[inames[i]]['EclipseFit'] = True
+
                             if self.verbose:
                                 print('\t Eclipse fit detected for instrument ',inames[i])
 
@@ -3759,45 +3774,88 @@ class model(object):
                                 self.mflux_iname[instrument] = vec[1]
 
                     if pname[0:2] == 'fp':
+
                         # Note that eclipse and transit depths can be a planetary and instrumental parameter
                         vec = pname.split('_')
                         if len(vec) > 3:
+
+                            # This is the case in which multiple instruments share an eclipse depth, e.g., fp_p1_TESS1_TESS2
                             if instrument in vec:
+
                                 self.fp_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
-                        else:
+
+                        elif len(vec) == 3:
+
+                            # This is the case of a single instrument with fp, e.g., fp_p1_TESS
                             if instrument in vec:
-                                if len(vec) == 3:
-                                    self.fp_iname[vec[1]][instrument] = '_' + vec[2]
-                                else:
-                                    self.fp_iname[vec[1]][instrument] = ''
+                                
+                                self.fp_iname[vec[1]][instrument] = '_' + vec[2]
+
+                        elif len(vec) == 2:
+                                
+                            # This adds back-compatibility so users can define a common fp for all instruments (e.g., fp_p1):
+                            self.fp_iname[vec[1]][instrument] = ''
+
+                        else:
+
+                            raise Exception('Prior for fp is not properly defined: must be, e.g., fp_p1, fp_p1_inst or fp_p1_inst1_inst2. Currently is '+pname)
 
                     if pname[0:2] == 'p_':
+
                         vec = pname.split('_')
                         if len(vec) > 3:
+
+                            # This is the case in which multiple instruments share a planet-to-star ratio, e.g., p_p1_TESS1_TESS2
                             if instrument in vec:
+
                                 self.p_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
-                        else:
+
+                        elif len(vec) == 3:
+
+                            # This is the case of a single instrument with p, e.g., p_p1_TESS:
                             if instrument in vec:
-                                if len(vec) == 3:
-                                    self.p_iname[vec[1]][instrument] = '_' + vec[2]
-                                else:
-                                    self.p_iname[vec[1]][instrument] = ''
+
+                                self.p_iname[vec[1]][instrument] = '_' + vec[2]
+
+                        elif len(vec) == 2:
+
+                            # This adds back-compatibility so users can define a common p for all instruments (e.g., p_p1):
+                            self.p_iname[vec[1]][instrument] = ''
+
+                        else:
+
+                            raise Exception('Prior for p is not properly defined: must be, e.g., p_p1, p_p1_inst or p_p1_inst1_inst2. Currently is '+pname)
 
                     if pname[0:2] == 'p1':
+
                         vec = pname.split('_')
                         if len(vec) > 3:
+
+                            # This is the case in which multiple instruments share a CW semi-planet-to-star ratio, e.g., p1_p1_TESS1_TESS2
                             if instrument in vec:
+
                                 self.p1_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
-                        else:
-                            if instrument in vec:
-                                if len(vec) == 3:
-                                    self.p1_iname[vec[1]][instrument] = '_' + vec[2]
-                                else:
-                                    self.p_iname[vec[1]][instrument] = ''
+
+                        elif len(vec) == 3:
+
+                            # This is the case of a single instrument with p1, e.g., p1_p1_TESS:
+                            if instrument in vec: 
+
+                                self.p1_iname[vec[1]][instrument] = '_' + vec[2]
+
+                        elif len(vec) == 2:
+
+                            # This adds back-compatibility so users can define a common p for all instruments (e.g., p_p1):
+                            self.p1_iname[vec[1]][instrument] = ''
+
+                        else:  
+
+                            raise Exception('Prior for p1/p2 is not properly defined: must be, e.g., p1_p1, p1_p1_inst or p1_p1_inst1_inst2. Currently is '+pname)
 
             # Set the model-type to M(t):
             self.evaluate = self.evaluate_model
             self.generate = self.generate_lc_model
+
         elif modeltype == 'rv':
             self.modeltype = 'rv'
             # Inhert times, RVs, errors, indexes, etc. from data:
