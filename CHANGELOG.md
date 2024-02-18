@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Bug of multi-instrument fits not updating posteriors by @Jayshil (PR #112).
 - Bug of multi-planet TTV fits (issues #110 and #97) by @melissa-hobson (PR #111).
+- Bug on joint transit and eclipse models; now remove fp component to out-of-eclipse component --- joint 
+  transit and eclipse models have thus, by default, and out-of-eclipse and out-of-transit value equal to 1.
 
 ### Added
 - Now `get_all_TESS_lightcurves` has an extra flag to save lightcurves (`save_data = True`; PR #106 by @melissa-hobson).
+- Tests for transit, eclipse and joint transit and eclipse fits in `tests`.
 - Support for light-travel time delay in eclipse and transit+eclipse fits (PR #XXX by Taylor Bell).
 
 ## [2.2.4] - 2023-11-14 
