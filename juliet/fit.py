@@ -3393,7 +3393,14 @@ class model(object):
 
                                     else:
 
-                                        self.model[instrument]['M'] += (self.model[instrument]['m'][0].light_curve(self.model[instrument]['params']) * self.model[instrument]['m'][1].light_curve(self.model[instrument]['params'])) - 1.
+                                        # In combined transit + eclipse models, assume by default any phase-curve variations are being modelled externally 
+                                        # by default (by, e.g., systematics models, phase-curve variations added later, etc.). To this end, note batman has out-of-eclipse 
+                                        # model variations 1 + fp --- with in-eclipse always being 1. Subtract fp then::
+                                        transit_model = self.model[instrument]['m'][0].light_curve(self.model[instrument]['params'])
+                                        eclipse_model = self.model[instrument]['m'][1].light_curve(self.model[instrument]['params']) - self.model[instrument]['params'].fp
+
+                                        self.model[instrument]['M'] += transit_model * eclipse_model - 1.
+
                                 else:
 
                                     if not self.dictionary[instrument]['TranEclFit']:
@@ -3403,7 +3410,13 @@ class model(object):
 
                                     else:
 
-                                        self.model[instrument]['p'+str(i)] = self.model[instrument]['m'][0].light_curve(self.model[instrument]['params']) * self.model[instrument]['m'][1].light_curve(self.model[instrument]['params'])
+                                        # In combined transit + eclipse models, assume by default any phase-curve variations are being modelled externally 
+                                        # by default (by, e.g., systematics models, phase-curve variations added later, etc.). To this end, note batman has out-of-eclipse 
+                                        # model variations 1 + fp --- with in-eclipse always being 1. Subtract fp then::
+                                        transit_model = self.model[instrument]['m'][0].light_curve(self.model[instrument]['params'])
+                                        eclipse_model = self.model[instrument]['m'][1].light_curve(self.model[instrument]['params']) - self.model[instrument]['params'].fp
+
+                                        self.model[instrument]['p'+str(i)] = transit_model * eclipse_model
                                         self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
 
                             else:
@@ -3441,21 +3454,40 @@ class model(object):
                                             dummy_time,
                                             self.dictionary[instrument]
                                             ['ldlaw'])
+
                                 # If log_like_calc is True (by default during juliet.fit), don't bother saving the lightcurve of planet p_i:
                                 if self.log_like_calc:
                                   
                                     if not self.dictionary[instrument]['TranEclFit']:
+
                                         self.model[instrument]['M'] += m.light_curve(self.model[instrument]['params']) - 1. 
+
                                     else:
-                                        self.model[instrument]['M'] += (m[0].light_curve(self.model[instrument]['params']) * m[1].light_curve(self.model[instrument]['params'])) - 1. 
-                                        
+
+                                        # In combined transit + eclipse models, assume by default any phase-curve variations are being modelled externally 
+                                        # by default (by, e.g., systematics models, phase-curve variations added later, etc.). To this end, note batman has out-of-eclipse 
+                                        # model variations 1 + fp --- with in-eclipse always being 1. Subtract fp then::
+                                        transit_model = m[0].light_curve(self.model[instrument]['params'])
+                                        eclipse_model = m[1].light_curve(self.model[instrument]['params']) - self.model[instrument]['params'].fp
+
+                                        self.model[instrument]['M'] += transit_model * eclipse_model - 1.
+ 
                                 else:
                                   
                                     if not self.dictionary[instrument]['TranEclFit']:
+
                                         self.model[instrument]['p'+str(i)] = m.light_curve(self.model[instrument]['params'])
                                         self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1. 
+
                                     else:
-                                        self.model[instrument]['p'+str(i)] = m[0].light_curve(self.model[instrument]['params']) * m[1].light_curve(self.model[instrument]['params'])
+
+                                        # In combined transit + eclipse models, assume by default any phase-curve variations are being modelled externally 
+                                        # by default (by, e.g., systematics models, phase-curve variations added later, etc.). To this end, note batman has out-of-eclipse 
+                                        # model variations 1 + fp --- with in-eclipse always being 1. Subtract fp then:
+                                        transit_model = m[0].light_curve(self.model[instrument]['params'])
+                                        eclipse_model = m[1].light_curve(self.model[instrument]['params']) - self.model[instrument]['params'].fp
+
+                                        self.model[instrument]['p'+str(i)] = transit_model * eclipse_model
                                         self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1. 
 
                         else:
