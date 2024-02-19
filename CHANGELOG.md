@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Now `get_all_TESS_lightcurves` has an extra flag to save lightcurves (`save_data = True`; PR #106 by @melissa-hobson).
 - Tests for transit, eclipse and joint transit and eclipse fits in `tests`.
+- Implemented phase-curve toy model (simple sinusoid with phase-offset; amplitude set by secondary depth).
+- Added phase-curve test suite under `tests`.
 - Support for light-travel time delay in eclipse and transit+eclipse fits (PR #XXX by Taylor Bell).
 
 ## [2.2.4] - 2023-11-14 

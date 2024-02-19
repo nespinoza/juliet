@@ -523,6 +523,7 @@ class load(object):
                 dictionary[instrument]['TransitFit'] = False
                 dictionary[instrument]['TransitFitCatwoman'] = False
                 dictionary[instrument]['EclipseFit'] = False
+                dictionary[instrument]['PhaseCurveFit'] = False
                 dictionary[instrument]['TranEclFit'] = False
 
         if dictype == 'lc':
@@ -649,6 +650,16 @@ class load(object):
                             
                                 print('\t Transit (catwoman) fit detected for instrument ', inames[i])
 
+                    if pri[0:11] == 'phaseoffset':
+                        # If phase-offset defined on instrument, or, there's a single one for all instruments:
+                        if (inames[i] in pri.split('_')) or (len(pri.split('_')) == 2):
+
+                            dictionary[inames[i]]['PhaseCurveFit'] = True
+
+                            if self.verbose:
+
+                                print('\t Phase curve fit detected for instrument ', inames[i])
+
                     if pri[0:2] == 'fp':
 
                         # If an eclipse for instrument or there's a single depth for all instruments:
@@ -675,10 +686,13 @@ class load(object):
                                     int(ntransit))
 
                 if dictionary[inames[i]]['TransitFit'] and dictionary[inames[i]]['EclipseFit']:
+
                     dictionary[inames[i]]['TranEclFit'] = True
                     dictionary[inames[i]]['TransitFit'] = False
                     dictionary[inames[i]]['EclipseFit'] = False
+
                     if self.verbose:
+
                         print('\t Joint Transit and Eclipse fit detected for instrument ',inames[i])
 
             for pi in numbering_planets:
@@ -3094,6 +3108,7 @@ class model(object):
                           parameter_values,
                           evaluate_global_errors=True,
                           evaluate_lc=False):
+
         self.modelOK = True
         # If TTV parametrization is 'T' for planet i, store transit times. Check only if the noTflag is False (which implies
         # at least one planet uses the T-parametrization):
@@ -3228,6 +3243,10 @@ class model(object):
                     if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
 
                         fp = parameter_values['fp_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
+
+                        if self.dictionary[instrument]['PhaseCurveFit']:
+
+                            phase_offset = parameter_values['phaseoffset_p' + str(i) + self.phaseoffset_iname['p' + str(i)][instrument]]
 
                         if not self.light_travel_delay:
 
@@ -3393,13 +3412,34 @@ class model(object):
 
                                     else:
 
-                                        # In combined transit + eclipse models, assume by default any phase-curve variations are being modelled externally 
-                                        # by default (by, e.g., systematics models, phase-curve variations added later, etc.). To this end, note batman has out-of-eclipse 
+                                        # In combined transit + eclipse models, assume either (a) by default any phase-curve variations are being modelled externally 
+                                        # (by, e.g., systematics models, phase-curve variations added later, etc.). To this end, note batman has out-of-eclipse 
                                         # model variations 1 + fp --- with in-eclipse always being 1. Subtract fp then::
                                         transit_model = self.model[instrument]['m'][0].light_curve(self.model[instrument]['params'])
-                                        eclipse_model = self.model[instrument]['m'][1].light_curve(self.model[instrument]['params']) - self.model[instrument]['params'].fp
+                                        eclipse_model = self.model[instrument]['m'][1].light_curve(self.model[instrument]['params']) 
 
-                                        self.model[instrument]['M'] += transit_model * eclipse_model - 1.
+                                        # Now, figure out if a phase-curve model is being fit or not:
+                                        if not self.dictionary[instrument]['PhaseCurveFit']:
+
+                                            eclipse_model = eclipse_model - self.model[instrument]['params'].fp
+                                            self.model[instrument]['M'] += transit_model * eclipse_model - 1.
+
+                                        else:
+
+                                            orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
+                                            center_phase = - np.pi / 2.
+
+                                            # Build model. First, the basis sine function:
+                                            sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
+                                            # Scale to be 1 at secondary eclipse, 0 at transit:
+                                            sine_model = (sine_model + 1) * 0.5
+                                            # Amplify by phase-amplitude:
+                                            sine_model = (self.model[instrument]['params'].fp) * sine_model
+                                            # Multiply by normed eclipse model:
+                                            sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            # And get all together:
+                                            self.model[instrument]['M'] += transit_model * sine_model - 1.
 
                                 else:
 
@@ -3414,9 +3454,30 @@ class model(object):
                                         # by default (by, e.g., systematics models, phase-curve variations added later, etc.). To this end, note batman has out-of-eclipse 
                                         # model variations 1 + fp --- with in-eclipse always being 1. Subtract fp then::
                                         transit_model = self.model[instrument]['m'][0].light_curve(self.model[instrument]['params'])
-                                        eclipse_model = self.model[instrument]['m'][1].light_curve(self.model[instrument]['params']) - self.model[instrument]['params'].fp
+                                        eclipse_model = self.model[instrument]['m'][1].light_curve(self.model[instrument]['params']) 
 
-                                        self.model[instrument]['p'+str(i)] = transit_model * eclipse_model
+                                        # Now, figure out if a phase-curve model is being fit or not:
+                                        if not self.dictionary[instrument]['PhaseCurveFit']:
+
+                                            eclipse_model = eclipse_model - self.model[instrument]['params'].fp
+                                            self.model[instrument]['p'+str(i)] = transit_model * eclipse_model
+
+                                        else:
+
+                                            orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
+                                            center_phase = - np.pi / 2.
+
+                                            # Build model. First, the basis sine function:
+                                            sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
+                                            # Scale to be 1 at secondary eclipse, 0 at transit:
+                                            sine_model = (sine_model + 1) * 0.5
+                                            # Amplify by phase-amplitude:
+                                            sine_model = (self.model[instrument]['params'].fp) * sine_model
+                                            # Multiply by normed eclipse model:
+                                            sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            self.model[instrument]['p'+str(i)] = transit_model * sine_model
+
                                         self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
 
                             else:
@@ -3468,9 +3529,29 @@ class model(object):
                                         # by default (by, e.g., systematics models, phase-curve variations added later, etc.). To this end, note batman has out-of-eclipse 
                                         # model variations 1 + fp --- with in-eclipse always being 1. Subtract fp then::
                                         transit_model = m[0].light_curve(self.model[instrument]['params'])
-                                        eclipse_model = m[1].light_curve(self.model[instrument]['params']) - self.model[instrument]['params'].fp
+                                        eclipse_model = m[1].light_curve(self.model[instrument]['params'])
 
-                                        self.model[instrument]['M'] += transit_model * eclipse_model - 1.
+                                        # Now, figure out if a phase-curve model is being fit or not:
+                                        if not self.dictionary[instrument]['PhaseCurveFit']:
+
+                                            eclipse_model = eclipse_model - self.model[instrument]['params'].fp
+                                            self.model[instrument]['M'] += transit_model * eclipse_model - 1.
+
+                                        else:
+
+                                            orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
+                                            center_phase = - np.pi / 2.
+
+                                            # Build model. First, the basis sine function:
+                                            sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
+                                            # Scale to be 1 at secondary eclipse, 0 at transit:
+                                            sine_model = (sine_model + 1) * 0.5
+                                            # Amplify by phase-amplitude:
+                                            sine_model = (self.model[instrument]['params'].fp) * sine_model
+                                            # Multiply by normed eclipse model:
+                                            sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            self.model[instrument]['M'] += transit_model * sine_model - 1.
  
                                 else:
                                   
@@ -3485,10 +3566,31 @@ class model(object):
                                         # by default (by, e.g., systematics models, phase-curve variations added later, etc.). To this end, note batman has out-of-eclipse 
                                         # model variations 1 + fp --- with in-eclipse always being 1. Subtract fp then:
                                         transit_model = m[0].light_curve(self.model[instrument]['params'])
-                                        eclipse_model = m[1].light_curve(self.model[instrument]['params']) - self.model[instrument]['params'].fp
+                                        eclipse_model = m[1].light_curve(self.model[instrument]['params'])
 
-                                        self.model[instrument]['p'+str(i)] = transit_model * eclipse_model
-                                        self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1. 
+                                        # Now, figure out if a phase-curve model is being fit or not:
+                                        if not self.dictionary[instrument]['PhaseCurveFit']:
+
+                                            eclipse_model = eclipse_model - self.model[instrument]['params'].fp
+                                            self.model[instrument]['p'+str(i)] = transit_model * eclipse_model
+
+                                        else:
+
+                                            orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
+                                            center_phase = - np.pi / 2.
+
+                                            # Build model. First, the basis sine function:
+                                            sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
+                                            # Scale to be 1 at secondary eclipse, 0 at transit:
+                                            sine_model = (sine_model + 1) * 0.5
+                                            # Amplify by phase-amplitude:
+                                            sine_model = (self.model[instrument]['params'].fp) * sine_model
+                                            # Multiply by normed eclipse model:
+                                            sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            self.model[instrument]['p'+str(i)] = transit_model * sine_model
+
+                                        self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
 
                         else:
                             self.modelOK = False
@@ -3658,6 +3760,7 @@ class model(object):
             self.mflux_iname = {}
             self.theta_iname = {}
             self.fp_iname = {}
+            self.phaseoffset_iname = {}
             # To make transit depth (for batman and catwoman models) will be shared by different instruments, set the correct variable name for each:
             self.p_iname = {}
             self.p1_iname = {}
@@ -3667,6 +3770,7 @@ class model(object):
                 self.p_iname['p' + str(i)] = {}
                 self.p1_iname['p' + str(i)] = {}
                 self.fp_iname['p' + str(i)] = {}
+                self.phaseoffset_iname['p' + str(i)] = {}
             self.ndatapoints_all_instruments = 0
             # Variable that turns to false only if there are no TTVs. Otherwise, always positive:
             self.Tflag = False
@@ -3831,6 +3935,33 @@ class model(object):
                         else:
 
                             raise Exception('Prior for fp is not properly defined: must be, e.g., fp_p1, fp_p1_inst or fp_p1_inst1_inst2. Currently is '+pname)
+
+                    if pname[0:11] == 'phaseoffset':
+                    
+                        # Note that amplitude can be a planetary and instrumental parameter
+                        vec = pname.split('_')
+                        if len(vec) > 3:
+
+                            # This is the case in which multiple instruments share the parameter:
+                            if instrument in vec:
+
+                                self.phaseoffset_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+
+                        elif len(vec) == 3:
+
+                            # This is the case of a single instrument:
+                            if instrument in vec:
+
+                                self.phaseoffset_iname[vec[1]][instrument] = '_' + vec[2]
+
+                        elif len(vec) == 2:
+
+                            # This adds back-compatibility so users can define a common for all instruments:
+                            self.phaseoffset_iname[vec[1]][instrument] = ''
+
+                        else:
+
+                            raise Exception('Prior for phaseoffset is not properly defined: must be, e.g., phaseoffset_p1, phaseoffset_p1_inst or phaseoffset_p1_inst1_inst2. Currently is '+pname)
 
                     if pname[0:2] == 'p_':
 
