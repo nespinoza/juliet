@@ -359,16 +359,26 @@ class load(object):
         fout = open(fname, 'w')
         lm_counters = {}
         for i in range(len(t)):
+
             fout.write('{0:.10f} {1:.10f} {2:.10f} {3:}'.format(
                 t[i], y[i], yerr[i], instruments[i]))
+
             if lm_boolean[instruments[i]]:
+
                 if instruments[i] not in lm_counters.keys():
+
                     lm_counters[instruments[i]] = 0
+
                 for j in range(lm_arguments[instruments[i]].shape[1]):
+
                     fout.write(' {0:.10f}'.format(lm_arguments[instruments[i]][
+
                         lm_counters[instruments[i]]][j]))
+
                 lm_counters[instruments[i]] += 1
+
             fout.write('\n')
+
         fout.close()
 
     def save_priorfile(self, fname):
@@ -3357,21 +3367,41 @@ class model(object):
                                 else:
 
                                     # If light-travel time is activated, self-consistently calculate time of secondary eclipse:
-                                    self.model[instrument]['params'].t_secondary = self.model[instrument]['m'].get_t_secondary(self.model[instrument]['params'])
+                                    if self.dictionary[instrument]['EclipseFit']:
+
+                                        self.model[instrument]['params'].t_secondary = self.model[instrument]['m'].get_t_secondary(self.model[instrument]['params'])
+
+                                    elif self.dictionary[instrument]['TranEclFit']:
+
+                                        self.model[instrument]['params'].t_secondary = self.model[instrument]['m'][1].get_t_secondary(self.model[instrument]['params'])
 
                                     # Get time-delayed times:
                                     corrected_t = correct_light_travel_time(self.t, self.model[instrument]['params'])
 
                                     # Dynamically modify the batman model for the eclipse part:
-                                    if self.dictionary[instrument]['resampling']:
+                                    if self.dictionary[instrument]['EclipseFit']:
 
-                                        _, [_, self.model[instrument]['m'][1]] = init_batman(corrected_t, self.dictionary[instrument]['ldlaw'], \
-                                                                                     nresampling = self.dictionary[instrument]['nresampling'], \
-                                                                                     etresampling = self.dictionary[instrument]['exptimeresampling'])
+                                        if self.dictionary[instrument]['resampling']:
 
-                                    else:
+                                            _, [_, self.model[instrument]['m']] = init_batman(corrected_t, self.dictionary[instrument]['ldlaw'], \
+                                                                                         nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                                         etresampling = self.dictionary[instrument]['exptimeresampling'])
 
-                                        _, [_, self.model[instrument]['m'][1]] = init_batman(corrected_t, self.dictionary[instrument]['ldlaw'])
+                                        else:
+
+                                            _, [_, self.model[instrument]['m']] = init_batman(corrected_t, self.dictionary[instrument]['ldlaw'])
+
+                                    elif self.dictionary[instrument]['TranEclFit']:
+
+                                        if self.dictionary[instrument]['resampling']:
+
+                                            _, [_, self.model[instrument]['m'][1]] = init_batman(corrected_t, self.dictionary[instrument]['ldlaw'], \
+                                                                                         nresampling = self.dictionary[instrument]['nresampling'], \
+                                                                                         etresampling = self.dictionary[instrument]['exptimeresampling'])
+
+                                        else:
+
+                                            _, [_, self.model[instrument]['m'][1]] = init_batman(corrected_t, self.dictionary[instrument]['ldlaw'])
 
 
                             if not self.dictionary[instrument]['TransitFitCatwoman']:
