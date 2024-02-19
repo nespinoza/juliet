@@ -3120,36 +3120,50 @@ class model(object):
                           evaluate_lc=False):
 
         self.modelOK = True
+
         # If TTV parametrization is 'T' for planet i, store transit times. Check only if the noTflag is False (which implies
         # at least one planet uses the T-parametrization):
         if self.Tflag:
+
             planet_t0, planet_P = {}, {}
             all_Ts, all_ns = {}, {}
+
             for i in self.numbering:
+
                 if self.Tparametrization[i]:
+
                     all_Ts[i], all_ns[i] = np.array([]), np.array([])
+
                     for instrument in self.inames:
+
                         for transit_number in self.dictionary[instrument][
                                 'TTVs'][int(i)]['transit_number']:
+
                             all_Ts[i] = np.append(
                                 all_Ts[i],
                                 parameter_values['T_p' + str(i) + '_' +
                                                  instrument + '_' +
                                                  str(transit_number)])
+
                             all_ns[i] = np.append(all_ns[i], transit_number)
+
                     # If evaluate_lc flag is on, this means user is evaluating lightcurve. Here we do some tricks as to only evaluate
                     # models in the user-defined instrument (to speed up evaluation), so in that case we use the posterior t0 and P
                     # actually taken from the T-samples:
                     if not evaluate_lc:
+
                         XY, Y, X, X2 = np.sum(
                             all_Ts[i] * all_ns[i]) / self.N_TTVs[i], np.sum(
                                 all_Ts[i]) / self.N_TTVs[i], np.sum(
                                     all_ns[i]) / self.N_TTVs[i], np.sum(
                                         all_ns[i]**2) / self.N_TTVs[i]
+
                         # Get slope:
                         planet_P[i] = (XY - X * Y) / (X2 - (X**2))
+
                         # Intercept:
                         planet_t0[i] = Y - planet_P[i] * X
+
                     else:
 
                         planet_t0[i], planet_P[i] = parameter_values['t0_p'+str(i)], parameter_values['P_p'+str(i)]
@@ -3158,31 +3172,45 @@ class model(object):
         # instrument (including flux from all the planets). Do the for loop per instrument for the parameter extraction, so in the
         # future we can do, e.g., wavelength-dependant rp/rs.
         for instrument in self.inames:
+
             # Set full array to ones by copying:
             self.model[instrument]['M'] = np.copy(
                 self.model[instrument]['ones'])
+
             # If transit fit is on, then model the transit lightcurve:
             if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+
                 # Extract and set the limb-darkening coefficients for the instrument:
                 if self.dictionary[instrument]['ldlaw'] != 'linear' and self.dictionary[instrument]['ldlaw'] != 'none':
+
                     coeff1, coeff2 = reverse_ld_coeffs(self.dictionary[instrument]['ldlaw'], parameter_values['q1_'+self.ld_iname[instrument]],\
                                                        parameter_values['q2_'+self.ld_iname[instrument]])
+
                 elif self.dictionary[instrument]['ldlaw'] == 'none':
+
                     coeff1, coeff2 = 0.1, 0.3
+
                 else:
+
                     coeff1 = parameter_values['q1_' + self.ld_iname[instrument]]
 
                 # First (1) check if TTV mode is activated. If it is not, simply save the sampled planet periods and time-of transit centers for check
                 # in the next round of iteration (see below). If it is, depending on the parametrization, either shift the time-indexes accordingly (see below
                 # comments for details).
                 cP, ct0 = {}, {}
+
                 for i in self.numbering:
+
                     # Check if we will be fitting for TTVs. If not, all goes as usual. If we are, check which parametrization (dt or T):
                     if not self.dictionary[instrument]['TTVs'][i]['status']:
+
                         t0, P = parameter_values[
                             't0_p' + str(i)], parameter_values['P_p' + str(i)]
+
                         cP[i], ct0[i] = P, t0
+
                     else:
+
                         # If TTVs is on for planet i, compute the expected time of transit, and shift it. For this, use information encoded in the prior
                         # name; if, e.g., dt_p1_TESS1_-2, then n = -2 and the time of transit (with TTV) = t0 + n*P + dt_p1_TESS1_-2 in the case of the dt
                         # parametrization. In the case of the T-parametrization, the time of transit with TTV would be T_p1_TESS1_-2, and the period and t0
@@ -3190,34 +3218,46 @@ class model(object):
                         # model assuming that time-of-transit; repeat for all the transits. Generally users will not do TTV analyses, so set this latter
                         # case to be the most common one by default in the if-statement:
                         dummy_time = np.copy(self.times[instrument])
+
                         if self.dictionary[instrument]['TTVs'][i][
                                 'parametrization'] == 'dt':
+
                             t0, P = parameter_values[
                                 't0_p' + str(i)], parameter_values['P_p' +
                                                                    str(i)]
+
                             cP[i], ct0[i] = P, t0
+
                             for transit_number in self.dictionary[instrument][
                                     'TTVs'][int(i)]['transit_number']:
+
                                 transit_time = t0 + transit_number * P + parameter_values[
                                     'dt_p' + str(i) + '_' + instrument + '_' +
                                     str(transit_number)]
+
                                 # This implicitly sets maximum transit duration to P/2 days:
                                 idx = np.where(
                                     np.abs(self.times[instrument] -
                                            transit_time) < P / 4.)[0]
+
                                 dummy_time[idx] = self.times[instrument][
                                     idx] - parameter_values['dt_p' + str(i) +
                                                             '_' + instrument +
                                                             '_' +
                                                             str(transit_number)]
+
                         else:
+
                             t0, P = planet_t0[i], planet_P[i]
+
                             for transit_number in self.dictionary[instrument][
                                     'TTVs'][int(i)]['transit_number']:
+
                                 dt = parameter_values[
                                     'T_p' + str(i) + '_' + instrument + '_' +
                                     str(transit_number)] - (t0 +
                                                             transit_number * P)
+
                                 # This implicitly sets maximum transit duration to P/2 days:
                                 idx = np.where(
                                     np.abs(self.times[instrument] -
@@ -3226,20 +3266,30 @@ class model(object):
                                                instrument + '_' +
                                                str(transit_number)]) < P /
                                     4.)[0]
+
                                 dummy_time[
                                     idx] = self.times[instrument][idx] - dt
+
                             cP[i], ct0[i] = P, t0
+
                 # Whether there are TTVs or not, and before anything continues, check the periods are chronologically ordered (this is to avoid multiple modes
                 # due to periods "jumping" between planet numbering):
                 first_time = True
                 for i in self.numbering:
+
                     if first_time:
+
                         ccP = cP[i]  #parameter_values['P_p'+str(i)]
                         first_time = False
+
                     else:
+
                         if ccP < cP[i]:  #parameter_values['P_p'+str(i)]:
+
                             ccP = cP[i]  #parameter_values['P_p'+str(i)]
+
                         else:
+
                             self.modelOK = False
                             return False
 
@@ -3376,7 +3426,7 @@ class model(object):
                                         self.model[instrument]['params'].t_secondary = self.model[instrument]['m'][1].get_t_secondary(self.model[instrument]['params'])
 
                                     # Get time-delayed times:
-                                    corrected_t = correct_light_travel_time(self.t, self.model[instrument]['params'])
+                                    corrected_t = correct_light_travel_time(self.times[instrument], self.model[instrument]['params'])
 
                                     # Dynamically modify the batman model for the eclipse part:
                                     if self.dictionary[instrument]['EclipseFit']:
