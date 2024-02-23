@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bug of multi-planet TTV fits (issues #110 and #97) by @melissa-hobson (PR #111).
 - Bug on joint transit and eclipse models; now remove fp component to out-of-eclipse component --- joint 
   transit and eclipse models have thus, by default, and out-of-eclipse and out-of-transit value equal to 1.
+- Bug on setup file that didn't install h5py by default (needed for radvel) (PR #113).
 
 ### Added
 - Now `get_all_TESS_lightcurves` has an extra flag to save lightcurves (`save_data = True`; PR #106 by @melissa-hobson).
