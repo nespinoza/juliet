@@ -1583,7 +1583,7 @@ class fit(object):
                             pu=self.pu,
                             ecclim=self.ecclim,
                             light_travel_delay = self.light_travel_delay,
-                            stellar_radius = self.stellar_radius
+                            stellar_radius = self.stellar_radius,
                             log_like_calc=True)
         if self.data.t_rv is not None:
 
