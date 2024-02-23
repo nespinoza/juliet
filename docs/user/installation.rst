@@ -90,8 +90,9 @@ above:
 5. `george <https://george.readthedocs.io/en/latest/>`_,
 6. `celerite <https://celerite.readthedocs.io/en/stable/>`_,
 7. `dynesty <https://dynesty.readthedocs.io>`_,
-8. `pymultinest <https://github.com/JohannesBuchner/PyMultiNest>`_ (optional),
-9. `matplotlib <https://matplotlib.org/>`_ (optional), and
-10. `seaborn <https://seaborn.pydata.org/>`_ (optional).
+8. `h5py <https://docs.h5py.org/en/stable/>`_,
+9. `pymultinest <https://github.com/JohannesBuchner/PyMultiNest>`_ (optional),
+10. `matplotlib <https://matplotlib.org/>`_ (optional), and
+11. `seaborn <https://seaborn.pydata.org/>`_ (optional).
 
 The last are only needed for certain plotting functions within ``juliet``. The ``pymultinest`` installation is optional, but highly recommended. 

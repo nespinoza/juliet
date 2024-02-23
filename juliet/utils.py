@@ -1,5 +1,6 @@
 import numpy as np
 from astropy.io import fits
+import astropy.constants as const
 import pickle
 import batman
 import radvel
@@ -9,6 +10,8 @@ try:
     have_catwoman = True
 except:
     have_catwoman = False
+
+from .KeplerOrbit import KeplerOrbit
 
 
 def init_batman(t, ld_law, nresampling=None, etresampling=None):
@@ -80,15 +83,58 @@ def init_catwoman(t, ld_law, nresampling = None, etresampling = None):
     return params, m
 
 def correct_light_travel_time(times, params):
-    """
-    Tayler to ingest correction here. Inputs:
+    '''Correct for the finite light travel speed.
 
-    time: numpy array of times
+    This function uses the KeplerOrbit.py file from the Bell_EBM package
+    as that code includes a newer, faster method of solving Kepler's equation
+    based on Tommasini+2018.
 
-    params: batman params object 
-    """
+    :param times: (ndarray)
+    The times at which observations were collected
+
+    :param params: (batman.TransitParams)
+    The batman TransitParams object that contains information on the orbit.
     
-    return times
+    :return: (ndarray)
+        Updated times that can be put into batman transit and eclipse functions
+        that will give the expected results assuming a finite light travel
+        speed.
+
+    Notes
+    -----
+    History:
+
+    - 2024-02-21 Taylor J Bell
+        Code based on the Bell_EMB KeplerOrbit.py file by
+        Taylor J Bell and the light travel time calculations of SPIDERMAN's
+        web.c file by Tom Louden, and as implemented in Eureka!.
+    '''
+    # Need to convert from a/Rs to a in meters
+    a = params.a * (params.Rs*const.R_sun.value)
+
+    if params.ecc > 0:
+        # Need to solve Kepler's equation, so use the KeplerOrbit class
+        # for rapid computation. In the SPIDERMAN notation z is the radial
+        # coordinate, while for Bell_EBM the radial coordinate is x
+        orbit = KeplerOrbit(a=a, Porb=params.per, inc=params.inc,
+                            t0=params.t0, e=params.ecc, argp=params.w)
+        old_x, _, _ = orbit.xyz(times)
+        transit_x, _, _ = orbit.xyz(params.t0)
+    else:
+        # No need to solve Kepler's equation for circular orbits, so save
+        # some computation time
+        transit_x = a*np.sin(params.inc)
+        old_x = transit_x*np.cos(2*np.pi*(times-params.t0)/params.per)
+
+    # Get the radial distance variations of the planet
+    delta_x = transit_x - old_x
+
+    # Compute for light travel time (and convert to days)
+    delta_t = (delta_x/const.c.value)/(3600.*24.)
+
+    # Subtract light travel time as a first-order correction
+    # Batman will then calculate the model at a slightly earlier time
+    return times-delta_t.flatten()
 
 def init_radvel(nplanets=1):
     return radvel.model.Parameters(nplanets, basis='per tc e w k')
