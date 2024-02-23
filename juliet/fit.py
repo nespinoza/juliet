@@ -1257,6 +1257,9 @@ class fit(object):
     :param light_travel_delay: (optinal, bool)
         Boolean indicating if light travel time delay wants to be included on eclipse time calculations.
 
+    :param stellar_radius: (optional, float)
+        Stellar radius in units of solar-radii to use for the light travel time corrections.
+
     In addition, any number of extra optional keywords can be given to the call, which will be directly ingested into the sampler of choice. For a full list of optional keywords for...
 
     - ...PyMultiNest, check the docstring of ``PyMultiNest``'s ``run`` `function <https://github.com/JohannesBuchner/PyMultiNest/blob/master/pymultinest/run.py>`_.
@@ -1418,7 +1421,7 @@ class fit(object):
             return lp
 
     def __init__(self, data, sampler = 'multinest', n_live_points = 500, nwalkers = 100, nsteps = 300, nburnin = 500, emcee_factor = 1e-4, \
-                 ecclim = 1., pl = 0.0, pu = 1.0, ta = 2458460., nthreads = None, light_travel_delay = False, \
+                 ecclim = 1., pl = 0.0, pu = 1.0, ta = 2458460., nthreads = None, light_travel_delay = False, stellar_radius = None, \
                  use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
                  dynesty_n_effective = np.inf, dynesty_use_stop = True, dynesty_use_pool = None, **kwargs):
 
@@ -1447,6 +1450,11 @@ class fit(object):
 
         # Extract physical model details:
         self.light_travel_delay = light_travel_delay
+        if self.light_travel_delay and (stellar_radius is None):
+
+            raise Exception('Error: if light_travel_delay is activated, a stellar radius needs to be given as well via stellar_radius = yourvalue; e.g., dataset.fit(..., light_travel_delay = True, stellar_radius = 1.1234).')
+        
+        self.stellar_radius = stellar_radius
 
         # Update sampler inputs in case user still using deprecated inputs. We'll remove this in some future. First, define standard pre-fix and sufix for the warnings:
         ws1 = 'WARNING: use of the '
@@ -1575,6 +1583,7 @@ class fit(object):
                             pu=self.pu,
                             ecclim=self.ecclim,
                             light_travel_delay = self.light_travel_delay,
+                            stellar_radius = self.stellar_radius
                             log_like_calc=True)
         if self.data.t_rv is not None:
 
@@ -2124,6 +2133,9 @@ class model(object):
 
     :param light_travel_delay: (optinal, bool)
         Boolean indicating if light travel time delay wants to be included on eclipse time calculations.
+
+    :param stellar_radius: (optional, float)
+        Stellar radius in units of solar-radii to use for the light travel time corrections.
 
     :param log_like_calc: (optional, boolean)
         If True, it is assumed the model is generated to generate likelihoods values, and thus this skips the saving/calculation of the individual
@@ -3417,6 +3429,8 @@ class model(object):
                                 else:
 
                                     # If light-travel time is activated, self-consistently calculate time of secondary eclipse:
+                                    self.model[instrument]['params'].Rs = self.stellar_radius
+
                                     if self.dictionary[instrument]['EclipseFit']:
 
                                         self.model[instrument]['params'].t_secondary = self.model[instrument]['m'].get_t_secondary(self.model[instrument]['params'])
@@ -3779,6 +3793,7 @@ class model(object):
                  ecclim=1.,
                  ta=2458460.,
                  light_travel_delay = False,
+                 stellar_radius = None,
                  log_like_calc=False):
         # Inhert the priors dictionary from data:
         self.priors = data.priors
@@ -3788,6 +3803,12 @@ class model(object):
         self.ta = ta
         # Define light travel time option:
         self.light_travel_delay = light_travel_delay
+        if self.light_travel_delay and (stellar_radius is None):
+
+            raise Exception('Error: if light_travel_delay is activated, a stellar radius needs to be given as well via stellar_radius = yourvalue; e.g., dataset.fit(..., light_travel_delay = True, stellar_radius = 1.1234).')
+
+        self.stellar_radius = stellar_radius
+
         # Save the log_like_calc boolean:
         self.log_like_calc = log_like_calc
         # Define variable that at each iteration defines if the model is OK or not (not OK means something failed in terms of the

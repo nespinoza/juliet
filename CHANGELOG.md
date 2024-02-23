@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tests for transit, eclipse and joint transit and eclipse fits in `tests`.
 - Implemented phase-curve toy model (simple sinusoid with phase-offset; amplitude set by secondary depth).
 - Added phase-curve test suite under `tests`.
-- Support for light-travel time delay in eclipse and transit+eclipse fits (PR #XXX by Taylor Bell). Activate by `dataset.fit(..., light_travel_delay = True)`
+- Support for light-travel time delay in eclipse and transit+eclipse fits (PR #113 by Taylor Bell). Activate by `dataset.fit(..., light_travel_delay = True, stellar_radius = your_value)`. 
 
 ## [2.2.4] - 2023-11-14 
 ### Fixed
