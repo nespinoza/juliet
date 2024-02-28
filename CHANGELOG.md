@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tests for transit, eclipse and joint transit and eclipse fits in `tests`.
 - Implemented phase-curve toy model (simple sinusoid with phase-offset; amplitude set by secondary depth).
 - Added phase-curve test suite under `tests`.
-- Support for light-travel time delay in eclipse and transit+eclipse fits (PR #113 by Taylor Bell). Activate by `dataset.fit(..., light_travel_delay = True, stellar_radius = your_value)`. 
+- Support for light-travel time delay in eclipse and transit+eclipse fits (PR #113 by Taylor Bell). Activate by `dataset.fit(..., light_travel_delay = True, stellar_radius = your_value)`. Note this applies the correction in this PR only on the eclipses via comparing radial distances from the eclipses to the time-of-transit center, which generates time delays which are subtracted iteratively to the measured time-stamps. This means the transits (or, really, the time-of-transit t0) are used as the references for the correction. In general practice this has little impact, except for (a) distortions that might be injected in phase-curves and (b) for comparisons with codes that apply this to the entire orbit (e.g., starry). On this latter ones, the reference to measure times of the orbit is typically at the center of mass of the system (or the star); in `juliet`, the reference for the time-stamps is the mid-transit point. As a practical example: for Earth, starry would measure a transit 8 mins earlier and an eclipse 8 minutes late. With `juliet`, you would measure the transit at t0, and the eclipse 16 minutes late to the no-delay case. The impact on the orbital parameters is the same in both cases.
 
 ## [2.2.4] - 2023-11-14 
 ### Fixed
