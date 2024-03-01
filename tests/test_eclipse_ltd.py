@@ -40,15 +40,15 @@ fluxes['inst'], errors['inst'] = tmodel + np.random.normal(0., sigma, n), np.one
 
 # Define priors:
 params = ['P_p1','t0_p1', 'b_p1','ecc_p1','omega_p1', 'p_p1',\
-          'a_p1', 'mdilution_inst', 'mflux_inst', 'sigma_w_inst', 'fp_p1', 't_secondary_p1']
+          'a_p1', 'mdilution_inst', 'mflux_inst', 'sigma_w_inst', 'fp_p1']
 
 # Distributions:
 dists = ['fixed','fixed','fixed','fixed','fixed', 'uniform',\
-         'normal', 'fixed', 'normal', 'loguniform', 'uniform', 'normal']
+         'normal', 'fixed', 'normal', 'loguniform', 'uniform']
 
 # Hyperparameters
 hyperps = [1.0, 0.0, 0.0, 0.0, 90., [0.,0.2],\
-           [3.6,0.1], 1.0, [0.,0.1], [0.1, 1000.], [0.,0.1], [0.5,0.1]]
+           [3.6,0.1], 1.0, [0.,0.1], [0.1, 1000.], [0.,0.1]]
 
 # Join priors:
 priors = juliet.generate_priors(params,dists,hyperps)
@@ -60,7 +60,7 @@ print(priors)
 sampler = 'multinest'
     
 dataset = juliet.load(priors = priors, t_lc = times, y_lc = fluxes, yerr_lc = errors, out_folder = 'eclipse-test-ltd', verbose = True)
-results = dataset.fit(sampler = sampler, progress = True, light_travel_delay = True)
+results = dataset.fit(sampler = sampler, progress = True, light_travel_delay = True, stellar_radius = 1.)
 
 print('START \n testing:')
 print(results.lc.dictionary['inst']['EclipseFit'])
