@@ -532,6 +532,7 @@ class load(object):
             if dictype == 'lc':
                 dictionary[instrument]['TransitFit'] = False
                 dictionary[instrument]['TransitFitCatwoman'] = False
+                dictionary[instrument]['TransitFitSpotrod'] = False
                 dictionary[instrument]['EclipseFit'] = False
                 dictionary[instrument]['PhaseCurveFit'] = False
                 dictionary[instrument]['TranEclFit'] = False
@@ -648,6 +649,14 @@ class load(object):
                                 print('\t Transit fit detected for instrument ',
                                       inames[i])
 
+                    if pri[0:4] == 'spot': 
+                        
+                        dictionary[inames[i]]['TransitFitSpotrod'] = True
+                            
+                        if self.verbose:
+                            
+                            print('\t Transit (spotrod) fit detected for instrument ', inames[i])   
+                                                    
                     if pri[0:2] == 'p1':
 
                         # If CW defined on instrument, or, there's a single CW for all instruments:
@@ -705,6 +714,9 @@ class load(object):
 
                         print('\t Joint Transit and Eclipse fit detected for instrument ',inames[i])
 
+                if dictionary[inames[i]]['TransitFitSpotrod']:
+                    dictionary[inames[i]]['TransitFit'] = False
+                        
             for pi in numbering_planets:
                 for i in range(ninstruments):
                     if dictionary[inames[i]]['TTVs'][pi]['status']:
@@ -2375,6 +2387,10 @@ class model(object):
                 
                     self.model[instrument]['params'], [self.model[instrument]['m'],_] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
                                                                                                     nresampling=nresampling, etresampling=etresampling)
+                elif self.dictionary[instrument]['TransitFitSpotrod']:
+                
+                    self.model[instrument]['params'], [self.model[instrument]['m'],_] = init_spotrod(self.times[instrument], self.dictionary[instrument]['ldlaw'])
+                                                                                                                         
                 elif self.dictionary[instrument]['EclipseFit']:
                 
                     self.model[instrument]['params'], [_,self.model[instrument]['m']] = init_batman(self.times[instrument], self.dictionary[instrument]['ldlaw'],
@@ -2695,7 +2711,7 @@ class model(object):
                                 # If global model, set all super-sample objects to evaluate at the input times:
                                 for ginstrument in instruments:
 
-                                    if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman'] or self.dictionary[ginstrument]['EclipseFit'] or self.dictionary[ginstrument]['TranEclFit']:
+                                    if self.dictionary[ginstrument]['TransitFit'] or self.dictionary[ginstrument]['TransitFitCatwoman'] or self.dictionary[ginstrument]['TransitFitSpotrod'] or self.dictionary[ginstrument]['EclipseFit'] or self.dictionary[ginstrument]['TranEclFit']:
                                         self.model[ginstrument]['params'], self.model[ginstrument]['m'] = supersample_params[ginstrument],supersample_m[ginstrument]
 
                                     if self.lm_boolean[ginstrument]:
@@ -2718,7 +2734,7 @@ class model(object):
                             else:
                                 # If not, set them only for the instrument of interest:
 
-                                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+                                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitCatwoman'] or self.dictionary[instrument]['TransitFitSpotrod'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
                                     self.model[instrument]['params'], self.model[instrument]['m'] = supersample_params,supersample_m
 
                                 if self.lm_boolean[instrument]:
@@ -2872,7 +2888,7 @@ class model(object):
                             self.times[instrument] = original_instrument_times
                             if self.modeltype == 'lc':
 
-                                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+                                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitSpotrod'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
                                     self.model[instrument]['params'], self.model[instrument]['m'] = sample_params,sample_m
 
                                 if self.lm_boolean[instrument]:
@@ -3190,7 +3206,7 @@ class model(object):
                 self.model[instrument]['ones'])
 
             # If transit fit is on, then model the transit lightcurve:
-            if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+            if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitSpotrod'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
 
                 # Extract and set the limb-darkening coefficients for the instrument:
                 if self.dictionary[instrument]['ldlaw'] != 'linear' and self.dictionary[instrument]['ldlaw'] != 'none':
@@ -3309,6 +3325,12 @@ class model(object):
                 for i in self.numbering:
 
                     P, t0 = cP[i], ct0[i]
+       
+                    if self.dictionary[instrument]['TransitFitSpotrod']:              
+                    	spotx = parameter_values['spotx_p' + str(i)]  
+                    	spoty = parameter_values['spoty_p' + str(i)]
+                    	spotrad = parameter_values['spotrad_p' + str(i)]
+                    	spotcont = parameter_values['spotcont_p' + str(i)] 
 
                     ### For instrument dependent eclipse depth:
                     ### We only want to make eclipse depth instrument depended, not the time correction factor
@@ -3413,7 +3435,8 @@ class model(object):
                             self.model[instrument]['params'].t0 = t0
                             self.model[instrument]['params'].per = P
                             self.model[instrument]['params'].a = a
-
+                    
+                            self.model[instrument]['params'].b = b
                             self.model[instrument]['params'].inc = np.arccos(inc_inv_factor)*180./np.pi
                             self.model[instrument]['params'].ecc = ecc
                             self.model[instrument]['params'].w = omega
@@ -3471,7 +3494,13 @@ class model(object):
                             if not self.dictionary[instrument]['TransitFitCatwoman']:
 
                                 self.model[instrument]['params'].rp = p
-                                
+                            
+                                if self.dictionary[instrument]['TransitFitSpotrod']:                                                  
+                                	self.model[instrument]['params'].spotx = np.array([spotx])
+                                	self.model[instrument]['params'].spoty = np.array([spoty])
+                                	self.model[instrument]['params'].spotrad = np.array([spotrad])
+                                	self.model[instrument]['params'].spotcont = np.array([spotcont])
+                             		
                             else:
                               
                                 self.model[instrument]['params'].rp = p1
@@ -3593,6 +3622,8 @@ class model(object):
                                     else:
                                         if self.dictionary[instrument]['TransitFit']:
                                             pm, [m,_] = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
+                                        elif self.dictionary[instrument]['TransitFitSpotrod']:
+                                            pm, [m,_] = init_spotrod(dummy_time, self.dictionary[instrument]['ldlaw'])
                                         elif self.dictionary[instrument]['EclipseFit']:
                                             pm, [_,m] = init_batman(dummy_time, self.dictionary[instrument]['ldlaw'])
                                         elif self.dictionary[instrument]['TranEclFit']:
@@ -3917,7 +3948,7 @@ class model(object):
                 # Same for the errors:
 
                 self.model[instrument]['deterministic_errors'] = np.zeros( len(self.instrument_indexes[instrument]) )
-                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
+                if self.dictionary[instrument]['TransitFit'] or self.dictionary[instrument]['TransitFitSpotrod'] or self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
 
                     # First, take the opportunity to initialize transit lightcurves for each instrument:
                     if self.dictionary[instrument]['resampling']:
@@ -3943,6 +3974,9 @@ class model(object):
                             if self.dictionary[instrument]['TransitFit']:
                                 self.model[instrument]['params'], [self.model[instrument]['m'],_] = init_batman(self.times[instrument], \
                                                                                                                 self.dictionary[instrument]['ldlaw'])
+                            elif self.dictionary[instrument]['TransitFitSpotrod']:
+                                self.model[instrument]['params'], [self.model[instrument]['m'],_] = init_spotrod(self.times[instrument], \
+                                                                                                                self.dictionary[instrument]['ldlaw'])                                                                                                
                             elif self.dictionary[instrument]['EclipseFit']:
                                 self.model[instrument]['params'], [_,self.model[instrument]['m']] = init_batman(self.times[instrument], \
                                                                                                                 self.dictionary[instrument]['ldlaw'])
