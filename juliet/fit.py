@@ -92,6 +92,7 @@ import os
 import sys
 import numpy as np
 # Useful imports for parallelization:
+import multiprocessing as mp
 from multiprocessing import Pool
 import contextlib
 
@@ -1780,6 +1781,7 @@ class fit(object):
                             ds_args[arg] = kwargs[arg]
 
                     # Now run all with multiprocessing:
+                    """
                     with contextlib.closing(Pool(processes=self.nthreads -
                                                  1)) as executor:
                         sampler = DynestySampler(self.loglike,
@@ -1790,6 +1792,20 @@ class fit(object):
                                                  **d_args)
                         sampler.run_nested(**ds_args)
                         results = sampler.results
+
+                    """
+                    with mp.Pool(self.nthreads) as pool:
+
+                        sampler = DynestySampler(self.loglike,
+                                                 self.prior_transform_r,
+                                                 self.data.nparams,
+                                                 pool = pool, 
+                                                 queue_size=self.nthreads,
+                                                 **d_args)
+
+                        sampler.run_nested(**ds_args)
+
+                    results = sampler.results 
 
                 # Extract dynesty outputs:
                 out['dynesty_output'] = results
