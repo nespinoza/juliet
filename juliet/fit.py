@@ -4348,8 +4348,8 @@ class gaussian_process(object):
                  self.sigma_factor)**2.)
             self.parameter_vector[base_index + 1] = np.log(
                 1. / (parameter_values['GP_alpha_' + self.input_instrument[1]]))
-            self.parameter_vector[base_index + 2] = parameter_values[
-                'GP_Gamma_' + self.input_instrument[2]]
+            self.parameter_vector[base_index + 2] = np.log( 
+                parameter_values['GP_Gamma_' + self.input_instrument[2]])
             self.parameter_vector[base_index + 3] = np.log(
                 parameter_values['GP_Prot_' + self.input_instrument[3]])
         elif self.kernel_name == 'CeleriteQPKernel':
