@@ -3973,6 +3973,11 @@ class model(object):
                         self.model[instrument]['p' + str(i)] = np.ones(
                             len(self.instrument_indexes[instrument]))
 
+                # First, check some edge cases of user input error. First, if user decided to use a_p1 and rho, raise an error:
+                if ('a_p1' in self.priors.keys()) and ('rho' in self.priors.keys()):
+
+                    raise Exception('Priors currently define a_p1 (a/Rstar) and rho (stellar density) --- these are redundant. Please choose to fit either a_p1 or rho in your fit.')
+
                 # Now proceed with instrument namings:
                 for pname in self.priors.keys():
                     # Check if variable name is a limb-darkening coefficient:
