@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed `Gamma` parameter on the Exp-sine-squared kernel, for which `juliet` was actually fitting log(`Gamma`) and not `Gamma`, as pointed out in #118.
 - Fixed bug on binning with given errorbars pointed out in #117.
 
+### Added
+- Exception if user tries to fit `a_p1` and `rho` (covering issue #116).
+
+
 ## [2.2.5] - 2024-03-01 
 ### Fixed
 - Bug of multi-instrument fits not updating posteriors by @Jayshil (PR #112).

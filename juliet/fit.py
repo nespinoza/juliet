@@ -1717,8 +1717,15 @@ class fit(object):
                 # To run dynesty, we do it a little bit different depending if we are doing multithreading or not:
                 if self.nthreads is None:
 
-                    # As with the other samplers, first extract list of possible args:
-                    args = vars(DynestySampler).keys()
+                    # As with the other samplers, first extract list of possible args (try-except for back-compatibility with prior dynesty versions):
+                    try:
+
+                        args = vars(DynestySampler)['__init__'].__code__.co_varnames
+
+                    except:
+
+                        args = vars(DynestySampler).keys()
+
                     d_args = {}
 
                     # Define some standard ones (for back-compatibility with previous juliet versions):
@@ -1753,8 +1760,16 @@ class fit(object):
 
                 else:
 
-                    # Before running the whole multithread magic, match kwargs with functional arguments:
-                    args = vars(DynestySampler).keys()
+                    # Before running the whole multithread magic, match kwargs with functional arguments (try-except 
+                    # for back-compatibility with prior dynesty versions):
+                    try: 
+
+                        args = vars(DynestySampler)['__init__'].__code__.co_varnames
+
+                    except:
+
+                        args = vars(DynestySampler).keys()
+
                     d_args = {}
 
                     # Define some standard ones (for back-compatibility with previous juliet versions):
