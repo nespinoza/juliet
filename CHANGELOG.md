@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New dynesty version not using all cores with how multiprocessing is incorporated in `juliet`. Now it works, but one has to add the pesky `if __name__ == '__main__':` to the start of scripts using this.
 - Fixed `Gamma` parameter on the Exp-sine-squared kernel, for which `juliet` was actually fitting log(`Gamma`) and not `Gamma`, as pointed out in #118.
 - Fixed bug on binning with given errorbars pointed out in #117.
+- Fixed bug that didn't let `dynesty` args to be passed with newest `dynesty` version (as noted in #109).
 
 ### Added
 - Exception if user tries to fit `a_p1` and `rho` (covering issue #116).
