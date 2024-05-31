@@ -90,6 +90,7 @@ except:
 # Import generic useful classes:
 import os
 import sys
+import copy
 import numpy as np
 # Useful imports for parallelization:
 import multiprocessing as mp
@@ -2439,7 +2440,7 @@ class model(object):
         # self.inames is used to iterate through the instruments one wants to evaluate the model):
 
         if not self.global_model:
-            original_inames = np.copy(self.inames)
+            original_inames = copy.deepcopy(self.inames)
             self.inames = [instrument]
             instruments = self.dictionary.keys()
         else:
@@ -2499,14 +2500,14 @@ class model(object):
                         for ginstrument in instruments:
                             nt_original[ginstrument] = len(
                                 self.times[ginstrument])
-                            original_instrument_times[ginstrument] = np.copy(
+                            original_instrument_times[ginstrument] = copy.deepcopy(
                                 self.times[ginstrument])
                     else:
                         # If model is not global, we don't care about generating the model for all the instruments --- we do it only for the instrument
                         # of interest. In this case, the nt_original and original_instrument_times are not dictionaries but "simple" arrays saving the
                         # number of datapoints for that instrument and the times for that instrument.
                         nt_original = len(self.times[instrument])
-                        original_instrument_times = np.copy(
+                        original_instrument_times = copy.deepcopy(
                             self.times[instrument])
                     if self.modeltype == 'lc':
                         # If we are trying to evaluate a lightcurve mode then, again what we do will depend depending if this is a global model or not. In both,
@@ -2598,11 +2599,10 @@ class model(object):
                         # If we are trying to evaluate radial-velocities, we don't need to generate objects because radvel receives the times as inputs
                         # on each call. In this case then we save the original times (self.t has *all* the times of all the instruments) and instrument
                         # indexes (remember self.t[self.instrument_indexes[yourinstrument]] returns the times of yourinstrument):
-                        original_t = np.copy(self.t)
+                        original_t = copy.deepcopy(self.t)
                         if self.global_model:
                             # If global model, copy all the possible instrument indexes to the original_instrument_indexes:
-                            original_instrument_indexes = self.instrument_indexes.copy(
-                            )
+                            original_instrument_indexes = copy.deepcopy(self.instrument_indexes)
                         else:
                             # If not global, assume indexes for selected instrument are all the user-inputted t's. Also, save only the instrument
                             # indexes corresponding to the instrument of interest. The others don't matter so we don't save them:
@@ -2657,12 +2657,12 @@ class model(object):
                 # IF GP detrend, there is an underlying GP being applied. Generate arrays that will save the GP and deterministic component:
                 if self.global_model:
                     if self.dictionary['global_model']['GPDetrend']:
-                        output_modelGP_samples = np.copy(output_model_samples)
-                        output_modelDET_samples = np.copy(output_model_samples)
+                        output_modelGP_samples = copy.deepcopy(output_model_samples)
+                        output_modelDET_samples = copy.deepcopy(output_model_samples)
                 else:
                     if self.dictionary[instrument]['GPDetrend']:
-                        output_modelGP_samples = np.copy(output_model_samples)
-                        output_modelDET_samples = np.copy(output_model_samples)
+                        output_modelGP_samples = copy.deepcopy(output_model_samples)
+                        output_modelDET_samples = copy.deepcopy(output_model_samples)
 
                 # Create dictionary that saves the current parameter_values to evaluate:
                 current_parameter_values = dict.fromkeys(parameters)
@@ -2683,9 +2683,9 @@ class model(object):
                 # fit (to generate the residuals) and on the input regressors to this function (to generate predictions):
                 if t is not None:
                     if self.global_model:
-                        original_lm_arguments = np.copy(self.lm_arguments)
+                        original_lm_arguments = copy.deepcopy(self.lm_arguments)
                         if self.dictionary['global_model']['GPDetrend']:
-                            self.original_GPregressors = np.copy(
+                            self.original_GPregressors = copy.deepcopy(
                                 self.dictionary['global_model']
                                 ['noise_model'].X)
                             self.dictionary['global_model'][
@@ -2704,7 +2704,7 @@ class model(object):
                                     " has a GP, and requires a GPregressors to be inputted to be evaluated."
                                 )
                         if self.lm_boolean[instrument]:
-                            original_lm_arguments = np.copy(
+                            original_lm_arguments = copy.deepcopy(
                                 self.lm_arguments[instrument])
 
                 # Now iterate through all samples:
@@ -2753,7 +2753,7 @@ class model(object):
                                         ginstrument] = nt
                                     self.instrument_indexes[
                                         ginstrument] = dummy_indexes
-                                original_inames = np.copy(self.inames)
+                                original_inames = copy.deepcopy(self.inames)
                                 self.inames = [instrument]
                                 self.generate_lc_model(
                                     current_parameter_values,
@@ -2794,7 +2794,7 @@ class model(object):
                                     self.instrument_indexes[
                                         ginstrument] = dummy_indexes
                                 # Generate RV model only for the instrument under consideration:
-                                original_inames = np.copy(self.inames)
+                                original_inames = copy.deepcopy(self.inames)
                                 self.inames = [instrument]
                                 self.generate_rv_model(
                                     current_parameter_values,
@@ -2890,8 +2890,9 @@ class model(object):
                     # Rollback in case t is not None:
                     if t is not None:
                         if self.global_model:
-                            self.instrument_indexes = original_instrument_indexes.copy(
-                            )
+
+                            self.instrument_indexes = copy.deepcopy(original_instrument_indexes)
+
                             for ginstrument in instruments:
                                 self.times[
                                     ginstrument] = original_instrument_times[
