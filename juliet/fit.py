@@ -1746,7 +1746,7 @@ class fit(object):
                     # Now do the same for the actual sampler:
                     try:
 
-                        args = vars(sampler)['__init__'].__code__.co_varnames
+                        args = sampler.run_nested.__func__.__code__.co_varnames
 
                     except:
 
@@ -1796,8 +1796,7 @@ class fit(object):
                     # Extract args:
                     try:
 
-                        args = vars(mock_sampler)['__init__'].__code__.co_varnames
-
+                        args = mock_sampler.run_nested.__func__.__code__.co_varnames
 
                     except:
 
