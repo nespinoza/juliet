@@ -807,10 +807,18 @@ def writepp(fout, posteriors, priors):
                             'sesinomega_p' + str(iplanet)]**2
                     omega = np.arctan2(posteriors['posterior_samples']['sesinomega_p'+str(iplanet)],\
                                        posteriors['posterior_samples']['secosomega_p'+str(iplanet)])
-                elif 'ecc_' + planet in posteriors['posterior_samples']:
+                elif 'ecc_' + planet in posteriors['posterior_samples'] and 'omega_' + planet in posteriors['posterior_samples']:
                     ecc = posteriors['posterior_samples']['ecc_' + planet]
                     omega = posteriors['posterior_samples'][
                         'omega_' + planet] * np.pi / 180.
+                elif 'ecc_' + planet in posteriors['posterior_samples']:
+                    ecc = posteriors['posterior_samples']['ecc_' + planet]
+                    omega = priors['omega_' + planet]['hyperparameters']
+
+                elif 'omega_' + planet in posteriors['posterior_samples']:
+                    ecc = priors['ecc_' + planet]['hyperparameters']
+                    omega = posteriors['posterior_samples']['omega_' + planet] 
+
                 else:
                     ecc = 0.
                     omega = 90.
