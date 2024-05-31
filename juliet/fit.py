@@ -3138,8 +3138,16 @@ class model(object):
                         output_model = x
 
         if not self.global_model:
+
             # Return original inames back in case of non-global models:
             self.inames = original_inames
+
+        else:
+                
+            if t is not None and self.dictionary['global_model']['GPDetrend']:
+            
+                # Return GP regressors back:
+                self.dictionary['global_model']['noise_model'].X = self.original_GPregressors
 
         if evaluate_transit:
             # Turn LM and GPs back on:
