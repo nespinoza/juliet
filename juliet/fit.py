@@ -1744,7 +1744,14 @@ class fit(object):
                                              self.data.nparams, **d_args)
 
                     # Now do the same for the actual sampler:
-                    args = vars(sampler).keys()
+                    try:
+
+                        args = vars(sampler)['__init__'].__code__.co_varnames
+
+                    except:
+
+                        args = vars(sampler).keys()
+
                     ds_args = {}
 
                     # Load ones from kwargs:
@@ -1787,7 +1794,15 @@ class fit(object):
                                                   self.prior_transform_r,
                                                   self.data.nparams, **d_args)
                     # Extract args:
-                    args = vars(mock_sampler).keys()
+                    try:
+
+                        args = vars(mock_sampler)['__init__'].__code__.co_varnames
+
+
+                    except:
+
+                        args = vars(mock_sampler).keys()
+
                     ds_args = {}
 
                     # Load ones from kwargs:
