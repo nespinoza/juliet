@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.2.8] - 
 ### Added
 - Users can now fit either for the Kipping (2013) parametrization (q1, q2) or fit directly for coefficients (u1, u2). The former allows for linear, quadratic, square-root and logarithmic laws. The latter for the same plus exponential and power2.
-
+- Users can now also fit for the non-linear law by using the (c1, c2, c3, c4) coefficients.
+ 
 ### Fixed
 - Now user can print posteriors of fits with eccentricity free and omega fixed.
 
