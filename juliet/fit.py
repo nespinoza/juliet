@@ -566,16 +566,20 @@ class load(object):
 
                     for parameter in self.priors.keys():
 
-                        if parameter[0:2] == 'q1' or parameter[0:2] == 'u1':
+                        if parameter[0:2] == 'q1' or parameter[0:2] == 'u1' or parameter[0:2] == 'c1':
 
                             if instrument in parameter.split('_')[1:]:
 
                                 coeff1_given = True
                                 
-                                # Check which parametrization the user is choosing:
+                                # Check which parametrization/law the user is choosing:
                                 if parameter[0:2] == 'u1':
 
                                     parametrization = 'normal'
+
+                                if parameter[0:2] == 'c1':
+
+                                    parametrization = 'normal-nonlinear'
 
                         if parameter[0:2] == 'q2' or parameter[0:2] == 'u2':
 
@@ -585,8 +589,15 @@ class load(object):
 
                     if coeff1_given and (not coeff2_given):
 
-                        dictionary[instrument]['ldlaw'] = 'linear'
-                        dictionary[instrument]['ldparametrization'] = parametrization
+                        if parametrization == 'normal-nonlinear':
+
+                            dictionary[instrument]['ldlaw'] = 'nonlinear' 
+                            dictionary[instrument]['ldparametrization'] = 'normal'
+
+                        else:
+
+                            dictionary[instrument]['ldlaw'] = 'linear'
+                            dictionary[instrument]['ldparametrization'] = parametrization
 
                     elif coeff1_given and coeff2_given:
 
@@ -627,7 +638,7 @@ class load(object):
 
                     for parameter in self.priors.keys():
 
-                        if parameter[0:2] == 'q1' or parameter[0:2] == 'u1':
+                        if parameter[0:2] == 'q1' or parameter[0:2] == 'u1' or parameter[0:2] == 'c1':
 
                             if instrument in parameter.split('_')[1:]:
 
@@ -638,6 +649,10 @@ class load(object):
 
                                     parametrization = 'normal'
 
+                                if parameter[0:2] == 'c1':
+
+                                    parametrization = 'normal-nonlinear'
+
                         if parameter[0:2] == 'q2' or parameter[0:2] == 'u2':
 
                             if instrument in parameter.split('_')[1:]:
@@ -646,7 +661,13 @@ class load(object):
 
                     if coeff1_given and (not coeff2_given):
 
-                        dictionary[instrument]['ldparametrization'] = parametrization
+                        if parametrization == 'normal-nonlinear':
+
+                            dictionary[instrument]['ldparametrization'] = 'normal'
+
+                        else:
+
+                            dictionary[instrument]['ldparametrization'] = parametrization
 
                     elif coeff1_given and coeff2_given:
 
@@ -726,7 +747,7 @@ class load(object):
 
                 for pri in self.priors.keys():
 
-                    if pri[0:2] == 'q1' or pri[0:2] == 'u1':
+                    if pri[0:2] == 'q1' or pri[0:2] == 'u1' or pri[0:2] == 'c1':
 
                         if inames[i] in pri.split('_'):
 
@@ -3345,8 +3366,17 @@ class model(object):
 
                     elif self.dictionary[instrument]['ldparametrization'] == 'normal':
 
-                        coeff1, coeff2 = parameter_values['u1_'+self.ld_iname[instrument]], \
-                                         parameter_values['u2_'+self.ld_iname[instrument]]
+                        if self.dictionary[instrument]['ldlaw'] != 'nonlinear':
+
+                            coeff1, coeff2 = parameter_values['u1_'+self.ld_iname[instrument]], \
+                                             parameter_values['u2_'+self.ld_iname[instrument]]
+
+                        else:
+
+                            coeff1, coeff2, coeff3, coeff4 = parameter_values['c1_'+self.ld_iname[instrument]], \
+                                                             parameter_values['c2_'+self.ld_iname[instrument]], \
+                                                             parameter_values['c3_'+self.ld_iname[instrument]], \
+                                                             parameter_values['c4_'+self.ld_iname[instrument]]
 
                 elif self.dictionary[instrument]['ldlaw'] == 'none':
 
@@ -3636,10 +3666,12 @@ class model(object):
                                 
                             if self.dictionary[instrument]['ldlaw'] != 'linear':
                               
-                                self.model[instrument]['params'].u = [
-                                    coeff1, coeff2
-                                ]
+                                self.model[instrument]['params'].u = [ coeff1, coeff2 ]
+
+                            elif self.dictionary[instrument]['ldlaw'] == 'nonlinear'
                                 
+                                self.model[instrument]['params'].u = [ coeff1, coeff2, coeff3, coeff4 ]
+
                             else:
 
                                 self.model[instrument]['params'].u = [coeff1]
