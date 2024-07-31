@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [2.2.8] - 
+### Added
+- Users can now fit either for the Kipping (2013) parametrization (q1, q2) or fit directly for coefficients (u1, u2). The former allows for linear, quadratic, square-root and logarithmic laws. The latter for the same plus exponential and power2.
+
 ### Fixed
 - Now user can print posteriors of fits with eccentricity free and omega fixed.
 
