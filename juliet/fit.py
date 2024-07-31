@@ -3668,7 +3668,7 @@ class model(object):
                               
                                 self.model[instrument]['params'].u = [ coeff1, coeff2 ]
 
-                            elif self.dictionary[instrument]['ldlaw'] == 'nonlinear'
+                            elif self.dictionary[instrument]['ldlaw'] == 'nonlinear':
                                 
                                 self.model[instrument]['params'].u = [ coeff1, coeff2, coeff3, coeff4 ]
 
