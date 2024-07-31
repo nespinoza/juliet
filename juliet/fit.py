@@ -4154,7 +4154,7 @@ class model(object):
                 for pname in self.priors.keys():
 
                     # Check if variable name is a limb-darkening coefficient:
-                    if pname[0:2] == 'q1' or pname[0:2] == 'u1':
+                    if pname[0:2] == 'q1' or pname[0:2] == 'u1' or pname[0:2] == 'c1':
 
                         vec = pname.split('_')
                         if len(vec) > 2:
