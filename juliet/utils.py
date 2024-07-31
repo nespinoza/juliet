@@ -29,15 +29,23 @@ def init_batman(t, ld_law, nresampling=None, etresampling=None):
      params.w = 90.
 
      if ld_law == 'linear':
+
          params.u = [0.5]
-     elif ld_law == 'nonlinear'
+
+     elif ld_law == 'nonlinear':
+
          params.u = [0.1, 0.1, 0.1, 0.1]
+
      else:
+
          params.u = [0.1,0.3]
 
      if ld_law == 'none':
+
          params.limb_dark = 'quadratic'
+
      else:
+
          params.limb_dark = ld_law
 
      params.fp = 0.001
