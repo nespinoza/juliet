@@ -491,7 +491,9 @@ class load(object):
         """
 
         dictionary = {}
+
         if dictype == 'lc':
+
             inames = self.inames_lc
             ninstruments = self.ninstruments_lc
             instrument_supersamp = self.lc_instrument_supersamp
@@ -504,7 +506,9 @@ class load(object):
             #if global_model and (self.GP_lc_arguments is not None):
             #    self.GP_lc_arguments['lc'] = self.append_GP(len(self.t_lc), self.instrument_indexes_lc, self.GP_lc_arguments, inames)
             GP_regressors = self.GP_lc_arguments
+
         elif dictype == 'rv':
+
             inames = self.inames_rv
             ninstruments = self.ninstruments_rv
             instrument_supersamp = None
@@ -518,12 +522,14 @@ class load(object):
             #if global_model and (self.GP_rv_arguments is not None):
             #    self.GP_rv_arguments['rv'] = self.append_GP(len(self.t_rv), self.instrument_indexes_rv, self.GP_rv_arguments, inames)
             GP_regressors = self.GP_rv_arguments
+
         else:
             raise Exception(
                 'INPUT ERROR: dictype not understood. Has to be either lc or rv.'
             )
 
         for i in range(ninstruments):
+
             instrument = inames[i]
             dictionary[instrument] = {}
             # Save if a given instrument will receive resampling (initialize this as False):
@@ -532,6 +538,7 @@ class load(object):
             dictionary[instrument]['GPDetrend'] = False
             # Save if transit fitting will be done for a given dataset/instrument (this is so users can fit photometry with, e.g., GPs):
             if dictype == 'lc':
+
                 dictionary[instrument]['TransitFit'] = False
                 dictionary[instrument]['TransitFitCatwoman'] = False
                 dictionary[instrument]['EclipseFit'] = False
@@ -539,43 +546,123 @@ class load(object):
                 dictionary[instrument]['TranEclFit'] = False
 
         if dictype == 'lc':
-            # Extract limb-darkening law. If no limb-darkening law was given by the user, assume LD law depending on whether the user defined a prior for q1 only for a
-            # given instrument (in which that instrument is set to the linear law) or a prior for q1 and q2, in which case we assume the user
-            # wants to use a quadratic law for that instrument. If user gave one limb-darkening law, assume that law for all instruments that have priors for q1 and q2
-            # (if only q1 is given, assume linear for those instruments). If LD laws given for every instrument, extract them:
+
+            # Extract limb-darkening law and parametrization to be used to explore limb-darkeining. If no limb-darkening law was given by the user, 
+            # assume LD law depending on whether the user defined a prior for q1/u1 only for a given instrument (in which that instrument is set to 
+            # the linear law) or a prior for q1/u1 and q2/u2, in which case we assume the user wants to use a quadratic law for that instrument. 
+            # If user gave one limb-darkening law, assume that law for all instruments that have priors for q1/u1 and q2/u2 (if only q1/u1 is given, 
+            # assume linear for those instruments). If LD laws given for every instrument, extract them:
+
             all_ld_laws = self.ld_laws.split(',')
+
             if len(all_ld_laws) == 1:
+
                 for i in range(ninstruments):
+
                     instrument = inames[i]
-                    q1_given = False
-                    q2_given = False
+                    coeff1_given = False
+                    parametrization = 'kipping2013'
+                    coeff2_given = False
+
                     for parameter in self.priors.keys():
-                        if parameter[0:2] == 'q1':
+
+                        if parameter[0:2] == 'q1' or parameter[0:2] == 'u1':
+
                             if instrument in parameter.split('_')[1:]:
-                                q1_given = True
-                        if parameter[0:2] == 'q2':
+
+                                coeff1_given = True
+                                
+                                # Check which parametrization the user is choosing:
+                                if parameter[0:2] == 'u1':
+
+                                    parametrization = 'normal'
+
+                        if parameter[0:2] == 'q2' or parameter[0:2] == 'u2':
+
                             if instrument in parameter.split('_')[1:]:
-                                q2_given = True
-                    if q1_given and (not q2_given):
+
+                                coeff2_given = True
+
+                    if coeff1_given and (not coeff2_given):
+
                         dictionary[instrument]['ldlaw'] = 'linear'
-                    elif q1_given and q2_given:
+                        dictionary[instrument]['ldparametrization'] = parametrization
+
+                    elif coeff1_given and coeff2_given:
+
                         dictionary[instrument]['ldlaw'] = (
                             all_ld_laws[0].split('-')[-1]).split()[0].lower()
-                    elif (not q1_given) and q2_given:
+
+                        dictionary[instrument]['ldparametrization'] = parametrization
+
+                    elif (not coeff1_given) and coeff2_given:
                       
                         raise Exception(
-                            'INPUT ERROR: it appears q1 for instrument ' +
+                            'INPUT ERROR: it appears q1/u1 for instrument ' +
                             instrument +
-                            ' was not defined (but q2 was) in the prior file.')
+                            ' was not defined (but q2/u2 was) in the prior file.')
                         
-                    elif (not q1_given) and (not q2_given):
+                    elif (not coeff1_given) and (not coeff2_given):
+
                         dictionary[instrument]['ldlaw'] = 'none'
+                        dictionary[instrument]['ldparametrization'] = 'none'
 
             else:
+
+                # Extract limb-darkening law from user-input:
                 for ld_law in all_ld_laws:
+
                     instrument, ld = ld_law.split('-')
+
                     dictionary[instrument.split()
                                [0]]['ldlaw'] = ld.split()[0].lower()
+
+                # Now extract parametrization for each instrument depending on user priors file/dictionary:
+                for i in range(ninstruments):
+
+                    instrument = inames[i]
+                    coeff1_given = False
+                    parametrization = 'kipping2013'
+                    coeff2_given = False
+
+                    for parameter in self.priors.keys():
+
+                        if parameter[0:2] == 'q1' or parameter[0:2] == 'u1':
+
+                            if instrument in parameter.split('_')[1:]:
+
+                                coeff1_given = True 
+     
+                                # Check which parametrization the user is choosing:
+                                if parameter[0:2] == 'u1':
+
+                                    parametrization = 'normal'
+
+                        if parameter[0:2] == 'q2' or parameter[0:2] == 'u2':
+
+                            if instrument in parameter.split('_')[1:]:
+
+                                coeff2_given = True 
+
+                    if coeff1_given and (not coeff2_given):
+
+                        dictionary[instrument]['ldparametrization'] = parametrization
+
+                    elif coeff1_given and coeff2_given:
+
+                        dictionary[instrument]['ldparametrization'] = parametrization
+
+                    elif (not coeff1_given) and coeff2_given:
+     
+                        raise Exception(
+                            'INPUT ERROR: it appears q1/u1 for instrument ' +
+                            instrument +
+                            ' was not defined (but q2/u2 was) in the prior file.')
+     
+                    elif (not coeff1_given) and (not coeff2_given):
+
+                        dictionary[instrument]['ldlaw'] = 'none'
+                        dictionary[instrument]['ldparametrization'] = 'none'
 
         # Extract supersampling parameters if given.
         # For now this only allows inputs from lightcurves; TODO: add supersampling for RVs.
@@ -639,7 +726,7 @@ class load(object):
 
                 for pri in self.priors.keys():
 
-                    if pri[0:2] == 'q1':
+                    if pri[0:2] == 'q1' or pri[0:2] == 'u1':
 
                         if inames[i] in pri.split('_'):
 
@@ -3249,8 +3336,17 @@ class model(object):
                 # Extract and set the limb-darkening coefficients for the instrument:
                 if self.dictionary[instrument]['ldlaw'] != 'linear' and self.dictionary[instrument]['ldlaw'] != 'none':
 
-                    coeff1, coeff2 = reverse_ld_coeffs(self.dictionary[instrument]['ldlaw'], parameter_values['q1_'+self.ld_iname[instrument]],\
-                                                       parameter_values['q2_'+self.ld_iname[instrument]])
+
+                    if self.dictionary[instrument]['ldparametrization'] == 'kipping2013':
+
+                        coeff1, coeff2 = reverse_ld_coeffs(self.dictionary[instrument]['ldlaw'],\
+                                                           parameter_values['q1_'+self.ld_iname[instrument]],\
+                                                           parameter_values['q2_'+self.ld_iname[instrument]])
+
+                    elif self.dictionary[instrument]['ldparametrization'] == 'normal':
+
+                        coeff1, coeff2 = parameter_values['u1_'+self.ld_iname[instrument]], \
+                                         parameter_values['u2_'+self.ld_iname[instrument]]
 
                 elif self.dictionary[instrument]['ldlaw'] == 'none':
 
@@ -3258,7 +3354,13 @@ class model(object):
 
                 else:
 
-                    coeff1 = parameter_values['q1_' + self.ld_iname[instrument]]
+                    if self.dictionary[instrument]['ldparametrization'] == 'kipping2013':
+
+                        coeff1 = parameter_values['q1_' + self.ld_iname[instrument]]
+
+                    elif self.dictionary[instrument]['ldparametrization'] == 'normal':
+
+                        coeff1 = parameter_values['u1_' + self.ld_iname[instrument]]
 
                 # First (1) check if TTV mode is activated. If it is not, simply save the sampled planet periods and time-of transit centers for check
                 # in the next round of iteration (see below). If it is, depending on the parametrization, either shift the time-indexes accordingly (see below
@@ -4018,16 +4120,23 @@ class model(object):
 
                 # Now proceed with instrument namings:
                 for pname in self.priors.keys():
+
                     # Check if variable name is a limb-darkening coefficient:
-                    if pname[0:2] == 'q1':
+                    if pname[0:2] == 'q1' or pname[0:2] == 'u1':
+
                         vec = pname.split('_')
                         if len(vec) > 2:
+
                             if instrument in vec:
-                                self.ld_iname[instrument] = '_'.join(
-                                    vec[1:])
+
+                                self.ld_iname[instrument] = '_'.join(vec[1:])
+
                         else:
+
                             if instrument in vec:
+
                                 self.ld_iname[instrument] = vec[1]
+
                     # Check if it is a theta LM:
                     if pname[0:5] == 'theta':
                         vec = pname.split('_')
