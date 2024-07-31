@@ -30,6 +30,8 @@ def init_batman(t, ld_law, nresampling=None, etresampling=None):
 
      if ld_law == 'linear':
          params.u = [0.5]
+     elif ld_law == 'nonlinear'
+         params.u = [0.1, 0.1, 0.1, 0.1]
      else:
          params.u = [0.1,0.3]
 
