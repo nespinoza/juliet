@@ -3664,17 +3664,17 @@ class model(object):
                                 self.model[instrument]['params'].rp2 = p2
                                 self.model[instrument]['params'].phi = phi
                                 
-                            if self.dictionary[instrument]['ldlaw'] != 'linear':
-                              
-                                self.model[instrument]['params'].u = [ coeff1, coeff2 ]
+                            if self.dictionary[instrument]['ldlaw'] == 'nonlinear':
 
-                            elif self.dictionary[instrument]['ldlaw'] == 'nonlinear':
-                                
                                 self.model[instrument]['params'].u = [ coeff1, coeff2, coeff3, coeff4 ]
 
-                            else:
+                            elif self.dictionary[instrument]['ldlaw'] == 'linear':
 
                                 self.model[instrument]['params'].u = [coeff1]
+
+                            else:
+                              
+                                self.model[instrument]['params'].u = [ coeff1, coeff2 ]
 
                             # If TTVs is on for planet i, compute the expected time of transit, and shift it. For this, use information encoded in the prior
                             # name; if, e.g., dt_p1_TESS1_-2, then n = -2 and the time of transit (with TTV) = t0 + n*P + dt_p1_TESS1_-2. Compute transit
