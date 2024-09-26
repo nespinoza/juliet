@@ -267,9 +267,12 @@ class load(object):
     :param pickle_encoding: (optional, string)
         Define pickle encoding in case fit was done with Python 2.7 and results are read with Python 3.
 
+    :param non_linear_functions: (optional, dict)
+        Dictionary containing any non-linear functions (`non_linear_functions['function']`) and regressors (`non_linear_functions['regressor']`) that want to be fit.
+
     """
 
-    def data_preparation(self, times, instruments, linear_regressors):
+    def data_preparation(self, times, instruments, linear_regressors, non_linear_functions):
         """
         This function generates f useful internal arrays for this class: inames which saves the instrument names, ``global_times``
         which is a "flattened" array of the ``times`` dictionary where all the times for all instruments are stacked, instrument_indexes,
@@ -299,7 +302,19 @@ class load(object):
         else:
             for instrument in inames:
                 lm_boolean[instrument] = False
-        return inames, instrument_indexes, lm_boolean
+
+        nlm_boolean = {}
+        for instrument in inames:
+
+            if instrument in list( non_linear_functions.keys() ):
+
+                nlm_boolean[instrument] = True
+
+            else:
+
+                nlm_boolean[instrument] = False            
+
+        return inames, instrument_indexes, lm_boolean, nlm_boolean
 
     def convert_input_data(self, t, y, yerr):
         """
@@ -943,7 +958,7 @@ class load(object):
 
     def set_lc_data(self, t_lc, y_lc, yerr_lc, instruments_lc,
                     instrument_indexes_lc, ninstruments_lc, inames_lc,
-                    lm_lc_boolean, lm_lc_arguments):
+                    lm_lc_boolean, lm_lc_arguments, nlm_lc_boolean):
         self.t_lc = t_lc.astype('float64')
         self.y_lc = y_lc
         self.yerr_lc = yerr_lc
@@ -953,11 +968,12 @@ class load(object):
         self.instrument_indexes_lc = instrument_indexes_lc
         self.lm_lc_boolean = lm_lc_boolean
         self.lm_lc_arguments = lm_lc_arguments
+        self.nlm_lc_boolean = nlm_lc_boolean
         self.lc_data = True
 
     def set_rv_data(self, t_rv, y_rv, yerr_rv, instruments_rv,
                     instrument_indexes_rv, ninstruments_rv, inames_rv,
-                    lm_rv_boolean, lm_rv_arguments):
+                    lm_rv_boolean, lm_rv_arguments, nlm_rv_boolean):
         self.t_rv = t_rv.astype('float64')
         self.y_rv = y_rv
         self.yerr_rv = yerr_rv
@@ -967,6 +983,7 @@ class load(object):
         self.instrument_indexes_rv = instrument_indexes_rv
         self.lm_rv_boolean = lm_rv_boolean
         self.lm_rv_arguments = lm_rv_arguments
+        self.nlm_rv_boolean = nlm_rv_boolean
         self.rv_data = True
 
     def save(self):
@@ -1048,7 +1065,7 @@ class load(object):
                  GPrveparamfile = None, LMlceparamfile = None, LMrveparamfile = None, lctimedef = 'TDB', rvtimedef = 'UTC',\
                  ld_laws = 'quadratic', priorfile = None, lc_n_supersamp = None, lc_exptime_supersamp = None, \
                  lc_instrument_supersamp = None, mag_to_flux = True, verbose = False, matern_eps = 0.01, george_hodlr = True, \
-                 pickle_encoding = None):
+                 pickle_encoding = None, non_linear_functions = {}):
 
         self.lcfilename = lcfilename
         self.rvfilename = rvfilename
@@ -1063,6 +1080,9 @@ class load(object):
         # GP options:
         self.matern_eps = matern_eps  # Epsilon parameter for celerite Matern32Term
         self.george_hodlr = george_hodlr # Wheter to use HODLR solver or not (see: http://dfm.io/george/current/user/solvers/)
+
+        # Non-linear function options:
+        self.non_linear_functions = non_linear_functions
 
         # Initialize data options for lightcurves:
         self.t_lc = None
@@ -1181,21 +1201,33 @@ class load(object):
                 t_lc,y_lc,yerr_lc,instruments_lc,instrument_indexes_lc,ninstruments_lc,inames_lc,lm_lc_boolean,lm_lc_arguments = \
                 read_data(lcfilename)
 
+                # Set null boolean for now for non-linear in data:
+                nlm_lc_boolean = {} 
+                for k in inames_lc:
+
+                    nlm_lc_boolean[k] = False
+
                 # Save data to object:
 
                 self.set_lc_data(t_lc, y_lc, yerr_lc, instruments_lc,
                                  instrument_indexes_lc, ninstruments_lc,
-                                 inames_lc, lm_lc_boolean, lm_lc_arguments)
+                                 inames_lc, lm_lc_boolean, lm_lc_arguments, nlm_lc_boolean[k])
 
         if (t_rv is None):
             if rvfilename is not None:
                 t_rv,y_rv,yerr_rv,instruments_rv,instrument_indexes_rv,ninstruments_rv,inames_rv,lm_rv_boolean,lm_rv_arguments = \
                 read_data(rvfilename)
 
+                # Set null boolean for now for non-linear in data:
+                nlm_rv_boolean = {} 
+                for k in inames_rv:
+
+                    nlm_rv_boolean[k] = False
+
                 # Save data to object:
                 self.set_rv_data(t_rv, y_rv, yerr_rv, instruments_rv,
                                  instrument_indexes_rv, ninstruments_rv,
-                                 inames_rv, lm_rv_boolean, lm_rv_arguments)
+                                 inames_rv, lm_rv_boolean, lm_rv_arguments, nlm_rv_boolean[k])
 
         if (t_lc is None and t_rv is None):
             if (lcfilename is None) and (rvfilename is None):
@@ -1246,8 +1278,8 @@ class load(object):
             tglobal_lc, yglobal_lc, yglobalerr_lc, instruments_lc = self.convert_input_data(
                 t_lc, y_lc, yerr_lc)
             # Save data in a format useful for global modelling:
-            inames_lc, instrument_indexes_lc, lm_lc_boolean = self.data_preparation(
-                tglobal_lc, instruments_lc, linear_regressors_lc)
+            inames_lc, instrument_indexes_lc, lm_lc_boolean, nlm_lc_boolean = self.data_preparation(
+                tglobal_lc, instruments_lc, linear_regressors_lc, non_linear_functions)
             lm_lc_arguments = linear_regressors_lc
             ninstruments_lc = len(inames_lc)
 
@@ -1255,7 +1287,7 @@ class load(object):
             self.set_lc_data(tglobal_lc, yglobal_lc, yglobalerr_lc,
                              instruments_lc, instrument_indexes_lc,
                              ninstruments_lc, inames_lc, lm_lc_boolean,
-                             lm_lc_arguments)
+                             lm_lc_arguments, nlm_lc_boolean)
 
             # Save input dictionaries:
             self.times_lc = t_lc
@@ -1274,8 +1306,8 @@ class load(object):
             input_error_catcher(t_rv, y_rv, yerr_rv, 'radial-velocity')
             tglobal_rv, yglobal_rv, yglobalerr_rv, instruments_rv = self.convert_input_data(
                 t_rv, y_rv, yerr_rv)
-            inames_rv, instrument_indexes_rv, lm_rv_boolean = self.data_preparation(
-                tglobal_rv, instruments_rv, linear_regressors_rv)
+            inames_rv, instrument_indexes_rv, lm_rv_boolean, nlm_rv_boolean = self.data_preparation(
+                tglobal_rv, instruments_rv, linear_regressors_rv, non_linear_functions)
             lm_rv_arguments = linear_regressors_rv
             ninstruments_rv = len(inames_rv)
 
@@ -1284,7 +1316,7 @@ class load(object):
             self.set_rv_data(tglobal_rv, yglobal_rv, yglobalerr_rv,
                              instruments_rv, instrument_indexes_rv,
                              ninstruments_rv, inames_rv, lm_rv_boolean,
-                             lm_rv_arguments)
+                             lm_rv_arguments, nlm_rv_boolean)
 
             # Save input dictionaries:
             self.times_rv = t_rv
@@ -3889,17 +3921,30 @@ class model(object):
 
             # Now, if a linear model was defined, generate it and add it to the full model:
             if self.lm_boolean[instrument]:
-                self.model[instrument]['LM'] = np.zeros(
-                    self.ndatapoints_per_instrument[instrument])
+
+                self.model[instrument]['LM'] = np.zeros(self.ndatapoints_per_instrument[instrument])
                 for i in range(self.lm_n[instrument]):
-                    self.model[instrument]['LM'] += parameter_values[
-                        'theta' + str(i) + '_' +
-                        self.theta_iname[str(i)+instrument]] * self.lm_arguments[instrument][:, i]
-                self.model[instrument]['deterministic'] = self.model[
-                    instrument]['M'] + self.model[instrument]['LM']
+
+                    self.model[instrument]['LM'] += parameter_values['theta' + str(i) + '_' + self.theta_iname[str(i)+instrument]] * \
+                                                    self.lm_arguments[instrument][:, i]
+
+                self.model[instrument]['deterministic'] = self.model[instrument]['M'] + self.model[instrument]['LM']
+
             else:
-                self.model[instrument]['deterministic'] = self.model[
-                    instrument]['M']
+
+                self.model[instrument]['deterministic'] = self.model[instrument]['M']
+            
+            # Now, if a non-linear model was defined, generate it and add it to the full model:
+            if self.nlm_boolean[instrument]:
+
+                self.model[instrument]['NLM'] = self.non_linear_functions[instrument]['function']( \
+                                                     self.non_linear_functions[instrument]['regressor'], \
+                                                     parameter_values,\
+                                                                                                 )
+
+                self.model[instrument]['deterministic'] += self.model[instrument]['NLM']
+
+
             self.model[instrument][
                 'deterministic_variances'] = self.errors[instrument]**2 + (
                     parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] * 1e-6)**2
@@ -4005,6 +4050,8 @@ class model(object):
         # Define a variable that will save the posterior samples:
         self.posteriors = None
         self.median_posterior_samples = None
+        # Set nlm:
+        self.non_linear_functions = data.non_linear_functions
         # Number of datapoints per instrument variable:
         self.ndatapoints_per_instrument = {}
         if modeltype == 'lc':
@@ -4026,6 +4073,7 @@ class model(object):
             self.inames = data.inames_lc
             self.instrument_indexes = data.instrument_indexes_lc
             self.lm_boolean = data.lm_lc_boolean
+            self.nlm_boolean = data.nlm_lc_boolean
             self.lm_arguments = data.lm_lc_arguments
             self.lm_n = {}
             self.pl = pl
@@ -4333,6 +4381,7 @@ class model(object):
             self.ninstruments = data.ninstruments_rv
             self.inames = data.inames_rv
             self.instrument_indexes = data.instrument_indexes_rv
+            self.nlm_boolean = data.nlm_rv_boolean
             self.lm_boolean = data.lm_rv_boolean
             self.lm_arguments = data.lm_rv_arguments
             self.lm_n = {}

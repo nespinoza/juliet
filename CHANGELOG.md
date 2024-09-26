@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Users can now fit either for the Kipping (2013) parametrization (q1, q2) or fit directly for coefficients (u1, u2). The former allows for linear, quadratic, square-root and logarithmic laws. The latter for the same plus exponential and power2.
 - Users can now also fit for the non-linear law by using the (c1, c2, c3, c4) coefficients.
+- Users can now add their own non-linear (additive) functions by passing `non_linear_functions` to `juliet.load`. It has to contain the actual function to be evaluated under `non_linear_functions['function']` and the regressor it will be evaluated on `non_linear_functions['regressor']`.
  
 ### Fixed
 - Now user can print posteriors of fits with eccentricity free and omega fixed.
