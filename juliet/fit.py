@@ -1211,7 +1211,7 @@ class load(object):
 
                 self.set_lc_data(t_lc, y_lc, yerr_lc, instruments_lc,
                                  instrument_indexes_lc, ninstruments_lc,
-                                 inames_lc, lm_lc_boolean, lm_lc_arguments, nlm_lc_boolean[k])
+                                 inames_lc, lm_lc_boolean, lm_lc_arguments, nlm_lc_boolean)
 
         if (t_rv is None):
             if rvfilename is not None:
@@ -1227,7 +1227,7 @@ class load(object):
                 # Save data to object:
                 self.set_rv_data(t_rv, y_rv, yerr_rv, instruments_rv,
                                  instrument_indexes_rv, ninstruments_rv,
-                                 inames_rv, lm_rv_boolean, lm_rv_arguments, nlm_rv_boolean[k])
+                                 inames_rv, lm_rv_boolean, lm_rv_arguments, nlm_rv_boolean)
 
         if (t_lc is None and t_rv is None):
             if (lcfilename is None) and (rvfilename is None):
