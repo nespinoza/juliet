@@ -1065,7 +1065,7 @@ class load(object):
                  GPrveparamfile = None, LMlceparamfile = None, LMrveparamfile = None, lctimedef = 'TDB', rvtimedef = 'UTC',\
                  ld_laws = 'quadratic', priorfile = None, lc_n_supersamp = None, lc_exptime_supersamp = None, \
                  lc_instrument_supersamp = None, mag_to_flux = True, verbose = False, matern_eps = 0.01, george_hodlr = True, \
-                 pickle_encoding = None, non_linear_functions = {}):
+                 pickle_encoding = None, non_linear_functions = {}, extra_loglikelihood = None):
 
         self.lcfilename = lcfilename
         self.rvfilename = rvfilename
@@ -1083,6 +1083,15 @@ class load(object):
 
         # Non-linear function options:
         self.non_linear_functions = non_linear_functions
+        self.extra_loglikelihood = extra_loglikelihood
+
+        if extra_loglikelihood is None:
+
+            self.extra_loglikelihood_boolean = False
+
+        else:
+
+            self.extra_loglikelihood_boolean = True
 
         # Initialize data options for lightcurves:
         self.t_lc = None
@@ -1551,6 +1560,12 @@ class fit(object):
                 log_likelihood += self.rv.get_log_likelihood(self.posteriors)
             else:
                 return -1e101
+
+        # Evaluate any extra likelihoods:
+        if self.extra_loglikelihood_boolean:
+
+            log_likelihood += extra_loglikelihood['loglikelihood']( self.posteriors )
+
         # Return total log-likelihood:
         return log_likelihood
 
@@ -1659,6 +1674,10 @@ class fit(object):
         # Inhert the output folder:
         self.out_folder = data.out_folder
         self.transformed_priors = np.zeros(self.data.nparams)
+
+        # Inhert extra likelihood:
+        self.extra_loglikelihood = data.extra_loglikelihood
+        self.extra_loglikelihood_boolean = data.extra_loglikelihood_boolean
 
         # Define prefixes in case saving is turned on (i.e., user passed an out_folder). PyMultiNest and dynesty ones are set by hand. For the rest, use the new
         # sampler string directly:
