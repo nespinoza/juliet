@@ -3961,12 +3961,20 @@ class model(object):
                                                      parameter_values,\
                                                                                                  )
 
-                self.model[instrument]['deterministic'] += self.model[instrument]['NLM']
+
+                if self.multiplicative_non_linear_function[instrument]:
+
+                    self.model[instrument]['deterministic'] *= self.model[instrument]['NLM']
+
+                else:
+
+                    self.model[instrument]['deterministic'] += self.model[instrument]['NLM']
 
 
             self.model[instrument][
                 'deterministic_variances'] = self.errors[instrument]**2 + (
                     parameter_values['sigma_w_' + self.sigmaw_iname[instrument]] * 1e-6)**2
+
             # Finally, if the model under consideration is a global model, populate the global model dictionary:
             if self.global_model:
                 self.model['global'][self.instrument_indexes[
@@ -4071,6 +4079,28 @@ class model(object):
         self.median_posterior_samples = None
         # Set nlm:
         self.non_linear_functions = data.non_linear_functions
+        # Check if multiplicative of additive functions for each instrument:
+        if self.non_linear_functions is not None:
+
+           self.multiplicative_non_linear_function = {}
+
+           for k in list(self.non_linear_functions.keys()):
+
+                if 'multiplicative' in self.non_linear_functions[k].keys():
+
+                    if self.non_linear_functions[k]['multiplicative']:
+
+                        self.multiplicative_non_linear_function[k] = True
+
+                    else:
+
+                        self.multiplicative_non_linear_function[k] = False
+
+                else:
+
+                    # For back-compatibility:
+                    self.multiplicative_non_linear_function[k] = False
+
         # Number of datapoints per instrument variable:
         self.ndatapoints_per_instrument = {}
         if modeltype == 'lc':
