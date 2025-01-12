@@ -123,7 +123,7 @@ def correct_light_travel_time(times, params):
     else:
         # No need to solve Kepler's equation for circular orbits, so save
         # some computation time
-        transit_x = a*np.sin(params.inc)
+        transit_x = a*np.sin(params.inc*np.pi/180)
         old_x = transit_x*np.cos(2*np.pi*(times-params.t0)/params.per)
 
     # Get the radial distance variations of the planet
