@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  
 ### Fixed
 - Now user can print posteriors of fits with eccentricity free and omega fixed.
+- Bug on circular orbits with travel time light-delay (see PR #124) thanks to @JeffValenti.
 
 ## [2.2.7] - 2024-05-31
 ### Fixed
