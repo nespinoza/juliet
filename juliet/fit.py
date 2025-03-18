@@ -558,6 +558,7 @@ class load(object):
                 dictionary[instrument]['TransitFitCatwoman'] = False
                 dictionary[instrument]['EclipseFit'] = False
                 dictionary[instrument]['PhaseCurveFit'] = False
+                dictionary[instrument]['CowanAgolPCFit'] = False
                 dictionary[instrument]['TranEclFit'] = False
 
         if dictype == 'lc':
@@ -794,6 +795,16 @@ class load(object):
                             if self.verbose:
 
                                 print('\t Phase curve fit detected for instrument ', inames[i])
+
+                    if pri[0:2] == 'C1':
+                        # To check if the given instrument has Cowan & Agol (2008) phase curve fitting
+                        if (inames[i] in pri.split('_')) or (len(pri.split('_')) == 2):
+
+                            dictionary[inames[i]]['CowanAgolPCFit'] = True
+
+                            if self.verbose:
+
+                                print('\t Phase curve fit (Cowan & Agol 2008) detected for instrument ', inames[i])
 
                     if pri[0:2] == 'fp':
 
@@ -3556,6 +3567,13 @@ class model(object):
                         if self.dictionary[instrument]['PhaseCurveFit']:
 
                             phase_offset = parameter_values['phaseoffset_p' + str(i) + self.phaseoffset_iname['p' + str(i)][instrument]]
+                        
+                        if self.dictionary[instrument]['CowanAgolPCFit']:
+
+                            C1_CA08 = parameter_values['C1_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
+                            D1_CA08 = parameter_values['D1_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
+                            C2_CA08 = parameter_values['C2_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
+                            D2_CA08 = parameter_values['D2_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
 
                         if not self.light_travel_delay:
 
@@ -3752,24 +3770,37 @@ class model(object):
                                         eclipse_model = self.model[instrument]['m'][1].light_curve(self.model[instrument]['params']) 
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if not self.dictionary[instrument]['PhaseCurveFit']:
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['M'] += transit_model * eclipse_model - 1.
 
                                         else:
 
-                                            orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
-                                            center_phase = - np.pi / 2.
+                                            if self.dictionary[instrument]['PhaseCurveFit']:
 
-                                            # Build model. First, the basis sine function:
-                                            sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
-                                            # Scale to be 1 at secondary eclipse, 0 at transit:
-                                            sine_model = (sine_model + 1) * 0.5
-                                            # Amplify by phase-amplitude:
-                                            sine_model = (self.model[instrument]['params'].fp) * sine_model
-                                            # Multiply by normed eclipse model:
-                                            sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                                orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
+                                                center_phase = - np.pi / 2.
+
+                                                # Build model. First, the basis sine function:
+                                                sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
+                                                # Scale to be 1 at secondary eclipse, 0 at transit:
+                                                sine_model = (sine_model + 1) * 0.5
+                                                # Amplify by phase-amplitude:
+                                                sine_model = (self.model[instrument]['params'].fp) * sine_model
+                                                # Multiply by normed eclipse model:
+                                                sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            elif self.dictionary[instrument]['CowanAgolPCFit']:
+
+                                                # Computing (sort of phase: I am following Zhang et al. 2024)
+                                                omega_t = 2 * np.pi * (self.model[instrument]['m'][1].t - self.model[instrument]['params'].t_secondary) / self.model[instrument]['params'].per
+
+                                                # 2nd order Phase curve model: Fp + C1*cos(wt) - C1 + D1*sin(wt) + C2*cos(2wt) - C2 + D2*sin(2wt)
+                                                pc_CA08 = self.model[instrument]['params'].fp + ( C1_CA08 * (np.cos( omega_t ) - 1.) ) + ( D1_CA08 * np.sin( omega_t ) ) + ( C2_CA08 * (np.cos( 2*omega_t ) - 1.) ) + ( D2_CA08 * np.sin( 2*omega_t ) )
+
+                                                # And multiplying the PC model with the occultation model
+                                                sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
 
                                             # And get all together:
                                             self.model[instrument]['M'] += transit_model * sine_model - 1.
@@ -3790,24 +3821,37 @@ class model(object):
                                         eclipse_model = self.model[instrument]['m'][1].light_curve(self.model[instrument]['params']) 
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if not self.dictionary[instrument]['PhaseCurveFit']:
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['p'+str(i)] = transit_model * eclipse_model
 
                                         else:
 
-                                            orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
-                                            center_phase = - np.pi / 2.
+                                            if self.dictionary[instrument]['PhaseCurveFit']:
 
-                                            # Build model. First, the basis sine function:
-                                            sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
-                                            # Scale to be 1 at secondary eclipse, 0 at transit:
-                                            sine_model = (sine_model + 1) * 0.5
-                                            # Amplify by phase-amplitude:
-                                            sine_model = (self.model[instrument]['params'].fp) * sine_model
-                                            # Multiply by normed eclipse model:
-                                            sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                                orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
+                                                center_phase = - np.pi / 2.
+
+                                                # Build model. First, the basis sine function:
+                                                sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
+                                                # Scale to be 1 at secondary eclipse, 0 at transit:
+                                                sine_model = (sine_model + 1) * 0.5
+                                                # Amplify by phase-amplitude:
+                                                sine_model = (self.model[instrument]['params'].fp) * sine_model
+                                                # Multiply by normed eclipse model:
+                                                sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            elif self.dictionary[instrument]['CowanAgolPCFit']:
+
+                                                # Computing (sort of phase: I am following Zhang et al. 2024)
+                                                omega_t = 2 * np.pi * (self.model[instrument]['m'][1].t - self.model[instrument]['params'].t_secondary) / self.model[instrument]['params'].per
+
+                                                # 2nd order Phase curve model: Fp + C1*cos(wt) - C1 + D1*sin(wt) + C2*cos(2wt) - C2 + D2*sin(2wt)
+                                                pc_CA08 = self.model[instrument]['params'].fp + ( C1_CA08 * (np.cos( omega_t ) - 1.) ) + ( D1_CA08 * np.sin( omega_t ) ) + ( C2_CA08 * (np.cos( 2*omega_t ) - 1.) ) + ( D2_CA08 * np.sin( 2*omega_t ) )
+
+                                                # And multiplying the PC model with the occultation model
+                                                sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
 
                                             self.model[instrument]['p'+str(i)] = transit_model * sine_model
 
@@ -3865,24 +3909,37 @@ class model(object):
                                         eclipse_model = m[1].light_curve(self.model[instrument]['params'])
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if not self.dictionary[instrument]['PhaseCurveFit']:
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['M'] += transit_model * eclipse_model - 1.
 
                                         else:
 
-                                            orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
-                                            center_phase = - np.pi / 2.
+                                            if self.dictionary[instrument]['PhaseCurveFit']:
 
-                                            # Build model. First, the basis sine function:
-                                            sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
-                                            # Scale to be 1 at secondary eclipse, 0 at transit:
-                                            sine_model = (sine_model + 1) * 0.5
-                                            # Amplify by phase-amplitude:
-                                            sine_model = (self.model[instrument]['params'].fp) * sine_model
-                                            # Multiply by normed eclipse model:
-                                            sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                                orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
+                                                center_phase = - np.pi / 2.
+
+                                                # Build model. First, the basis sine function:
+                                                sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
+                                                # Scale to be 1 at secondary eclipse, 0 at transit:
+                                                sine_model = (sine_model + 1) * 0.5
+                                                # Amplify by phase-amplitude:
+                                                sine_model = (self.model[instrument]['params'].fp) * sine_model
+                                                # Multiply by normed eclipse model:
+                                                sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            elif self.dictionary[instrument]['CowanAgolPCFit']:
+
+                                                # Computing (sort of phase: I am following Zhang et al. 2024)
+                                                omega_t = 2 * np.pi * (self.model[instrument]['m'][1].t - self.model[instrument]['params'].t_secondary) / self.model[instrument]['params'].per
+
+                                                # 2nd order Phase curve model: Fp + C1*cos(wt) - C1 + D1*sin(wt) + C2*cos(2wt) - C2 + D2*sin(2wt)
+                                                pc_CA08 = self.model[instrument]['params'].fp + ( C1_CA08 * (np.cos( omega_t ) - 1.) ) + ( D1_CA08 * np.sin( omega_t ) ) + ( C2_CA08 * (np.cos( 2*omega_t ) - 1.) ) + ( D2_CA08 * np.sin( 2*omega_t ) )
+
+                                                # And multiplying the PC model with the occultation model
+                                                sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
 
                                             self.model[instrument]['M'] += transit_model * sine_model - 1.
  
@@ -3902,24 +3959,37 @@ class model(object):
                                         eclipse_model = m[1].light_curve(self.model[instrument]['params'])
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if not self.dictionary[instrument]['PhaseCurveFit']:
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['p'+str(i)] = transit_model * eclipse_model
 
                                         else:
 
-                                            orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
-                                            center_phase = - np.pi / 2.
+                                            if self.dictionary[instrument]['PhaseCurveFit']:
 
-                                            # Build model. First, the basis sine function:
-                                            sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
-                                            # Scale to be 1 at secondary eclipse, 0 at transit:
-                                            sine_model = (sine_model + 1) * 0.5
-                                            # Amplify by phase-amplitude:
-                                            sine_model = (self.model[instrument]['params'].fp) * sine_model
-                                            # Multiply by normed eclipse model:
-                                            sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                                orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
+                                                center_phase = - np.pi / 2.
+
+                                                # Build model. First, the basis sine function:
+                                                sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
+                                                # Scale to be 1 at secondary eclipse, 0 at transit:
+                                                sine_model = (sine_model + 1) * 0.5
+                                                # Amplify by phase-amplitude:
+                                                sine_model = (self.model[instrument]['params'].fp) * sine_model
+                                                # Multiply by normed eclipse model:
+                                                sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            elif self.dictionary[instrument]['CowanAgolPCFit']:
+
+                                                # Computing (sort of phase: I am following Zhang et al. 2024)
+                                                omega_t = 2 * np.pi * (self.model[instrument]['m'][1].t - self.model[instrument]['params'].t_secondary) / self.model[instrument]['params'].per
+
+                                                # 2nd order Phase curve model: Fp + C1*cos(wt) - C1 + D1*sin(wt) + C2*cos(2wt) - C2 + D2*sin(2wt)
+                                                pc_CA08 = self.model[instrument]['params'].fp + ( C1_CA08 * (np.cos( omega_t ) - 1.) ) + ( D1_CA08 * np.sin( omega_t ) ) + ( C2_CA08 * (np.cos( 2*omega_t ) - 1.) ) + ( D2_CA08 * np.sin( 2*omega_t ) )
+
+                                                # And multiplying the PC model with the occultation model
+                                                sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
 
                                             self.model[instrument]['p'+str(i)] = transit_model * sine_model
 
