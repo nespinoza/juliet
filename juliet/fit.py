@@ -1210,6 +1210,23 @@ class load(object):
                 t_lc,y_lc,yerr_lc,instruments_lc,instrument_indexes_lc,ninstruments_lc,inames_lc,lm_lc_boolean,lm_lc_arguments = \
                 read_data(lcfilename)
 
+                # Check if, for each instrument, linear regressors where given through arrays too:
+                if linear_regressors_lc is not None:
+
+                    for k in inames_lc:
+
+                        if (k in linear_regressors_lc) and (lm_lc_boolean[k]):
+
+                            # Raise exception if user gave both linear regressors both via arrays _and_ filename:
+                            raise Exception(
+                                'INPUT ERROR: linear regressors given both in '+lcfilename+' and via the linear_regressors_lc. Erase one; juliet cannot pick one over the other.'
+                            )    
+
+                        elif k in linear_regressors_lc:
+
+                            lm_lc_boolean[k] = True 
+                            lm_lc_arguments[k] = linear_regressors_lc[k]
+
                 # Set null boolean for now for non-linear in data:
                 nlm_lc_boolean = {} 
                 for k in inames_lc:
@@ -1226,6 +1243,23 @@ class load(object):
             if rvfilename is not None:
                 t_rv,y_rv,yerr_rv,instruments_rv,instrument_indexes_rv,ninstruments_rv,inames_rv,lm_rv_boolean,lm_rv_arguments = \
                 read_data(rvfilename)
+
+                # Check if, for each instrument, linear regressors where given through arrays too:
+                if linear_regressors_rv is not None:
+
+                    for k in inames_rv:
+
+                        if (k in linear_regressors_rv) and (lm_rv_boolean[k]):
+
+                            # Raise exception if user gave both linear regressors both via arrays _and_ filename:
+                            raise Exception(
+                                'INPUT ERROR: linear regressors given both in '+rvfilename+' and via the linear_regressors_rv. Erase one; juliet cannot pick one over the other.'
+                            )
+
+                        elif k in linear_regressors_rv:
+
+                            lm_rv_boolean[k] = True
+                            lm_rv_arguments[k] = linear_regressors_rv[k]
 
                 # Set null boolean for now for non-linear in data:
                 nlm_rv_boolean = {} 
@@ -4125,6 +4159,7 @@ class model(object):
             self.nlm_boolean = data.nlm_lc_boolean
             self.lm_arguments = data.lm_lc_arguments
             self.lm_n = {}
+            self.theta_iname = {}
             self.pl = pl
             self.pu = pu
             self.Ar = (self.pu - self.pl) / (2. + self.pl + self.pu)
@@ -4144,7 +4179,6 @@ class model(object):
             self.sigmaw_iname = {}
             self.mdilution_iname = {}
             self.mflux_iname = {}
-            self.theta_iname = {}
             self.fp_iname = {}
             self.phaseoffset_iname = {}
             # To make transit depth (for batman and catwoman models) will be shared by different instruments, set the correct variable name for each:
@@ -4432,8 +4466,10 @@ class model(object):
             self.instrument_indexes = data.instrument_indexes_rv
             self.nlm_boolean = data.nlm_rv_boolean
             self.lm_boolean = data.lm_rv_boolean
+            self.nlm_boolean = data.nlm_rv_boolean
             self.lm_arguments = data.lm_rv_arguments
             self.lm_n = {}
+            self.theta_iname = {}
             self.global_model = data.global_rv_model
             self.dictionary = data.rv_options
             self.numbering = data.numbering_rv_planets
@@ -4467,6 +4503,21 @@ class model(object):
 
                     self.lm_n[instrument] = self.lm_arguments[instrument].shape[1]
 
+                # Now proceed with instrument namings:
+                for pname in self.priors.keys():
+
+                    # Check if it is a theta LM:
+                    if pname[0:5] == 'theta':
+                        vec = pname.split('_')
+                        theta_number = vec[0][5:]
+                        if len(vec) > 2:
+                            if instrument in vec:
+                                self.theta_iname[theta_number+instrument] = '_'.join(
+                                    vec[1:])
+                        else:
+                            if instrument in vec:
+                                self.theta_iname[theta_number+instrument] = vec[1]
+                
                 # Generate internal model variables of interest to the user. First, the RV model in the notation of juliet (Mi)
                 # (full RV model plus offset velocity, plus trend):
                 self.model[instrument]['M'] = np.ones(
