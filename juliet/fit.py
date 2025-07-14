@@ -327,11 +327,10 @@ class load(object):
         all_yerr = np.array([])
         all_instruments = np.array([])
         for instrument in instruments:
-            for i in range(len(t[instrument])):
-                all_times = np.append(all_times, t[instrument][i])
-                all_y = np.append(all_y, y[instrument][i])
-                all_yerr = np.append(all_yerr, yerr[instrument][i])
-                all_instruments = np.append(all_instruments, instrument)
+            all_times = np.hstack(( all_times, t[instrument] ))
+            all_y = np.hstack(( all_y, y[instrument] ))
+            all_yerr = np.hstack(( all_yerr, yerr[instrument] ))
+            all_instruments = np.hstack(( all_instruments, np.repeat(instrument, len(t[instrument]) ) ))
         return all_times, all_y, all_yerr, all_instruments
 
     def convert_to_dictionary(self, t, y, yerr, instrument_indexes):

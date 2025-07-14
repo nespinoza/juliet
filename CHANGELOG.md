@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.2.9] -
 ### Fixed
 - Linear models for RVs now work.
+- Long wait times to load large datasets (see issue #120).
 
 ## [2.2.8] - 2025-05-27 
 ### Added
