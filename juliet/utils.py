@@ -10,6 +10,12 @@ try:
     have_catwoman = True
 except:
     have_catwoman = False
+# Try to import spotrod:
+try:
+    import spotrod_mod
+    have_spotrod = True
+except:
+    have_spotrod = False
 
 from .KeplerOrbit import KeplerOrbit
 
@@ -91,6 +97,37 @@ def init_catwoman(t, ld_law, nresampling = None, etresampling = None):
                                   supersample_factor=nresampling,
                                   exp_time=etresampling)
     return params, m
+
+def init_spotrod(t, ld_law, nresampling=None, etresampling=None):
+     """
+     This function initializes the spotrod code.
+     """
+
+     params = spotrod_mod.TransitParams()
+     params.t0 = 0. 
+     params.per = 1. 
+     params.rp = 0.1
+     params.a = 15.
+     params.b = 0.5
+     params.ecc = 0. 
+     params.w = 90.
+     params.spotx = np.array([0.])
+     params.spoty = np.array([0.])
+     params.spotrad = np.array([0.])
+     params.spotcont = np.array([1.])
+     params.u = [0.1,0.3]
+
+     if ld_law != 'quadratic':
+         raise Exception('\''+ld_law+'\''+' limb darkening not yet implemented with spotrod; allowed option is quadratic.')
+     else:
+         params.limb_dark = ld_law
+         
+     if nresampling != None or etresampling != None:
+         raise Exception('Supersampling not supported with spotrod.')    
+              
+     m = [spotrod_mod.TransitModel(params, t), None] 
+     
+     return params, m
 
 def correct_light_travel_time(times, params):
     '''Correct for the finite light travel speed.
