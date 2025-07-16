@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.9] -
+### Fixed
+- Linear models for RVs now work.
+- Long wait times to load large datasets (see issue #120).
+
 ## [2.2.8] - 2025-05-27 
 ### Added
 - Users can now fit either for the Kipping (2013) parametrization (q1, q2) or fit directly for coefficients (u1, u2). The former allows for linear, quadratic, square-root and logarithmic laws. The latter for the same plus exponential and power2.
