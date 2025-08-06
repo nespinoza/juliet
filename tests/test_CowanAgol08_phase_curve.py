@@ -152,7 +152,7 @@ plt.savefig(pout + '/full_model.png')
 #  Corner plot
 # ----------------------------------------------------
 post1 = res.posteriors['posterior_samples']
-q1, q2 = juliet.utils.reverse_ld_coeffs('quadratic', 0.1, 0.3)
+q1, q2 = juliet.utils.convert_ld_coeffs('quadratic', 0.1, 0.3)
 
 data = np.vstack([ post1['p_p1'], post1['b_p1'], post1['q1_' + instrument], post1['q2_' + instrument],\
                   post1['a_p1'], post1['fp_p1'], post1['C1_p1'], post1['D1_p1'], post1['C2_p1'], post1['D2_p1'] ])
