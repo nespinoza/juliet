@@ -3810,6 +3810,11 @@ class model(object):
 
                                         else:
 
+                                            # We are creating one more variable, called phase_curve_model, and defining it outside of this if/else loop
+                                            # This is because if there are more than one phase curve models (e.g., reflected + thermal), we can add them
+
+                                            phase_curve_model = np.zeros( len( self.model[instrument]['m'][1].t ) )
+
                                             if self.dictionary[instrument]['PhaseCurveFit']:
 
                                                 orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
@@ -3821,8 +3826,10 @@ class model(object):
                                                 sine_model = (sine_model + 1) * 0.5
                                                 # Amplify by phase-amplitude:
                                                 sine_model = (self.model[instrument]['params'].fp) * sine_model
-                                                # Multiply by normed eclipse model:
-                                                sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                                
+                                                phase_curve_model = phase_curve_model + sine_model
+                                                # Multiply by normed eclipse model: (we will do this outside of if/else loop) 
+                                                #sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
 
                                             elif self.dictionary[instrument]['CowanAgolPCFit']:
 
@@ -3832,11 +3839,16 @@ class model(object):
                                                 # 2nd order Phase curve model: Fp + C1*cos(wt) - C1 + D1*sin(wt) + C2*cos(2wt) - C2 + D2*sin(2wt)
                                                 pc_CA08 = self.model[instrument]['params'].fp + ( C1_CA08 * (np.cos( omega_t ) - 1.) ) + ( D1_CA08 * np.sin( omega_t ) ) + ( C2_CA08 * (np.cos( 2*omega_t ) - 1.) ) + ( D2_CA08 * np.sin( 2*omega_t ) )
 
-                                                # And multiplying the PC model with the occultation model
-                                                sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                                phase_curve_model = phase_curve_model + pc_CA08
 
+                                                # And multiplying the PC model with the occultation model (we will do this outside of if/else loop)
+                                                #sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            # Now, we will compute the full phase curve model (by takeing the phase curve model and multiplying it with normalised occultation model)
+                                            phase_curve_model = 1 + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                            
                                             # And get all together:
-                                            self.model[instrument]['M'] += transit_model * sine_model - 1.
+                                            self.model[instrument]['M'] += transit_model * phase_curve_model - 1.
 
                                 else:
 
@@ -3861,6 +3873,11 @@ class model(object):
 
                                         else:
 
+                                            # We are creating one more variable, called phase_curve_model, and defining it outside of this if/else loop
+                                            # This is because if there are more than one phase curve models (e.g., reflected + thermal), we can add them
+
+                                            phase_curve_model = np.zeros( len( self.model[instrument]['m'][1].t ) )
+
                                             if self.dictionary[instrument]['PhaseCurveFit']:
 
                                                 orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
@@ -3872,8 +3889,12 @@ class model(object):
                                                 sine_model = (sine_model + 1) * 0.5
                                                 # Amplify by phase-amplitude:
                                                 sine_model = (self.model[instrument]['params'].fp) * sine_model
-                                                # Multiply by normed eclipse model:
-                                                sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                                
+                                                # Adding the sine model to the full phase curve model
+                                                phase_curve_model = phase_curve_model + sine_model
+
+                                                # Multiply by normed eclipse model (again, we will do this outside of if/else loop since we may want to add more than one phase curve models):
+                                                #sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
 
                                             elif self.dictionary[instrument]['CowanAgolPCFit']:
 
@@ -3883,10 +3904,16 @@ class model(object):
                                                 # 2nd order Phase curve model: Fp + C1*cos(wt) - C1 + D1*sin(wt) + C2*cos(2wt) - C2 + D2*sin(2wt)
                                                 pc_CA08 = self.model[instrument]['params'].fp + ( C1_CA08 * (np.cos( omega_t ) - 1.) ) + ( D1_CA08 * np.sin( omega_t ) ) + ( C2_CA08 * (np.cos( 2*omega_t ) - 1.) ) + ( D2_CA08 * np.sin( 2*omega_t ) )
 
-                                                # And multiplying the PC model with the occultation model
-                                                sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                                # Adding the pc_CA08 model to the full phase curve model
+                                                phase_curve_model = phase_curve_model + pc_CA08
 
-                                            self.model[instrument]['p'+str(i)] = transit_model * sine_model
+                                                # And multiplying the PC model with the occultation model (we will do this outside of this if/else loop)
+                                                #sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            # Multiplying occultation model to the full phase curve model
+                                            phase_curve_model = 1. + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            self.model[instrument]['p'+str(i)] = transit_model * phase_curve_model
 
                                         self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
 
@@ -3949,6 +3976,11 @@ class model(object):
 
                                         else:
 
+                                            # We are creating one more variable, called phase_curve_model, and defining it outside of this if/else loop
+                                            # This is because if there are more than one phase curve models (e.g., reflected + thermal), we can add them
+
+                                            phase_curve_model = np.zeros( len( self.model[instrument]['m'][1].t ) )
+
                                             if self.dictionary[instrument]['PhaseCurveFit']:
 
                                                 orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
@@ -3960,8 +3992,12 @@ class model(object):
                                                 sine_model = (sine_model + 1) * 0.5
                                                 # Amplify by phase-amplitude:
                                                 sine_model = (self.model[instrument]['params'].fp) * sine_model
-                                                # Multiply by normed eclipse model:
-                                                sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                                # Adding the sine_model to the full phase curve model
+                                                phase_curve_model = phase_curve_model + sine_model
+
+                                                # Multiply by normed eclipse model (we will do this outside of this if/else loop so that we can add more than one phase curve models):
+                                                #sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
 
                                             elif self.dictionary[instrument]['CowanAgolPCFit']:
 
@@ -3971,10 +4007,16 @@ class model(object):
                                                 # 2nd order Phase curve model: Fp + C1*cos(wt) - C1 + D1*sin(wt) + C2*cos(2wt) - C2 + D2*sin(2wt)
                                                 pc_CA08 = self.model[instrument]['params'].fp + ( C1_CA08 * (np.cos( omega_t ) - 1.) ) + ( D1_CA08 * np.sin( omega_t ) ) + ( C2_CA08 * (np.cos( 2*omega_t ) - 1.) ) + ( D2_CA08 * np.sin( 2*omega_t ) )
 
-                                                # And multiplying the PC model with the occultation model
-                                                sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                                # Adding the pc_CA08 model to the full phase curve model
+                                                phase_curve_model = phase_curve_model + pc_CA08
 
-                                            self.model[instrument]['M'] += transit_model * sine_model - 1.
+                                                # And multiplying the PC model with the occultation model (we will do this outside of this if/else loop)
+                                                #sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            # Now multiplying the phase curve model with the occultation model
+                                            phase_curve_model = 1 + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            self.model[instrument]['M'] += transit_model * phase_curve_model - 1.
  
                                 else:
                                   
@@ -3999,6 +4041,11 @@ class model(object):
 
                                         else:
 
+                                            # We are creating one more variable, called phase_curve_model, and defining it outside of this if/else loop
+                                            # This is because if there are more than one phase curve models (e.g., reflected + thermal), we can add them
+
+                                            phase_curve_model = np.zeros( len( self.model[instrument]['m'][1].t ) )
+
                                             if self.dictionary[instrument]['PhaseCurveFit']:
 
                                                 orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
@@ -4010,8 +4057,12 @@ class model(object):
                                                 sine_model = (sine_model + 1) * 0.5
                                                 # Amplify by phase-amplitude:
                                                 sine_model = (self.model[instrument]['params'].fp) * sine_model
-                                                # Multiply by normed eclipse model:
-                                                sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                                
+                                                # Adding the sine_model to the full phase curve model
+                                                phase_curve_model = phase_curve_model + sine_model
+
+                                                # Multiply by normed eclipse model (we will do this outside of this if/else loop):
+                                                #sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
 
                                             elif self.dictionary[instrument]['CowanAgolPCFit']:
 
@@ -4021,10 +4072,16 @@ class model(object):
                                                 # 2nd order Phase curve model: Fp + C1*cos(wt) - C1 + D1*sin(wt) + C2*cos(2wt) - C2 + D2*sin(2wt)
                                                 pc_CA08 = self.model[instrument]['params'].fp + ( C1_CA08 * (np.cos( omega_t ) - 1.) ) + ( D1_CA08 * np.sin( omega_t ) ) + ( C2_CA08 * (np.cos( 2*omega_t ) - 1.) ) + ( D2_CA08 * np.sin( 2*omega_t ) )
 
-                                                # And multiplying the PC model with the occultation model
-                                                sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                                # Adding the pc_CA08 model to the full phase curve model
+                                                phase_curve_model = phase_curve_model + pc_CA08
 
-                                            self.model[instrument]['p'+str(i)] = transit_model * sine_model
+                                                # And multiplying the PC model with the occultation model (we will do this outside of this if/else loop)
+                                                #sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            # And finally multiplying the phase curve model with the occultation model
+                                            phase_curve_model = 1 + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            self.model[instrument]['p'+str(i)] = transit_model * phase_curve_model
 
                                         self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
 
