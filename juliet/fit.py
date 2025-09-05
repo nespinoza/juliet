@@ -558,6 +558,7 @@ class load(object):
                 dictionary[instrument]['EclipseFit'] = False
                 dictionary[instrument]['PhaseCurveFit'] = False
                 dictionary[instrument]['CowanAgolPCFit'] = False
+                dictionary[instrument]['LambertPCFit'] = False
                 dictionary[instrument]['TranEclFit'] = False
 
         if dictype == 'lc':
@@ -804,6 +805,24 @@ class load(object):
                             if self.verbose:
 
                                 print('\t Phase curve fit (Cowan & Agol 2008) detected for instrument ', inames[i])
+
+                    if pri[0:9] == 'aglambert':
+
+                        # To check if the given instrument has Lambertian phase curve fitting
+                        if (inames[i] in pri.split('_')) or (len(pri.split('_')) == 2):
+
+                            dictionary[inames[i]]['LambertPCFit'] = True
+
+                            if self.verbose:
+
+                                print('\t Phase curve fit (Lambertian) detected for instrument ', inames[i])
+                            
+                            # If Lambertian phase curve model is detected, then we have to manually turn on occultation model
+                            # Because we still need an occultation model, however, since there will not be any fp_p1 parameter
+                            # the occultation model will not be turned on automatically. So, manually turning it on
+
+                            dictionary[inames[i]]['EclipseFit'] = True
+
 
                     if pri[0:2] == 'fp':
 
@@ -3595,7 +3614,13 @@ class model(object):
                     ### We only want to make eclipse depth instrument depended, not the time correction factor
                     if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
 
-                        fp = parameter_values['fp_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
+                        ## This try and except loop is needed because even though when eclipse fit or transit-eclipse fit is enabled
+                        ## it is possible that  there is no prior for fp -- this will happen when we fit Lambertian or kelp phase curve model
+                        ## In that case, we will define a dummy fp value
+                        try:
+                            fp = parameter_values['fp_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
+                        except:
+                            fp = 100e-6
 
                         if self.dictionary[instrument]['PhaseCurveFit']:
 
@@ -3607,6 +3632,10 @@ class model(object):
                             D1_CA08 = parameter_values['D1_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
                             C2_CA08 = parameter_values['C2_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
                             D2_CA08 = parameter_values['D2_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
+
+                        if self.dictionary[instrument]['LambertPCFit']:
+
+                            Ag_Lambert = parameter_values['aglambert_p' + str(i) + self.aglambert_iname['p' + str(i)][instrument]]
 
                         if not self.light_travel_delay:
 
@@ -3803,7 +3832,7 @@ class model(object):
                                         eclipse_model = self.model[instrument]['m'][1].light_curve(self.model[instrument]['params']) 
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']):
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['M'] += transit_model * eclipse_model - 1.
@@ -3831,7 +3860,7 @@ class model(object):
                                                 # Multiply by normed eclipse model: (we will do this outside of if/else loop) 
                                                 #sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
 
-                                            elif self.dictionary[instrument]['CowanAgolPCFit']:
+                                            if self.dictionary[instrument]['CowanAgolPCFit']:
 
                                                 # Computing (sort of phase: I am following Zhang et al. 2024)
                                                 omega_t = 2 * np.pi * (self.model[instrument]['m'][1].t - self.model[instrument]['params'].t_secondary) / self.model[instrument]['params'].per
@@ -3843,6 +3872,25 @@ class model(object):
 
                                                 # And multiplying the PC model with the occultation model (we will do this outside of if/else loop)
                                                 #sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            if self.dictionary[instrument]['LambertPCFit']:
+
+                                                # The Lambertian model is from Deline et al. (2022); see their Section 4.4.3.
+
+                                                ## First we need to find true anomaly
+                                                true_anomaly = self.model[instrument]['m'][1].get_true_anomaly()
+
+                                                # Now computing alpha
+                                                alpha = np.arccos( -np.sin( np.radians(self.model[instrument]['m'][1].w) + true_anomaly ) * np.sin( np.radians( self.model[instrument]['m'][1].inc ) ) )
+
+                                                # Eccentricity factor
+                                                ecc_facs = ( 1 + self.model[instrument]['m'][1].ecc * np.cos( true_anomaly ) ) / ( 1 - self.model[instrument]['m'][1].ecc**2 )
+
+                                                lambert_model = Ag_Lambert * ( self.model[instrument]['m'][1].rp * ecc_facs / self.model[instrument]['m'][1].a )**2 * ( np.sin(alpha) + (np.pi - alpha)*np.cos(alpha) ) / np.pi
+
+                                                # Finally, adding Lambert model to the phase curve model
+                                                phase_curve_model = phase_curve_model + lambert_model
+
 
                                             # Now, we will compute the full phase curve model (by takeing the phase curve model and multiplying it with normalised occultation model)
                                             phase_curve_model = 1 + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
@@ -3866,7 +3914,7 @@ class model(object):
                                         eclipse_model = self.model[instrument]['m'][1].light_curve(self.model[instrument]['params']) 
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']):
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['p'+str(i)] = transit_model * eclipse_model
@@ -3875,7 +3923,7 @@ class model(object):
 
                                             # We are creating one more variable, called phase_curve_model, and defining it outside of this if/else loop
                                             # This is because if there are more than one phase curve models (e.g., reflected + thermal), we can add them
-
+                                            
                                             phase_curve_model = np.zeros( len( self.model[instrument]['m'][1].t ) )
 
                                             if self.dictionary[instrument]['PhaseCurveFit']:
@@ -3896,7 +3944,7 @@ class model(object):
                                                 # Multiply by normed eclipse model (again, we will do this outside of if/else loop since we may want to add more than one phase curve models):
                                                 #sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
 
-                                            elif self.dictionary[instrument]['CowanAgolPCFit']:
+                                            if self.dictionary[instrument]['CowanAgolPCFit']:
 
                                                 # Computing (sort of phase: I am following Zhang et al. 2024)
                                                 omega_t = 2 * np.pi * (self.model[instrument]['m'][1].t - self.model[instrument]['params'].t_secondary) / self.model[instrument]['params'].per
@@ -3909,6 +3957,24 @@ class model(object):
 
                                                 # And multiplying the PC model with the occultation model (we will do this outside of this if/else loop)
                                                 #sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            if self.dictionary[instrument]['LambertPCFit']:
+
+                                                # The Lambertian model is from Deline et al. (2022); see their Section 4.4.3.
+
+                                                ## First we need to find true anomaly
+                                                true_anomaly = self.model[instrument]['m'][1].get_true_anomaly()
+
+                                                # Now computing alpha
+                                                alpha = np.arccos( -np.sin( np.radians(self.model[instrument]['m'][1].w) + true_anomaly ) * np.sin( np.radians( self.model[instrument]['m'][1].inc ) ) )
+
+                                                # Eccentricity factor
+                                                ecc_facs = ( 1 + self.model[instrument]['m'][1].ecc * np.cos( true_anomaly ) ) / ( 1 - self.model[instrument]['m'][1].ecc**2 )
+
+                                                lambert_model = Ag_Lambert * ( self.model[instrument]['m'][1].rp * ecc_facs / self.model[instrument]['m'][1].a )**2 * ( np.sin(alpha) + (np.pi - alpha)*np.cos(alpha) ) / np.pi
+
+                                                # Finally, adding Lambert model to the phase curve model
+                                                phase_curve_model = phase_curve_model + lambert_model
 
                                             # Multiplying occultation model to the full phase curve model
                                             phase_curve_model = 1. + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
@@ -3969,7 +4035,7 @@ class model(object):
                                         eclipse_model = m[1].light_curve(self.model[instrument]['params'])
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']):
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['M'] += transit_model * eclipse_model - 1.
@@ -3999,7 +4065,7 @@ class model(object):
                                                 # Multiply by normed eclipse model (we will do this outside of this if/else loop so that we can add more than one phase curve models):
                                                 #sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
 
-                                            elif self.dictionary[instrument]['CowanAgolPCFit']:
+                                            if self.dictionary[instrument]['CowanAgolPCFit']:
 
                                                 # Computing (sort of phase: I am following Zhang et al. 2024)
                                                 omega_t = 2 * np.pi * (self.model[instrument]['m'][1].t - self.model[instrument]['params'].t_secondary) / self.model[instrument]['params'].per
@@ -4012,6 +4078,24 @@ class model(object):
 
                                                 # And multiplying the PC model with the occultation model (we will do this outside of this if/else loop)
                                                 #sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            if self.dictionary[instrument]['LambertPCFit']:
+
+                                                # The Lambertian model is from Deline et al. (2022); see their Section 4.4.3.
+
+                                                ## First we need to find true anomaly
+                                                true_anomaly = self.model[instrument]['m'][1].get_true_anomaly()
+
+                                                # Now computing alpha
+                                                alpha = np.arccos( -np.sin( np.radians(self.model[instrument]['m'][1].w) + true_anomaly ) * np.sin( np.radians( self.model[instrument]['m'][1].inc ) ) )
+
+                                                # Eccentricity factor
+                                                ecc_facs = ( 1 + self.model[instrument]['m'][1].ecc * np.cos( true_anomaly ) ) / ( 1 - self.model[instrument]['m'][1].ecc**2 )
+
+                                                lambert_model = Ag_Lambert * ( self.model[instrument]['m'][1].rp * ecc_facs / self.model[instrument]['m'][1].a )**2 * ( np.sin(alpha) + (np.pi - alpha)*np.cos(alpha) ) / np.pi
+
+                                                # Finally, adding Lambert model to the phase curve model
+                                                phase_curve_model = phase_curve_model + lambert_model
 
                                             # Now multiplying the phase curve model with the occultation model
                                             phase_curve_model = 1 + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
@@ -4034,7 +4118,7 @@ class model(object):
                                         eclipse_model = m[1].light_curve(self.model[instrument]['params'])
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']):
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['p'+str(i)] = transit_model * eclipse_model
@@ -4064,7 +4148,7 @@ class model(object):
                                                 # Multiply by normed eclipse model (we will do this outside of this if/else loop):
                                                 #sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
 
-                                            elif self.dictionary[instrument]['CowanAgolPCFit']:
+                                            if self.dictionary[instrument]['CowanAgolPCFit']:
 
                                                 # Computing (sort of phase: I am following Zhang et al. 2024)
                                                 omega_t = 2 * np.pi * (self.model[instrument]['m'][1].t - self.model[instrument]['params'].t_secondary) / self.model[instrument]['params'].per
@@ -4077,6 +4161,24 @@ class model(object):
 
                                                 # And multiplying the PC model with the occultation model (we will do this outside of this if/else loop)
                                                 #sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            if self.dictionary[instrument]['LambertPCFit']:
+
+                                                # The Lambertian model is from Deline et al. (2022); see their Section 4.4.3.
+
+                                                ## First we need to find true anomaly
+                                                true_anomaly = self.model[instrument]['m'][1].get_true_anomaly()
+
+                                                # Now computing alpha
+                                                alpha = np.arccos( -np.sin( np.radians(self.model[instrument]['m'][1].w) + true_anomaly ) * np.sin( np.radians( self.model[instrument]['m'][1].inc ) ) )
+
+                                                # Eccentricity factor
+                                                ecc_facs = ( 1 + self.model[instrument]['m'][1].ecc * np.cos( true_anomaly ) ) / ( 1 - self.model[instrument]['m'][1].ecc**2 )
+
+                                                lambert_model = Ag_Lambert * ( self.model[instrument]['m'][1].rp * ecc_facs / self.model[instrument]['m'][1].a )**2 * ( np.sin(alpha) + (np.pi - alpha)*np.cos(alpha) ) / np.pi
+
+                                                # Finally, adding Lambert model to the phase curve model
+                                                phase_curve_model = phase_curve_model + lambert_model
 
                                             # And finally multiplying the phase curve model with the occultation model
                                             phase_curve_model = 1 + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
@@ -4306,6 +4408,7 @@ class model(object):
             self.mdilution_iname = {}
             self.mflux_iname = {}
             self.fp_iname = {}
+            self.aglambert_iname = {}
             self.phaseoffset_iname = {}
             # To make transit depth (for batman and catwoman models) will be shared by different instruments, set the correct variable name for each:
             self.p_iname = {}
@@ -4316,6 +4419,7 @@ class model(object):
                 self.p_iname['p' + str(i)] = {}
                 self.p1_iname['p' + str(i)] = {}
                 self.fp_iname['p' + str(i)] = {}
+                self.aglambert_iname['p' + str(i)] = {}
                 self.phaseoffset_iname['p' + str(i)] = {}
             self.ndatapoints_all_instruments = 0
             # Variable that turns to false only if there are no TTVs. Otherwise, always positive:
@@ -4493,6 +4597,32 @@ class model(object):
                         else:
 
                             raise Exception('Prior for fp is not properly defined: must be, e.g., fp_p1, fp_p1_inst or fp_p1_inst1_inst2. Currently is '+pname)
+                        
+                    if pname[0:9] == 'aglambert':
+
+                        # Note that amplitude can be a planetary and instrumental parameter
+                        vec = pname.split('_')
+                        if len(vec) > 3:
+
+                            # This is the case in which multiple instrument share the parameter
+                            if instrument in vec:
+                                self.aglambert_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+
+                        elif len(vec) == 3:
+
+                            # This is the case of a single instrument
+                            if instrument in vec:
+                                self.aglambert_iname[vec[1]][instrument] = '_' + vec[2]
+                        
+                        elif len(vec) == 2:
+
+                            # This adds back-compatibility so users can define a common prior for all instruments:
+                            self.aglambert_iname[vec[1]][instrument] = ''
+                        
+                        else:
+
+                            raise Exception('Prior for aglambert is not properly defined: must be, e.g., aglambert_p1, aglambert_p1_inst or aglambert_p1_inst1_inst2. Currently is '+pname)
+
 
                     if pname[0:11] == 'phaseoffset':
                     
