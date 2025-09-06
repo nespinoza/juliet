@@ -10,7 +10,7 @@ multiprocessing.set_start_method('fork')
 
 np.random.seed(3)
 
-# Cowan & Agol (2008) phase curve model simulation for 2 instrument
+# Lambertian phase curve model simulation for 2 instrument
 # Set this variable to True if you want to fit the same phase curve model to both instruments
 # Set this variable to False if you want to fit the diff phase curve model to both instruments
 # For single instrument, simply put name of only one instrument in instruments array
@@ -61,6 +61,7 @@ pars.limb_dark = 'quadratic'
 # ------------- Full dataset
 ## Making the dataset: Full Dataset
 tim, fl, fle = {}, {}, {}
+total_models = {}
 for ins in range(len(instruments)):
     # Simulated time
     times = np.linspace(tc-(0.65*per), tc+(0.65*per), 10000) + ( ((ins+1)**3) * per)
@@ -94,6 +95,7 @@ for ins in range(len(instruments)):
 
     # Total model
     total_model = flx_tra * sine_model
+    total_models[instruments[ins]] = total_model
 
     # ------------------------------------------------------
     # Simulated data
@@ -167,7 +169,7 @@ for ins in range(len(instruments)):
     ax1 = plt.subplot(gs[0])
     ax1.errorbar(tim[instrument], fl[instrument], yerr=fle[instrument], fmt='.', alpha=0.3)
     ax1.plot(tim[instrument], model, c='k', zorder=100, label='Fitted model')
-    ax1.plot(tim[instrument], total_model, c='r', lw=3.5, alpha=0.5, zorder=50, label='Ingested model')
+    ax1.plot(tim[instrument], total_models[instrument], c='r', lw=3.5, alpha=0.5, zorder=50, label='Ingested model')
     ax1.set_ylabel('Relative Flux')
     ax1.set_xlim(np.min(tim[instrument]), np.max(tim[instrument]))
     ax1.set_ylim([1-300e-6, 1+300e-6])
