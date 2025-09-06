@@ -559,6 +559,7 @@ class load(object):
                 dictionary[instrument]['PhaseCurveFit'] = False
                 dictionary[instrument]['CowanAgolPCFit'] = False
                 dictionary[instrument]['LambertPCFit'] = False
+                dictionary[instrument]['KelpHomoPCFit'] = False
                 dictionary[instrument]['TranEclFit'] = False
 
         if dictype == 'lc':
@@ -818,6 +819,23 @@ class load(object):
                                 print('\t Phase curve fit (Lambertian) detected for instrument ', inames[i])
                             
                             # If Lambertian phase curve model is detected, then we have to manually turn on occultation model
+                            # Because we still need an occultation model, however, since there will not be any fp_p1 parameter
+                            # the occultation model will not be turned on automatically. So, manually turning it on
+
+                            dictionary[inames[i]]['EclipseFit'] = True
+
+                    if pri[0:10] == 'singlescat':
+
+                        # To check if the given instrument has Kelp homogeneous phase curve fitting
+                        if (inames[i] in pri.split('_')) or (len(pri.split('_')) == 2):
+
+                            dictionary[inames[i]]['KelpHomoPCFit'] = True
+
+                            if self.verbose:
+
+                                print('\t Phase curve fit (kelp homogeneous reflection) detected for instrument ', inames[i])
+                            
+                            # If Kelp homogeneous reflection phase curve model is detected, then we have to manually turn on occultation model
                             # Because we still need an occultation model, however, since there will not be any fp_p1 parameter
                             # the occultation model will not be turned on automatically. So, manually turning it on
 
@@ -1642,6 +1660,7 @@ class fit(object):
 
     def __init__(self, data, sampler = 'multinest', n_live_points = 500, nwalkers = 100, nsteps = 300, nburnin = 500, emcee_factor = 1e-4, \
                  ecclim = 1., pl = 0.0, pu = 1.0, ta = 2458460., nthreads = None, light_travel_delay = False, stellar_radius = None, \
+                 kelp_refl_interpolation_knots = None, \
                  use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
                  dynesty_n_effective = np.inf, dynesty_use_stop = True, dynesty_use_pool = None, **kwargs):
 
@@ -1667,6 +1686,12 @@ class fit(object):
         self.emcee_factor = emcee_factor
         self.nburnin = nburnin
         self.nthreads = nthreads
+
+        # For kelp models, we may not want to compute phase curve models for _all_ time points (because model computation can be expensive)
+        # Instead we can compute phase curve models on discrete grid of phases and then interpolate over the rest of the phases
+        # By default we don't do this, but there is an option to do this if the user want to do this.
+        # User simply needs to provide number of knots to turn this on
+        self.kelp_refl_interpolation_knots = kelp_refl_interpolation_knots
 
         # Extract physical model details:
         self.light_travel_delay = light_travel_delay
@@ -1808,6 +1833,7 @@ class fit(object):
                             ecclim=self.ecclim,
                             light_travel_delay = self.light_travel_delay,
                             stellar_radius = self.stellar_radius,
+                            kelp_refl_interpolation_knots=self.kelp_refl_interpolation_knots,
                             log_like_calc=True)
         if self.data.t_rv is not None:
 
@@ -3637,6 +3663,11 @@ class model(object):
 
                             Ag_Lambert = parameter_values['aglambert_p' + str(i) + self.aglambert_iname['p' + str(i)][instrument]]
 
+                        if self.dictionary[instrument]['KelpHomoPCFit']:
+
+                            w_singlescat = parameter_values['singlescat_p' + str(i) + self.kelphomo_iname['p' + str(i)][instrument]]
+                            g_scatasym = parameter_values['g_p' + str(i) + self.kelphomo_iname['p' + str(i)][instrument]]
+
                         if not self.light_travel_delay:
 
                             t_secondary = parameter_values['t_secondary_p' + str(i)]
@@ -3832,7 +3863,7 @@ class model(object):
                                         eclipse_model = self.model[instrument]['m'][1].light_curve(self.model[instrument]['params']) 
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']):
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']) and ( not self.dictionary[instrument]['KelpHomoPCFit'] ):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['M'] += transit_model * eclipse_model - 1.
@@ -3891,6 +3922,19 @@ class model(object):
                                                 # Finally, adding Lambert model to the phase curve model
                                                 phase_curve_model = phase_curve_model + lambert_model
 
+                                            if self.dictionary[instrument]['KelpHomoPCFit']:
+
+                                                kelp_homo_refl_pc = kelp_homogeneous_refl_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                                   t0=self.model[instrument]['params'].t0,\
+                                                                                                   per=self.model[instrument]['params'].per,\
+                                                                                                   ar=self.model[instrument]['params'].a,\
+                                                                                                   rprs=self.model[instrument]['params'].rp,\
+                                                                                                   g=g_scatasym, single_scat_albedo=w_singlescat,\
+                                                                                                   nknots=self.kelp_refl_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_homo_refl_pc
+
 
                                             # Now, we will compute the full phase curve model (by takeing the phase curve model and multiplying it with normalised occultation model)
                                             phase_curve_model = 1 + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
@@ -3914,7 +3958,7 @@ class model(object):
                                         eclipse_model = self.model[instrument]['m'][1].light_curve(self.model[instrument]['params']) 
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']):
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']) and (not self.dictionary[instrument]['KelpHomoPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['p'+str(i)] = transit_model * eclipse_model
@@ -3976,6 +4020,19 @@ class model(object):
                                                 # Finally, adding Lambert model to the phase curve model
                                                 phase_curve_model = phase_curve_model + lambert_model
 
+                                            if self.dictionary[instrument]['KelpHomoPCFit']:
+
+                                                kelp_homo_refl_pc = kelp_homogeneous_refl_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                                   t0=self.model[instrument]['params'].t0,\
+                                                                                                   per=self.model[instrument]['params'].per,\
+                                                                                                   ar=self.model[instrument]['params'].a,\
+                                                                                                   rprs=self.model[instrument]['params'].rp,\
+                                                                                                   g=g_scatasym, single_scat_albedo=w_singlescat,\
+                                                                                                   nknots=self.kelp_refl_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_homo_refl_pc
+
                                             # Multiplying occultation model to the full phase curve model
                                             phase_curve_model = 1. + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
 
@@ -4035,7 +4092,7 @@ class model(object):
                                         eclipse_model = m[1].light_curve(self.model[instrument]['params'])
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']):
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']) and (not self.dictionary[instrument]['KelpHomoPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['M'] += transit_model * eclipse_model - 1.
@@ -4097,6 +4154,19 @@ class model(object):
                                                 # Finally, adding Lambert model to the phase curve model
                                                 phase_curve_model = phase_curve_model + lambert_model
 
+                                            if self.dictionary[instrument]['KelpHomoPCFit']:
+
+                                                kelp_homo_refl_pc = kelp_homogeneous_refl_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                                   t0=self.model[instrument]['params'].t0,\
+                                                                                                   per=self.model[instrument]['params'].per,\
+                                                                                                   ar=self.model[instrument]['params'].a,\
+                                                                                                   rprs=self.model[instrument]['params'].rp,\
+                                                                                                   g=g_scatasym, single_scat_albedo=w_singlescat,\
+                                                                                                   nknots=self.kelp_refl_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_homo_refl_pc
+
                                             # Now multiplying the phase curve model with the occultation model
                                             phase_curve_model = 1 + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
 
@@ -4118,7 +4188,7 @@ class model(object):
                                         eclipse_model = m[1].light_curve(self.model[instrument]['params'])
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']):
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']) and (not self.dictionary[instrument]['KelpHomoPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['p'+str(i)] = transit_model * eclipse_model
@@ -4179,6 +4249,19 @@ class model(object):
 
                                                 # Finally, adding Lambert model to the phase curve model
                                                 phase_curve_model = phase_curve_model + lambert_model
+
+                                            if self.dictionary[instrument]['KelpHomoPCFit']:
+
+                                                kelp_homo_refl_pc = kelp_homogeneous_refl_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                                   t0=self.model[instrument]['params'].t0,\
+                                                                                                   per=self.model[instrument]['params'].per,\
+                                                                                                   ar=self.model[instrument]['params'].a,\
+                                                                                                   rprs=self.model[instrument]['params'].rp,\
+                                                                                                   g=g_scatasym, single_scat_albedo=w_singlescat,\
+                                                                                                   nknots=self.kelp_refl_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_homo_refl_pc
 
                                             # And finally multiplying the phase curve model with the occultation model
                                             phase_curve_model = 1 + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
@@ -4316,6 +4399,7 @@ class model(object):
                  ta=2458460.,
                  light_travel_delay = False,
                  stellar_radius = None,
+                 kelp_refl_interpolation_knots = None,
                  log_like_calc=False):
         # Inhert the priors dictionary from data:
         self.priors = data.priors
@@ -4330,6 +4414,11 @@ class model(object):
             raise Exception('Error: if light_travel_delay is activated, a stellar radius needs to be given as well via stellar_radius = yourvalue; e.g., dataset.fit(..., light_travel_delay = True, stellar_radius = 1.1234).')
 
         self.stellar_radius = stellar_radius
+
+        # This is for kelp models: user can, instead of computing kelp models for all phases in the data, choose to
+        # compute kelp models for some grid values, and then interpolate over all phases to save time. We don't do this by default
+        # User can turn this feature on by providing number of knots for interpolation
+        self.kelp_refl_interpolation_knots = kelp_refl_interpolation_knots
 
         # Save the log_like_calc boolean:
         self.log_like_calc = log_like_calc
@@ -4409,6 +4498,7 @@ class model(object):
             self.mflux_iname = {}
             self.fp_iname = {}
             self.aglambert_iname = {}
+            self.kelphomo_iname = {}
             self.phaseoffset_iname = {}
             # To make transit depth (for batman and catwoman models) will be shared by different instruments, set the correct variable name for each:
             self.p_iname = {}
@@ -4420,6 +4510,7 @@ class model(object):
                 self.p1_iname['p' + str(i)] = {}
                 self.fp_iname['p' + str(i)] = {}
                 self.aglambert_iname['p' + str(i)] = {}
+                self.kelphomo_iname['p' + str(i)] = {}
                 self.phaseoffset_iname['p' + str(i)] = {}
             self.ndatapoints_all_instruments = 0
             # Variable that turns to false only if there are no TTVs. Otherwise, always positive:
@@ -4622,6 +4713,34 @@ class model(object):
                         else:
 
                             raise Exception('Prior for aglambert is not properly defined: must be, e.g., aglambert_p1, aglambert_p1_inst or aglambert_p1_inst1_inst2. Currently is '+pname)
+                        
+                    if pname[0:10] == 'singlescat':
+
+                        # Note that single scattering albedo can be a planetary and instrumental parameter
+
+                        vec = pname.split('_')
+                        if len(vec) > 3:
+
+                            # This is the case in which multiple instruments share the parameter:
+                            if instrument in vec:
+
+                                self.kelphomo_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+
+                        elif len(vec) == 3:
+
+                            # This is the case of a single instrument:
+                            if instrument in vec:
+
+                                self.kelphomo_iname[vec[1]][instrument] = '_' + vec[2]
+
+                        elif len(vec) == 2:
+
+                            # This adds back-compatibility so users can define a common for all instruments:
+                            self.kelphomo_iname[vec[1]][instrument] = ''
+
+                        else:
+
+                            raise Exception('Prior for singlescat is not properly defined: must be, e.g., singlescat_p1, singlescat_p1_inst or singlescat_p1_inst1_inst2. Currently is '+pname)
 
 
                     if pname[0:11] == 'phaseoffset':

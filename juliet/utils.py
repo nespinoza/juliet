@@ -11,6 +11,26 @@ try:
 except:
     have_catwoman = False
 
+# Try to import jax and kelp
+try:
+    # jax
+    import jax
+    jax.config.update(
+        "jax_enable_x64", True
+    )  #
+
+    # Kelp
+    from kelp.jax import reflected_phase_curve
+    jitted_homo_refl_pc = jax.jit(reflected_phase_curve)
+
+    # scipy interpolate
+    from scipy.interpolate import interp1d
+
+except:
+    print(
+        'Warning: no jax and/or kelp installation found. No kelp phase curves will be able to be used.'
+    )
+
 from .KeplerOrbit import KeplerOrbit
 
 
@@ -148,6 +168,76 @@ def correct_light_travel_time(times, params):
 
 def init_radvel(nplanets=1):
     return radvel.model.Parameters(nplanets, basis='per tc e w k')
+
+
+def kelp_homogeneous_refl_pc_model(times, t0, per, ar, rprs, g, single_scat_albedo, nknots):
+    """
+    This helper function computes the reflected light phase curve for homogeneously reflected planet 
+    using kelp package following Heng et al. (2021)
+
+    :param times: (xarray)
+    The times at which phase curve to be computed
+
+    :param t0: (float)
+    Time of transit centre
+
+    :param per: (float)
+    Orbital period of the planet
+
+    :param ar: (float)
+    Scaled semi-major axis
+
+    :param rprs: (float)
+    Planet-to-star radius ratio
+
+    :param g: (float)
+    Phase asymmetry factor
+
+    :param single_scat_albedo: (float)
+    Single scattering albedo
+
+    :param nknots: (int)
+    Number of uniformally spaced knots along orbital phase if interpolation is to be performed
+    If None, then no interpolation will be performed
+
+    ------
+    Return
+    ------
+
+    :param phase_curve: (xarray)
+    Reflected light phase curve for a homogeneous sphere
+    """
+
+    # Converting times to phases:
+    phases_unsorted = ((times- t0) % per) / per                       ## Un-sorted phases
+    idx_phase_sort = np.argsort(phases_unsorted)                      ## This would sort any array acc to phase
+    phases_sorted = phases_unsorted[idx_phase_sort]                   ## Sorted phase array
+    times_sorted_acc_phs = times[idx_phase_sort]                      ## Time array sorted acc to phase
+    idx_that_sort_arr_acc_times = np.argsort(times_sorted_acc_phs)    ## This array would sort array acc to time
+
+    # Reflective phase curve (homogeneous)
+    if nknots is None:
+        refl_fl_ppm, _, _ = jitted_homo_refl_pc(phases=phases_sorted, omega=single_scat_albedo, g=g, a_rp=ar/rprs)
+    else:
+        # `kelp` functions are slow -- so what we can do is use kelp function to generate
+        # phase curves on finite, uniformaly spaced grid of orbital phases and then we can
+        # interpolate on this grid to find Fp/F* for any given phase curves
+
+        # Generating uniformally spaced orbital phases
+        uniformally_spaced_phases = np.linspace(phases_sorted[0], phases_sorted[-1], nknots)
+
+        # Using kelp to find Fp/F* for these phases
+        refl_fl_ppm_for_uni_phases, _, _ = jitted_homo_refl_pc(phases=uniformally_spaced_phases, omega=single_scat_albedo, g=g, a_rp=ar/rprs)
+        
+        # Performing interpolation
+        interp1d_refl_pc = interp1d(x=uniformally_spaced_phases, y=refl_fl_ppm_for_uni_phases)
+        
+        # Generating Fp/F* for given orbital phases
+        refl_fl_ppm = interp1d_refl_pc(x=phases_sorted)
+
+    refl_pc_sorted_acc_time = refl_fl_ppm[idx_that_sort_arr_acc_times]/1e6
+
+    return refl_pc_sorted_acc_time
 
 
 def mag_to_flux(m, merr):
