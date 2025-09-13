@@ -16,7 +16,7 @@ np.random.seed(3)
 # For single instrument, simply put name of only one instrument in instruments array
 SamePC_2Inst = False
 instruments = ['CHEOPS1', 'CHEOPS2']
-pout = os.getcwd() + '/juliet/juls/LambertSin_2Inst_DiffPC'
+pout = 'LambertSin_2Inst_DiffPC'
 if SamePC_2Inst:
     ## Instrument 1 and 2 both have same phase curve parameters (Only geometric albedo for Lambertian fitting)
     Ags, fps = [0.15, 0.15], [350e-6, 350e-6]

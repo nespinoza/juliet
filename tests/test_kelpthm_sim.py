@@ -1,6 +1,6 @@
 if __name__ == '__main__':
-    # I have to do this __name__ == '__main__' to run the code with multiprocessing.
-    # However, I am running this file on a Mac with silicon chip; that may be the reason why I needed to do this
+    # I am running this file on a Mac with silicon chip; 
+    # that may be the reason I needed to do this if __name__ == '__main__' thing for multiprocessing
     # If you are running this file on a non-mac-silicon machine, it is worth trying to run without __name__ == '__main__'
     import numpy as np
     import matplotlib.pyplot as plt
@@ -10,7 +10,7 @@ if __name__ == '__main__':
         "jax_enable_x64", True
     )  #
 
-    from kelp.jax import reflected_phase_curve
+    from kelp.jax import thermal_phase_curve
     import batman
     import juliet
     import os
@@ -20,24 +20,41 @@ if __name__ == '__main__':
 
     np.random.seed(9)
 
-    # Kelp homogeneous reflection phase curve model + sine function simulation for 2 instrument
+    # Kelp thermal emission phase curve model simulation for 2 instrument
     # Set this variable to True if you want to fit the same phase curve model to both instruments
     # Set this variable to False if you want to fit the diff phase curve model to both instruments
     # For single instrument, simply put name of only one instrument in instruments array
     SamePC_2Inst = False
-    kelp_knots = None                               # Kelp interpolation
+    kelp_knots = None                       # To use interpolation
     instruments = ['CHEOPS1', 'CHEOPS2']
-    pout = 'kelphomoSin_2Inst_DiffPC_interpolate'
+    pout = 'kelpthm_2Inst_DiffPC'
     if SamePC_2Inst:
-        ## Instrument 1 and 2 both have same phase curve parameters (single scattering albedo and scattering asymmetry factor)
-        single_scat_w, g = [0.85, 0.85], [0.5, 0.5]
-        ## Sinusoidal phase curve
-        fps, ph_off = [350e-6, 350e-6], [60., 60.]
+        ## Instrument 1 and 2 both have same phase curve parameters (3 free params; we will fix alpha and omega drag)
+        hotspot_offs, cml11s = [20, 20], [0.1, 0.1]
+        fprimes = [1/np.sqrt(2), 1/np.sqrt(2)]
+        ## And now defining transmission functions
+        filt_wav, filt_trans = {}, {}
+        for i in range(len(instruments)):
+            wav1, trans1 = np.linspace(0.3, 1.2, 1000), np.zeros(1000)
+            trans1[ (wav1>0.45) & (wav1<0.75) ] = 1.
+            
+            filt_wav[instruments[i]] = wav1 * 1e-6
+            filt_trans[instruments[i]] = trans1
     else:
-        ## Instrument 1 and 2 have different phase curve parameters (single scattering albedo and scattering asymmetry factor)
-        single_scat_w, g = [0.85, 0.90], [0.6, 0.3]
-        ## Sinusoidal phase curve
-        fps, ph_off = [350e-6, 450e-6], [50., 60.]
+        ## Instrument 1 and 2 have different phase curve parameters
+        hotspot_offs, cml11s = [20, 40], [0.1, 0.05]
+        fprimes = [1/np.sqrt(2), 0.75]
+
+        ## Transmission functions
+        filt_wav, filt_trans = {}, {}
+
+        wav0, trans0 = np.linspace(0.3, 1.2, 1000), np.zeros(1000)
+        trans0[ (wav0>0.45) & (wav0<0.75) ] = 1.
+        filt_wav[instruments[0]], filt_trans[instruments[0]] = wav0*1e-6, trans0
+
+        wav1, trans1 = np.linspace(0.3, 1.2, 1000), np.zeros(1000)
+        trans1[ (wav1>0.6) & (wav1<0.9) ] = 1.
+        filt_wav[instruments[1]], filt_trans[instruments[1]] = wav1, trans1
 
     # ---------------------------------------------------------------------
     #
@@ -55,6 +72,7 @@ if __name__ == '__main__':
     rst = 2.365
     ar, ar_err = 2.587, np.sqrt(0.037**2 + 0.034**2)
     q1, q2 = utils.convert_ld_coeffs('quadratic', 0.1, 0.3)
+    Teff = 8000
 
     tsecondary = tc + (per/2)
 
@@ -90,42 +108,32 @@ if __name__ == '__main__':
         m2 = batman.TransitModel(params=pars, t=times, transittype='secondary')
         flx_ecl = m2.light_curve(pars)
 
-        # ------------------------------------------------------------------------------
-        # Kelp homogeneous reflection phase curve model
-        # ------------------------------------------------------------------------------
+        # kelp homogeneous reflective planet phase curve model
         phases_unsorted = ((times- tc) % per) / per                       ## Un-sorted phases
         idx_phase_sort = np.argsort(phases_unsorted)                      ## This would sort any array acc to phase
         phases_sorted = phases_unsorted[idx_phase_sort]                   ## Sorted phase array
         times_sorted_acc_phs = times[idx_phase_sort]                      ## Time array sorted acc to phase
         idx_that_sort_arr_acc_times = np.argsort(times_sorted_acc_phs)    ## This array would sort array acc to time
 
+        ## Parameters for creating meshgrid
+        phi_ang = np.linspace(-2 * np.pi, 2 * np.pi, 75)
+        theta_ang = np.linspace(0, np.pi, 75)
+        theta2d, phi2d = np.meshgrid(theta_ang, phi_ang)
+
+        ## xi-Phases
+        xi = 2 * np.pi * (phases_sorted - 0.5)
+
         # Reflective phase curve (homogeneous)
-        refl_fl_ppm, _, _ = reflected_phase_curve(phases=phases_sorted, omega=single_scat_w[ins], g=g[ins], a_rp=ar/rprs)
-        refl_pc_sorted_acc_time = refl_fl_ppm[idx_that_sort_arr_acc_times]/1e6
+        thermal_pc, _ = thermal_phase_curve(
+            xi=xi, hotspot_offset=np.radians(hotspot_offs[ins]), omega_drag=4.5, alpha=0.6, C_11=cml11s[ins], T_s=Teff, a_rs=ar, rp_a=rprs/ar,\
+            A_B=0., theta2d=theta2d, phi2d=phi2d, filt_wavelength=filt_wav[instruments[ins]], filt_transmittance=filt_trans[instruments[ins]], f=fprimes[ins]
+        )
+        thermal_pc_sorted_acc_time = thermal_pc[idx_that_sort_arr_acc_times]
 
-        # ------------------------------------------------------------------------------
-        # Sinusoidal phase curve
-        # ------------------------------------------------------------------------------
-
-        orbital_phase = ( ( ( times - tc ) / per ) % 1 )
-        center_phase = - np.pi / 2.
-
-        # Build model. First, the basis sine function:
-        sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + ph_off[ins] * (np.pi / 180.) )
-        # Scale to be 1 at secondary eclipse, 0 at transit:
-        sine_model = (sine_model + 1) * 0.5
-        # Amplify by phase-amplitude:
-        sine_model = (fps[ins]) * sine_model
-        
-        # ------------------------------------------------------------------------------
-        # Total phase curve
-        # ------------------------------------------------------------------------------
-
-        phase_curve_model = refl_pc_sorted_acc_time + sine_model
-        phase_curve_model = 1. + phase_curve_model * ((flx_ecl - 1.) / m2.fp)
+        sine_model = 1. + thermal_pc_sorted_acc_time * ((flx_ecl - 1.) / 100e-6)
 
         # Total model
-        total_model = flx_tra * phase_curve_model
+        total_model = flx_tra * sine_model
         total_models[instruments[ins]] = total_model
 
 
@@ -138,6 +146,13 @@ if __name__ == '__main__':
         # ------------- Full dataset
         ## Saving the dataset
         tim[instruments[ins]], fl[instruments[ins]], fle[instruments[ins]] = tim7, fl7, fle7
+
+        """plt.errorbar(tim7, fl7, yerr=fle7, fmt='.')
+        plt.plot(tim7, total_model, 'k-', zorder=100)
+        plt.show()
+
+        """
+        
 
 
     # ---------------------------------------------------------------------
@@ -153,15 +168,15 @@ if __name__ == '__main__':
     hyper_P = [per, tc, [0., 1.], [0., 1.], [0., 1.], [0., 1.], 0., 90., [ar, ar_err]]
 
     if SamePC_2Inst:
-        par_pc = ['singlescat_p1', 'g_p1', 'fp_p1', 'phaseoffset_p1']
-        dist_pc = ['uniform', 'uniform', 'uniform', 'uniform']
-        hyper_pc = [[0., 1.], [0., 1.], [0e-6, 600e-6], [0., 80.]]
+        par_pc = ['hotspotoff_p1', 'wdrag_p1', 'alpha_p1', 'cml11_p1', 'fprime_p1']
+        dist_pc = ['uniform', 'fixed', 'fixed', 'uniform', 'uniform']
+        hyper_pc = [[0., 50.], 4.5, 0.6, [0., 0.2], [0.65, 0.8]]
     else:
         par_pc, dist_pc, hyper_pc = [], [], []
         for ins in range(len(instruments)):
-            par_pc = par_pc + ['singlescat_p1_' + instruments[ins], 'g_p1_' + instruments[ins], 'fp_p1_' + instruments[ins], 'phaseoffset_p1_' + instruments[ins]]
-            dist_pc = dist_pc + ['uniform', 'uniform', 'uniform', 'uniform']
-            hyper_pc = hyper_pc + [[0., 1.], [0., 1.], [0e-6, 600e-6], [0., 80.]]
+            par_pc = par_pc + ['hotspotoff_p1_' + instruments[ins], 'wdrag_p1_' + instruments[ins], 'alpha_p1_' + instruments[ins], 'cml11_p1_' + instruments[ins], 'fprime_p1_' + instruments[ins]]
+            dist_pc = dist_pc + ['uniform', 'fixed', 'fixed', 'uniform', 'uniform']
+            hyper_pc = hyper_pc + [[0., 50.], 4.5, 0.6, [0., 0.2], [0.65, 0.8]]
 
 
     ## Instrumental priors
@@ -180,7 +195,9 @@ if __name__ == '__main__':
 
     # And fitting
     dataset = juliet.load(priors=priors_tot, t_lc=tim, y_lc=fl, yerr_lc=fle, out_folder=pout, verbose=True)
-    res = dataset.fit(sampler = 'dynesty', nthreads=8, light_travel_delay=True, stellar_radius=rst, kelp_refl_interpolation_knots=kelp_knots)
+    res = dataset.fit(sampler = 'dynesty', nthreads=8, light_travel_delay=True, stellar_radius=rst,\
+                      kelp_thm_interpolation_knots=kelp_knots, stellar_teff=Teff,\
+                      kelp_filt_wav=filt_wav, kelp_filt_trans=filt_trans)
 
     # ---------------------------------------------------------------------
     #
@@ -205,7 +222,10 @@ if __name__ == '__main__':
         ax1.plot(tim[instrument], total_models[instrument], c='r', lw=2.5, alpha=0.5, zorder=50, label='Ingested model')
         ax1.set_ylabel('Relative Flux')
         ax1.set_xlim(np.min(tim[instrument]), np.max(tim[instrument]))
-        ax1.set_ylim([1-300e-6, 1+500e-6])
+        if ins == 0:
+            ax1.set_ylim([1-300e-6, 1+300e-6])
+        else:
+            ax1.set_ylim([1-300e-6, 1+3000e-6])
         ax1.xaxis.set_major_formatter(plt.NullFormatter())
         ax1.legend()
 
@@ -226,19 +246,17 @@ if __name__ == '__main__':
 
     if SamePC_2Inst:
         data = np.vstack([ post1['p_p1'], post1['b_p1'], post1['q1_' + '_'.join(instruments)], post1['q2_' + '_'.join(instruments)],\
-                        post1['a_p1'], post1['singlescat_p1'], post1['g_p1'], post1['fp_p1'], post1['phaseoffset_p1'] ])
+                        post1['a_p1'], post1['hotspotoff_p1'], post1['cml11_p1'], post1['fprime_p1'] ])
         data = np.transpose(data)
-        lbls = np.array([ 'Rp/R*', 'b', 'q1', 'q2', 'a/R*', 'w', 'g', 'fp', 'phoff'])
-        truths = np.array([ rprs, bb, q1, q2, ar, single_scat_w[0], g[0], fps[0], ph_off[0] ])
+        lbls = np.array([ 'Rp/R*', 'b', 'q1', 'q2', 'a/R*', 'ph_off', 'cml', 'fprime'])
+        truths = np.array([ rprs, bb, q1, q2, ar, hotspot_offs[0], cml11s[0], fprimes[0] ])
     else:
         data = np.vstack([ post1['p_p1'], post1['b_p1'], post1['q1_' + '_'.join(instruments)], post1['q2_' + '_'.join(instruments)],\
-                        post1['a_p1'], post1['singlescat_p1_' + instruments[0]], post1['g_p1_' + instruments[0]],\
-                        post1['singlescat_p1_' + instruments[1]], post1['g_p1_' + instruments[1]],\
-                        post1['fp_p1_' + instruments[0]], post1['phaseoffset_p1_' + instruments[0]],\
-                        post1['fp_p1_' + instruments[1]], post1['phaseoffset_p1_' + instruments[1]] ])
+                        post1['a_p1'], post1['hotspotoff_p1_' + instruments[0]], post1['cml11_p1_' + instruments[0]], post1['fprime_p1_' + instruments[0]],\
+                        post1['hotspotoff_p1_' + instruments[1]], post1['cml11_p1_' + instruments[1]], post1['fprime_p1_' + instruments[1]] ])
         data = np.transpose(data)
-        lbls = np.array([ 'Rp/R*', 'b', 'q1', 'q2', 'a/R*', 'w0', 'g0', 'w1', 'g1', 'fp0', 'phoff0', 'fp1', 'phoff1'])
-        truths = np.array([ rprs, bb, q1, q2, ar, single_scat_w[0], g[0], single_scat_w[1], g[1], fps[0], ph_off[0], fps[1], ph_off[1] ])
+        lbls = np.array([ 'Rp/R*', 'b', 'q1', 'q2', 'a/R*', 'ph_off0', 'cml0', 'fprime0', 'ph_off1', 'cml1', 'fprime1'])
+        truths = np.array([ rprs, bb, q1, q2, ar, hotspot_offs[0], cml11s[0], fprimes[0], hotspot_offs[1], cml11s[1], fprimes[1]])
 
     fig = corner.corner(data, labels=lbls, show_titles=True, truths=truths)
-    plt.savefig(pout + '/corner.png')
+    plt.savefig(pout + '/corner.png')#"""

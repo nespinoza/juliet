@@ -15,7 +15,7 @@ np.random.seed(5)
 # Set this variable to False if you want to fit the diff phase curve model to both instruments
 SamePC_2Inst = False
 instruments = ['MIRI1', 'MIRI2']
-pout = os.getcwd() + '/juliet/juls/cowan_agol_08_pc_sim_DiffPC_2Inst'
+pout = 'cowan_agol_08_pc_sim_DiffPC_2Inst'
 if SamePC_2Inst:
     ## Instrument 1 and 2 both have same phase curve parameters
     Es, C1s, D1s = [379e-6, 379e-6], [127e-6, 127e-6], [-139e-6, -139e-6]

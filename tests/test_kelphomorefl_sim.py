@@ -25,9 +25,9 @@ if __name__ == '__main__':
     # Set this variable to False if you want to fit the diff phase curve model to both instruments
     # For single instrument, simply put name of only one instrument in instruments array
     SamePC_2Inst = False
-    kelp_knots = None
+    kelp_knots = None                        # To use interpolation in kelp
     instruments = ['CHEOPS1', 'CHEOPS2']
-    pout = os.getcwd() + '/juliet/juls/kelphomo_1Inst'
+    pout = 'kelphomo_1Inst'
     if SamePC_2Inst:
         ## Instrument 1 and 2 both have same phase curve parameters (single scattering albedo and scattering asymmetry factor)
         single_scat_w = [0.85, 0.85]
