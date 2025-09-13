@@ -20,8 +20,9 @@ try:
     )  #
 
     # Kelp
-    from kelp.jax import reflected_phase_curve
+    from kelp.jax import reflected_phase_curve, thermal_phase_curve
     jitted_homo_refl_pc = jax.jit(reflected_phase_curve)
+    jitted_thermal_pc = jax.jit(thermal_phase_curve)
 
     # scipy interpolate
     from scipy.interpolate import interp1d
@@ -238,6 +239,118 @@ def kelp_homogeneous_refl_pc_model(times, t0, per, ar, rprs, g, single_scat_albe
     refl_pc_sorted_acc_time = refl_fl_ppm[idx_that_sort_arr_acc_times]/1e6
 
     return refl_pc_sorted_acc_time
+
+def kelp_thermal_pc_model(times, t0, per, ar, rprs, filter_wavelength, filter_transmittance, \
+                          hotspot_offset, c11, fprime, alpha, omega_drag, Teff, ntheta, nphi, nknots):
+    """
+    This helper function computes the thermal phase curve using kelp package following Heng et al. (2021)
+    
+    :param times: (xarray)
+    The times at which phase curve to be computed
+    
+    :param t0: (float)
+    Time of transit centre
+    
+    :param per: (float)
+    Orbital period of the planet
+    
+    :param ar: (float)
+    Scaled semi-major axis
+    
+    :param rprs: (float)
+    Planet-to-star radius ratio
+    
+    :param filter_wavelength: (xarray)
+    Wavelength (in m) at which the filter transmittance is given
+    
+    :param filter_transmittence: (xarray)
+    Filter transmittance
+    
+    :param hotspot_offset: (float)
+    Angle of hot-spot offset (in deg)
+    
+    :param c11: (float)
+    Spherical harmonic power in m=1, l=1 mode
+    
+    :param fprime: (float)
+    Greenhouse parameter
+    
+    :param alpha: (float)
+    Dimensionless fluid number
+    
+    :param omega_drag: (float)
+    Dimensionless drag frequency
+    
+    :param Teff: (float)
+    Effective temperature of the star
+    
+    :param ntheta: (int)
+    Number of total grid points along lattitude
+    
+    :param nphi: (int)
+    Number of total grid point along longitude
+
+    :param nknots: (int)
+    Number of uniformally spaced knots along orbital phase if interpolation is to be performed
+    If None, then no interpolation will be performed
+    ------
+    Return
+    ------
+    
+    :param phase_curve: (xarray)
+    Thermal phase curve
+    """
+    
+    # Filters
+    filter_wavelength = np.asarray(filter_wavelength)
+    filter_transmittance = np.asarray(filter_transmittance)
+    
+    # Converting times to phases:
+    phases_unsorted = ((times- t0) % per) / per                       ## Un-sorted phases
+    idx_phase_sort = np.argsort(phases_unsorted)                     ## This would sort any array acc to phase
+    phases_sorted = phases_unsorted[idx_phase_sort]                   ## Sorted phase array
+    times_sorted_acc_phs = times[idx_phase_sort]                      ## Time array sorted acc to phase
+    idx_that_sort_arr_acc_times = np.argsort(times_sorted_acc_phs)   ## This array would sort array acc to time
+
+    ## Parameters for creating meshgrid
+    phi_ang = np.linspace(-2 * np.pi, 2 * np.pi, nphi)
+    theta_ang = np.linspace(0, np.pi, ntheta)
+    theta2d, phi2d = np.meshgrid(theta_ang, phi_ang)
+
+    ## xi-Phases
+    xi = 2 * np.pi * (phases_sorted - 0.5)
+
+    ### Thermal phase curve
+    if nknots is None:
+        thermal_pc, _ = jitted_thermal_pc(
+            xi=xi, hotspot_offset=np.radians(hotspot_offset), omega_drag=omega_drag, alpha=alpha, C_11=c11, T_s=Teff, a_rs=ar, rp_a=rprs/ar,\
+            A_B=0., theta2d=theta2d, phi2d=phi2d, filt_wavelength=filter_wavelength, filt_transmittance=filter_transmittance, f=fprime
+        )
+    else:
+        # `kelp` functions are slow -- so what we can do is use kelp function to generate
+        # phase curves on finite, uniformaly spaced grid of orbital phases and then we can
+        # interpolate on this grid to find Fp/F* for any given phase curves
+
+        # Generating uniformally spaced orbital phases
+        uniformally_spaced_phases = np.linspace(phases_sorted[0], phases_sorted[-1], nknots)
+        uniformally_spaced_xi = 2 * np.pi * (uniformally_spaced_phases - 0.5)
+
+        # Using kelp to find Fp/F* for these phases
+        thm_fl_for_uni_phases, _ = jitted_thermal_pc(
+            xi=uniformally_spaced_xi, hotspot_offset=np.radians(hotspot_offset), omega_drag=omega_drag, alpha=alpha, C_11=c11,\
+            T_s=Teff, a_rs=ar, rp_a=rprs/ar, A_B=0., theta2d=theta2d, phi2d=phi2d,\
+            filt_wavelength=filter_wavelength, filt_transmittance=filter_transmittance, f=fprime
+        )
+        
+        # Performing interpolation
+        interp1d_thm_pc = interp1d(x=uniformally_spaced_xi, y=thm_fl_for_uni_phases)
+        
+        # Generating Fp/F* for given orbital phases
+        thermal_pc = interp1d_thm_pc(x=xi)
+
+    thm_pc_sorted_acc_time = thermal_pc[idx_that_sort_arr_acc_times]
+    
+    return thm_pc_sorted_acc_time
 
 
 def mag_to_flux(m, merr):
