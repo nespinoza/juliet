@@ -18,10 +18,10 @@ try:
     jax.config.update(
         "jax_enable_x64", True
     )  #
-
     # Kelp
-    from kelp.jax import reflected_phase_curve, thermal_phase_curve
+    from kelp.jax import reflected_phase_curve, thermal_phase_curve, reflected_phase_curve_inhomogeneous
     jitted_homo_refl_pc = jax.jit(reflected_phase_curve)
+    jitted_inhomo_refl_pc = reflected_phase_curve_inhomogeneous       # There may be some issue with kelp, which is causing error when I use jax.jit with this function
     jitted_thermal_pc = jax.jit(thermal_phase_curve)
 
     # scipy interpolate
@@ -239,6 +239,87 @@ def kelp_homogeneous_refl_pc_model(times, t0, per, ar, rprs, g, single_scat_albe
     refl_pc_sorted_acc_time = refl_fl_ppm[idx_that_sort_arr_acc_times]/1e6
 
     return refl_pc_sorted_acc_time
+
+def kelp_inhomogeneous_refl_pc_model(times, t0, per, ar, rprs, w0, wp, Ag, x1, x2, nknots):
+    """
+    This helper function computes the reflected light phase curve for inhomogeneously reflected planet
+    using kelp package following Heng et al. (2021)
+    
+    :param times: (xarray)
+    The times at which phase curve to be computed
+    
+    :param t0: (float)
+    Time of transit centre
+    
+    :param per: (float)
+    Orbital period of the planet
+    
+    :param ar: (float)
+    Scaled semi-major axis
+    
+    :param rprs: (float)
+    Planet-to-star radius ratio
+    
+    :param w0: (float)
+    Single scattering albedo of the less reflective region (defined on (0,1))
+    
+    :param wp: (float)
+    Additional single scattering albedo of the more reflective region
+    (single scattering albedo of the more reflective region = w0 + wp; defined on (0,1-w0))
+    
+    :param Ag: (float)
+    Geometric albedo
+    
+    :param x1: (float)
+    Start longitude of the darker region (in degrees b/w -90, 90)
+    
+    :param x2: (float)
+    Stop longitude of the darker region (in degrees b/w -90, 90)
+
+    :param nknots: (int)
+    Number of uniformally spaced knots along orbital phase if interpolation is to be performed
+    If None, then no interpolation will be performed
+    ------
+    Return
+    ------
+    
+    :param phase_curve: (xarray)
+    Reflected light phase curve for a homogeneous sphere
+    """
+    # Converting x1, x2 deg to radians
+    x1, x2 = x1 * np.pi / 180, x2 * np.pi / 180
+
+    # Converting times to phases:
+    phases_unsorted = ((times- t0) % per) / per                       ## Un-sorted phases
+    idx_phase_sort = np.argsort(phases_unsorted)                     ## This would sort any array acc to phase
+    phases_sorted = phases_unsorted[idx_phase_sort]                   ## Sorted phase array
+    times_sorted_acc_phs = times[idx_phase_sort]                      ## Time array sorted acc to phase
+    idx_that_sort_arr_acc_times = np.argsort(times_sorted_acc_phs)   ## This array would sort array acc to time
+    
+    # Reflective phase curve (inhomogeneous)
+    if nknots is None:
+        refl_fl_ppm, _, _ = jitted_inhomo_refl_pc(phases=phases_sorted, omega_0=w0, omega_prime=wp, x1=x1, x2=x2, A_g=Ag, a_rp=ar/rprs)
+    else:
+        # `kelp` functions are slow -- so what we can do is use kelp function to generate
+        # phase curves on finite, uniformaly spaced grid of orbital phases and then we can
+        # interpolate on this grid to find Fp/F* for any given phase curves
+
+        # Generating uniformally spaced orbital phases
+        uniformally_spaced_phases = np.linspace(phases_sorted[0], phases_sorted[-1], nknots)
+
+        # Using kelp to find Fp/F* for these phases
+        refl_fl_ppm_for_uni_phases, _, _ = jitted_inhomo_refl_pc(phases=uniformally_spaced_phases, omega_0=w0, omega_prime=wp, x1=x1, x2=x2, A_g=Ag, a_rp=ar/rprs)
+        
+        # Performing interpolation
+        interp1d_refl_pc = interp1d(x=uniformally_spaced_phases, y=refl_fl_ppm_for_uni_phases)
+        
+        # Generating Fp/F* for given orbital phases
+        refl_fl_ppm = interp1d_refl_pc(x=phases_sorted)
+
+    refl_pc_sorted_acc_time = refl_fl_ppm[idx_that_sort_arr_acc_times]/1e6
+    
+    return refl_pc_sorted_acc_time
+
 
 def kelp_thermal_pc_model(times, t0, per, ar, rprs, filter_wavelength, filter_transmittance, \
                           hotspot_offset, c11, fprime, alpha, omega_drag, Teff, ntheta, nphi, nknots):
