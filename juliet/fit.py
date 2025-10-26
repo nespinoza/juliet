@@ -1708,7 +1708,7 @@ class fit(object):
                  kelp_refl_interpolation_knots = None, kelp_thm_interpolation_knots = None, kelp_filt_wav = None, kelp_filt_trans = None,\
                  stellar_teff = None, kelp_ntheta = 5, kelp_nphi = 75, use_ultranest = False, use_dynesty = False, dynamic = False,\
                  dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, dynesty_n_effective = np.inf, dynesty_use_stop = True,\
-                 dynesty_use_pool = None, **kwargs):
+                 dynesty_use_pool = None, dynesty_save_states=False, dynesty_resume=False, **kwargs):
 
         # Define output results object:
         self.results = None
@@ -1723,6 +1723,8 @@ class fit(object):
         self.dynesty_n_effective = dynesty_n_effective
         self.dynesty_use_stop = dynesty_use_stop
         self.dynesty_use_pool = dynesty_use_pool
+        self.dynesty_save_states = dynesty_save_states
+        self.dynesty_resume = dynesty_resume
 
         # Now extract sampler options:
         self.sampler = sampler
@@ -2051,9 +2053,13 @@ class fit(object):
                             d_args[arg] = kwargs[arg]
 
                     # Define the sampler:
-                    sampler = DynestySampler(self.loglike,
-                                             self.prior_transform_r,
-                                             self.data.nparams, **d_args)
+                    ### NOTE: In case we are resuming a dynesty run, we need to restore from checkpoint file:
+                    if not self.dynesty_resume:
+                        sampler = DynestySampler(self.loglike,
+                                                self.prior_transform_r,
+                                                self.data.nparams, **d_args)
+                    else:
+                        sampler = DynestySampler.restore(self.out_folder + self.sampler_prefix + '_checkpoint.pkl')
 
                     # Now do the same for the actual sampler:
                     try:
@@ -2070,6 +2076,12 @@ class fit(object):
                     for arg in args:
                         if arg in kwargs:
                             ds_args[arg] = kwargs[arg]
+
+                    ### NOTE: If the user wants to save and resume dynesty runs, they need to provide one additional keyword to juliet.fit: checkpoint_every 
+                    ### (sampler state will be saved every checkpoint_every seconds); we will automatically save the checkpoint file in the output directory location
+                    ### See, #127 for more details.
+                    if self.dynesty_save_states:
+                        ds_args['checkpoint_file'] = self.out_folder + self.sampler_prefix + '_checkpoint.pkl'
 
                     # Now run:
                     sampler.run_nested(**ds_args)
@@ -2120,6 +2132,12 @@ class fit(object):
                     for arg in args:
                         if arg in kwargs:
                             ds_args[arg] = kwargs[arg]
+                    
+                    ### NOTE: If the user wants to save and resume dynesty runs, they need to provide one additional keyword to juliet.fit: checkpoint_every 
+                    ### (sampler state will be saved every checkpoint_every seconds); we will automatically save the checkpoint file in the output directory location
+                    ### See, #127 for more details.
+                    if self.dynesty_save_states:
+                        ds_args['checkpoint_file'] = self.out_folder + self.sampler_prefix + '_checkpoint.pkl'
 
                     # Now run all with multiprocessing:
                     """
@@ -2137,12 +2155,16 @@ class fit(object):
                     """
                     with mp.Pool(self.nthreads) as pool:
 
-                        sampler = DynestySampler(self.loglike,
-                                                 self.prior_transform_r,
-                                                 self.data.nparams,
-                                                 pool = pool, 
-                                                 queue_size=self.nthreads,
-                                                 **d_args)
+                        ### NOTE: In case we are resuming a dynesty run, we need to restore from checkpoint file:
+                        if not self.dynesty_resume:
+                            sampler = DynestySampler(self.loglike,
+                                                    self.prior_transform_r,
+                                                    self.data.nparams,
+                                                    pool = pool, 
+                                                    queue_size=self.nthreads,
+                                                    **d_args)
+                        else:
+                            sampler = DynestySampler.restore(self.out_folder + self.sampler_prefix + '_checkpoint.pkl', pool=pool)
 
                         sampler.run_nested(**ds_args)
 
