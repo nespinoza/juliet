@@ -3743,8 +3743,20 @@ class model(object):
 
                             w0 = parameter_values['w0_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
                             wp = parameter_values['wp_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
-                            x1 = parameter_values['x1_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
-                            x2 = parameter_values['x2_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
+                            
+                            try:
+                                x1 = parameter_values['x1_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
+                                x2 = parameter_values['x2_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
+                            except:
+                                # x1 and x2 are not provided, that means we are using x1' and x2' instead
+                                # They are defined as follows: x1' = sin(x1), x2' = sin(x2), i.e., x1 = arcsin(x1'), x2 = arcsin(x2') (from Morris et al. 2024)
+                                x1prime = parameter_values['x1prime_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
+                                x2prime = parameter_values['x2prime_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
+
+                                # Converting back to x1 and x2
+                                x1 = np.rad2deg( np.arcsin( x1prime ) )
+                                x2 = np.rad2deg( np.arcsin( x2prime ) )
+
                             agkelp = parameter_values['agkelp_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
 
                         if not self.light_travel_delay:
