@@ -557,6 +557,11 @@ class load(object):
                 dictionary[instrument]['TransitFitCatwoman'] = False
                 dictionary[instrument]['EclipseFit'] = False
                 dictionary[instrument]['PhaseCurveFit'] = False
+                dictionary[instrument]['CowanAgolPCFit'] = False
+                dictionary[instrument]['LambertPCFit'] = False
+                dictionary[instrument]['KelpHomoPCFit'] = False
+                dictionary[instrument]['KelpInhomoPCFit'] = False
+                dictionary[instrument]['KelpThmPCFit'] = False
                 dictionary[instrument]['TranEclFit'] = False
 
         if dictype == 'lc':
@@ -793,6 +798,85 @@ class load(object):
                             if self.verbose:
 
                                 print('\t Phase curve fit detected for instrument ', inames[i])
+
+                    if pri[0:2] == 'C1':
+                        # To check if the given instrument has Cowan & Agol (2008) phase curve fitting
+                        if (inames[i] in pri.split('_')) or (len(pri.split('_')) == 2):
+
+                            dictionary[inames[i]]['CowanAgolPCFit'] = True
+
+                            if self.verbose:
+
+                                print('\t Phase curve fit (Cowan & Agol 2008) detected for instrument ', inames[i])
+
+                    if pri[0:9] == 'aglambert':
+
+                        # To check if the given instrument has Lambertian phase curve fitting
+                        if (inames[i] in pri.split('_')) or (len(pri.split('_')) == 2):
+
+                            dictionary[inames[i]]['LambertPCFit'] = True
+
+                            if self.verbose:
+
+                                print('\t Phase curve fit (Lambertian) detected for instrument ', inames[i])
+                            
+                            # If Lambertian phase curve model is detected, then we have to manually turn on occultation model
+                            # Because we still need an occultation model, however, since there will not be any fp_p1 parameter
+                            # the occultation model will not be turned on automatically. So, manually turning it on
+
+                            dictionary[inames[i]]['EclipseFit'] = True
+
+                    if pri[0:10] == 'singlescat':
+
+                        # To check if the given instrument has Kelp homogeneous phase curve fitting
+                        if (inames[i] in pri.split('_')) or (len(pri.split('_')) == 2):
+
+                            dictionary[inames[i]]['KelpHomoPCFit'] = True
+
+                            if self.verbose:
+
+                                print('\t Phase curve fit (kelp homogeneous reflection) detected for instrument ', inames[i])
+                            
+                            # If Kelp homogeneous reflection phase curve model is detected, then we have to manually turn on occultation model
+                            # Because we still need an occultation model, however, since there will not be any fp_p1 parameter
+                            # the occultation model will not be turned on automatically. So, manually turning it on
+
+                            dictionary[inames[i]]['EclipseFit'] = True
+
+                    if pri[0:5] == 'cml11':
+
+                        # To check if the given instrument has Kelp thermal emission phase curve fitting
+                        if (inames[i] in pri.split('_')) or (len(pri.split('_')) == 2):
+
+                            dictionary[inames[i]]['KelpThmPCFit'] = True
+
+                            if self.verbose:
+
+                                print('\t Phase curve fit (kelp thermal emission) detected for instrument ', inames[i])
+                            
+                            # If Kelp homogeneous thermal emission phase curve model is detected, then we have to manually turn on occultation model
+                            # Because we still need an occultation model, however, since there will not be any fp_p1 parameter
+                            # the occultation model will not be turned on automatically. So, manually turning it on
+
+                            dictionary[inames[i]]['EclipseFit'] = True
+
+                    if pri[0:6] == 'agkelp':
+
+                        # To check if the given instrument has kelp inhomogeneous reflection phase curve fitting
+                        if (inames[i] in pri.split('_')) or (len(pri.split('_')) == 2):
+
+                            dictionary[inames[i]]['KelpInhomoPCFit'] = True
+
+                            if self.verbose:
+
+                                print('\t Phase curve fit (kelp inhomogeneous reflection) detected for instrument ', inames[i])
+
+                            # If kelp inhomogeneous reflection phase curve model is detected, then we have to manually turn on occultation model
+                            # Because we still need an occultation mode, however, since there will not be any fp_p1 parameter
+                            # the occultation model will not be turned on automatically. So, manually turning it on
+
+                            dictionary[inames[i]]['EclipseFit'] = True
+
 
                     if pri[0:2] == 'fp':
 
@@ -1444,6 +1528,9 @@ class fit(object):
     :param stellar_radius: (optional, float)
         Stellar radius in units of solar-radii to use for the light travel time corrections.
 
+    :param kelp_refl_interpolation_knots: (optional, int)
+        Number of knots in case interpolation is to be performed along phases for kelp reflection phase curves. Default is None.
+
     In addition, any number of extra optional keywords can be given to the call, which will be directly ingested into the sampler of choice. For a full list of optional keywords for...
 
     - ...PyMultiNest, check the docstring of ``PyMultiNest``'s ``run`` `function <https://github.com/JohannesBuchner/PyMultiNest/blob/master/pymultinest/run.py>`_.
@@ -1599,6 +1686,12 @@ class fit(object):
 
             log_likelihood += extra_loglikelihood['loglikelihood']( self.posteriors )
 
+        # This is an extra check if the log-likelihood is non-nan
+        # (I found that fitting kelp inhomogeneous light curve often produces Nan likelihoods, 
+        # so this if statement will prevent that)
+        if np.isnan(log_likelihood):
+            log_likelihood = -1e101
+
         # Return total log-likelihood:
         return log_likelihood
 
@@ -1612,8 +1705,10 @@ class fit(object):
 
     def __init__(self, data, sampler = 'multinest', n_live_points = 500, nwalkers = 100, nsteps = 300, nburnin = 500, emcee_factor = 1e-4, \
                  ecclim = 1., pl = 0.0, pu = 1.0, ta = 2458460., nthreads = None, light_travel_delay = False, stellar_radius = None, \
-                 use_ultranest = False, use_dynesty = False, dynamic = False, dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, \
-                 dynesty_n_effective = np.inf, dynesty_use_stop = True, dynesty_use_pool = None, **kwargs):
+                 kelp_refl_interpolation_knots = None, kelp_thm_interpolation_knots = None, kelp_filt_wav = None, kelp_filt_trans = None,\
+                 stellar_teff = None, kelp_ntheta = 5, kelp_nphi = 75, use_ultranest = False, use_dynesty = False, dynamic = False,\
+                 dynesty_bound = 'multi', dynesty_sample='rwalk', dynesty_nthreads = None, dynesty_n_effective = np.inf, dynesty_use_stop = True,\
+                 dynesty_use_pool = None, dynesty_save_states=False, dynesty_resume=False, **kwargs):
 
         # Define output results object:
         self.results = None
@@ -1628,6 +1723,8 @@ class fit(object):
         self.dynesty_n_effective = dynesty_n_effective
         self.dynesty_use_stop = dynesty_use_stop
         self.dynesty_use_pool = dynesty_use_pool
+        self.dynesty_save_states = dynesty_save_states
+        self.dynesty_resume = dynesty_resume
 
         # Now extract sampler options:
         self.sampler = sampler
@@ -1637,6 +1734,23 @@ class fit(object):
         self.emcee_factor = emcee_factor
         self.nburnin = nburnin
         self.nthreads = nthreads
+
+        # For kelp models, we may not want to compute phase curve models for _all_ time points (because model computation can be expensive)
+        # Instead we can compute phase curve models on discrete grid of phases and then interpolate over the rest of the phases
+        # By default we don't do this, but there is an option to do this if the user want to do this.
+        # User simply needs to provide number of knots to turn this on (different parameters for reflection and thermla phase curves)
+        self.kelp_refl_interpolation_knots = kelp_refl_interpolation_knots
+        self.kelp_thm_interpolation_knots = kelp_thm_interpolation_knots
+
+        # Kelp emission phase curve also needs a transmission function...
+        ## These need to be dicts; with keys corresponding to instrument names
+        self.kelp_filt_wav = kelp_filt_wav
+        self.kelp_filt_trans = kelp_filt_trans
+
+        # ... and stellar effective temperatures and number of grid points along latitude (theta) and longitude (phi)
+        self.stellar_teff = stellar_teff
+        self.kelp_ntheta = kelp_ntheta
+        self.kelp_nphi = kelp_nphi
 
         # Extract physical model details:
         self.light_travel_delay = light_travel_delay
@@ -1778,6 +1892,13 @@ class fit(object):
                             ecclim=self.ecclim,
                             light_travel_delay = self.light_travel_delay,
                             stellar_radius = self.stellar_radius,
+                            kelp_refl_interpolation_knots=self.kelp_refl_interpolation_knots,
+                            kelp_thm_interpolation_knots=self.kelp_thm_interpolation_knots,
+                            kelp_filt_wav=self.kelp_filt_wav,
+                            kelp_filt_trans=self.kelp_filt_trans,
+                            stellar_teff=self.stellar_teff,
+                            kelp_ntheta=self.kelp_ntheta,
+                            kelp_nphi=self.kelp_nphi,
                             log_like_calc=True)
         if self.data.t_rv is not None:
 
@@ -1932,9 +2053,13 @@ class fit(object):
                             d_args[arg] = kwargs[arg]
 
                     # Define the sampler:
-                    sampler = DynestySampler(self.loglike,
-                                             self.prior_transform_r,
-                                             self.data.nparams, **d_args)
+                    ### NOTE: In case we are resuming a dynesty run, we need to restore from checkpoint file:
+                    if not self.dynesty_resume:
+                        sampler = DynestySampler(self.loglike,
+                                                self.prior_transform_r,
+                                                self.data.nparams, **d_args)
+                    else:
+                        sampler = DynestySampler.restore(self.out_folder + self.sampler_prefix + '_checkpoint.pkl')
 
                     # Now do the same for the actual sampler:
                     try:
@@ -1951,6 +2076,12 @@ class fit(object):
                     for arg in args:
                         if arg in kwargs:
                             ds_args[arg] = kwargs[arg]
+
+                    ### NOTE: If the user wants to save and resume dynesty runs, they need to provide one additional keyword to juliet.fit: checkpoint_every 
+                    ### (sampler state will be saved every checkpoint_every seconds); we will automatically save the checkpoint file in the output directory location
+                    ### See, #127 for more details.
+                    if self.dynesty_save_states:
+                        ds_args['checkpoint_file'] = self.out_folder + self.sampler_prefix + '_checkpoint.pkl'
 
                     # Now run:
                     sampler.run_nested(**ds_args)
@@ -2001,6 +2132,12 @@ class fit(object):
                     for arg in args:
                         if arg in kwargs:
                             ds_args[arg] = kwargs[arg]
+                    
+                    ### NOTE: If the user wants to save and resume dynesty runs, they need to provide one additional keyword to juliet.fit: checkpoint_every 
+                    ### (sampler state will be saved every checkpoint_every seconds); we will automatically save the checkpoint file in the output directory location
+                    ### See, #127 for more details.
+                    if self.dynesty_save_states:
+                        ds_args['checkpoint_file'] = self.out_folder + self.sampler_prefix + '_checkpoint.pkl'
 
                     # Now run all with multiprocessing:
                     """
@@ -2018,12 +2155,16 @@ class fit(object):
                     """
                     with mp.Pool(self.nthreads) as pool:
 
-                        sampler = DynestySampler(self.loglike,
-                                                 self.prior_transform_r,
-                                                 self.data.nparams,
-                                                 pool = pool, 
-                                                 queue_size=self.nthreads,
-                                                 **d_args)
+                        ### NOTE: In case we are resuming a dynesty run, we need to restore from checkpoint file:
+                        if not self.dynesty_resume:
+                            sampler = DynestySampler(self.loglike,
+                                                    self.prior_transform_r,
+                                                    self.data.nparams,
+                                                    pool = pool, 
+                                                    queue_size=self.nthreads,
+                                                    **d_args)
+                        else:
+                            sampler = DynestySampler.restore(self.out_folder + self.sampler_prefix + '_checkpoint.pkl', pool=pool)
 
                         sampler.run_nested(**ds_args)
 
@@ -3584,11 +3725,61 @@ class model(object):
                     ### We only want to make eclipse depth instrument depended, not the time correction factor
                     if self.dictionary[instrument]['EclipseFit'] or self.dictionary[instrument]['TranEclFit']:
 
-                        fp = parameter_values['fp_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
+                        ## This try and except loop is needed because even though when eclipse fit or transit-eclipse fit is enabled
+                        ## it is possible that  there is no prior for fp -- this will happen when we fit Lambertian or kelp phase curve model
+                        ## In that case, we will define a dummy fp value
+                        try:
+                            fp = parameter_values['fp_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
+                        except:
+                            fp = 100e-6
 
                         if self.dictionary[instrument]['PhaseCurveFit']:
 
                             phase_offset = parameter_values['phaseoffset_p' + str(i) + self.phaseoffset_iname['p' + str(i)][instrument]]
+                        
+                        if self.dictionary[instrument]['CowanAgolPCFit']:
+
+                            C1_CA08 = parameter_values['C1_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
+                            D1_CA08 = parameter_values['D1_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
+                            C2_CA08 = parameter_values['C2_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
+                            D2_CA08 = parameter_values['D2_p' + str(i) + self.fp_iname['p' + str(i)][instrument]]
+
+                        if self.dictionary[instrument]['LambertPCFit']:
+
+                            Ag_Lambert = parameter_values['aglambert_p' + str(i) + self.aglambert_iname['p' + str(i)][instrument]]
+
+                        if self.dictionary[instrument]['KelpHomoPCFit']:
+
+                            w_singlescat = parameter_values['singlescat_p' + str(i) + self.kelphomo_iname['p' + str(i)][instrument]]
+                            g_scatasym = parameter_values['g_p' + str(i) + self.kelphomo_iname['p' + str(i)][instrument]]
+
+                        if self.dictionary[instrument]['KelpThmPCFit']:
+
+                            hotspot_off = parameter_values['hotspotoff_p' + str(i) + self.kelpthm_iname['p' + str(i)][instrument]]
+                            wdrag = parameter_values['wdrag_p' + str(i) + self.kelpthm_iname['p' + str(i)][instrument]]
+                            alpha_fluid = parameter_values['alpha_p' + str(i) + self.kelpthm_iname['p' + str(i)][instrument]]
+                            cml11 = parameter_values['cml11_p' + str(i) + self.kelpthm_iname['p' + str(i)][instrument]]
+                            fprime = parameter_values['fprime_p' + str(i) + self.kelpthm_iname['p' + str(i)][instrument]]
+
+                        if self.dictionary[instrument]['KelpInhomoPCFit']:
+
+                            w0 = parameter_values['w0_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
+                            wp = parameter_values['wp_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
+                            
+                            try:
+                                x1 = parameter_values['x1_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
+                                x2 = parameter_values['x2_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
+                            except:
+                                # x1 and x2 are not provided, that means we are using x1' and x2' instead
+                                # They are defined as follows: x1' = sin(x1), x2' = sin(x2), i.e., x1 = arcsin(x1'), x2 = arcsin(x2') (from Morris et al. 2024)
+                                x1prime = parameter_values['x1prime_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
+                                x2prime = parameter_values['x2prime_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
+
+                                # Converting back to x1 and x2
+                                x1 = np.rad2deg( np.arcsin( x1prime ) )
+                                x2 = np.rad2deg( np.arcsin( x2prime ) )
+
+                            agkelp = parameter_values['agkelp_p' + str(i) + self.kelpinhomo_iname['p' + str(i)][instrument]]
 
                         if not self.light_travel_delay:
 
@@ -3785,27 +3976,119 @@ class model(object):
                                         eclipse_model = self.model[instrument]['m'][1].light_curve(self.model[instrument]['params']) 
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if not self.dictionary[instrument]['PhaseCurveFit']:
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']) and ( not self.dictionary[instrument]['KelpHomoPCFit'] ) and (not self.dictionary[instrument]['KelpThmPCFit']) and (not self.dictionary[instrument]['KelpInhomoPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['M'] += transit_model * eclipse_model - 1.
 
                                         else:
 
-                                            orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
-                                            center_phase = - np.pi / 2.
+                                            # We are creating one more variable, called phase_curve_model, and defining it outside of this if/else loop
+                                            # This is because if there are more than one phase curve models (e.g., reflected + thermal), we can add them
 
-                                            # Build model. First, the basis sine function:
-                                            sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
-                                            # Scale to be 1 at secondary eclipse, 0 at transit:
-                                            sine_model = (sine_model + 1) * 0.5
-                                            # Amplify by phase-amplitude:
-                                            sine_model = (self.model[instrument]['params'].fp) * sine_model
-                                            # Multiply by normed eclipse model:
-                                            sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                            phase_curve_model = np.zeros( len( self.model[instrument]['m'][1].t ) )
 
+                                            if self.dictionary[instrument]['PhaseCurveFit']:
+
+                                                orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
+                                                center_phase = - np.pi / 2.
+
+                                                # Build model. First, the basis sine function:
+                                                sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
+                                                # Scale to be 1 at secondary eclipse, 0 at transit:
+                                                sine_model = (sine_model + 1) * 0.5
+                                                # Amplify by phase-amplitude:
+                                                sine_model = (self.model[instrument]['params'].fp) * sine_model
+                                                
+                                                phase_curve_model = phase_curve_model + sine_model
+                                                # Multiply by normed eclipse model: (we will do this outside of if/else loop) 
+                                                #sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            if self.dictionary[instrument]['CowanAgolPCFit']:
+
+                                                # Computing (sort of phase: I am following Zhang et al. 2024)
+                                                omega_t = 2 * np.pi * (self.model[instrument]['m'][1].t - self.model[instrument]['params'].t_secondary) / self.model[instrument]['params'].per
+
+                                                # 2nd order Phase curve model: Fp + C1*cos(wt) - C1 + D1*sin(wt) + C2*cos(2wt) - C2 + D2*sin(2wt)
+                                                pc_CA08 = self.model[instrument]['params'].fp + ( C1_CA08 * (np.cos( omega_t ) - 1.) ) + ( D1_CA08 * np.sin( omega_t ) ) + ( C2_CA08 * (np.cos( 2*omega_t ) - 1.) ) + ( D2_CA08 * np.sin( 2*omega_t ) )
+
+                                                phase_curve_model = phase_curve_model + pc_CA08
+
+                                                # And multiplying the PC model with the occultation model (we will do this outside of if/else loop)
+                                                #sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            if self.dictionary[instrument]['LambertPCFit']:
+
+                                                # The Lambertian model is from Deline et al. (2022); see their Section 4.4.3.
+
+                                                ## First we need to find true anomaly
+                                                true_anomaly = self.model[instrument]['m'][1].get_true_anomaly()
+
+                                                # Now computing alpha
+                                                alpha_phs = np.arccos( -np.sin( np.radians(self.model[instrument]['m'][1].w) + true_anomaly ) * np.sin( np.radians( self.model[instrument]['m'][1].inc ) ) )
+
+                                                # Eccentricity factor
+                                                ecc_facs = ( 1 + self.model[instrument]['m'][1].ecc * np.cos( true_anomaly ) ) / ( 1 - self.model[instrument]['m'][1].ecc**2 )
+
+                                                lambert_model = Ag_Lambert * ( self.model[instrument]['m'][1].rp * ecc_facs / self.model[instrument]['m'][1].a )**2 * ( np.sin(alpha_phs) + (np.pi - alpha_phs)*np.cos(alpha_phs) ) / np.pi
+
+                                                # Finally, adding Lambert model to the phase curve model
+                                                phase_curve_model = phase_curve_model + lambert_model
+
+                                            if self.dictionary[instrument]['KelpHomoPCFit']:
+
+                                                kelp_homo_refl_pc = kelp_homogeneous_refl_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                                   t0=self.model[instrument]['params'].t0,\
+                                                                                                   per=self.model[instrument]['params'].per,\
+                                                                                                   ar=self.model[instrument]['params'].a,\
+                                                                                                   rprs=self.model[instrument]['params'].rp,\
+                                                                                                   g=g_scatasym, single_scat_albedo=w_singlescat,\
+                                                                                                   nknots=self.kelp_refl_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_homo_refl_pc
+
+                                            if self.dictionary[instrument]['KelpThmPCFit']:
+
+                                                kelp_thm_pc = kelp_thermal_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                    t0=self.model[instrument]['params'].t0,\
+                                                                                    per=self.model[instrument]['params'].per,\
+                                                                                    ar=self.model[instrument]['params'].a,\
+                                                                                    rprs=self.model[instrument]['params'].rp,\
+                                                                                    filter_wavelength=self.kelp_filt_wav[instrument],\
+                                                                                    filter_transmittance=self.kelp_filt_trans[instrument],\
+                                                                                    hotspot_offset=hotspot_off, c11=cml11, fprime=fprime,\
+                                                                                    alpha=alpha_fluid, omega_drag=wdrag, Teff=self.stellar_teff,\
+                                                                                    ntheta=self.kelp_ntheta, nphi=self.kelp_nphi,\
+                                                                                    nknots=self.kelp_thm_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_thm_pc
+
+                                            if self.dictionary[instrument]['KelpInhomoPCFit']:
+
+                                                kelp_inhomorefl_pc = kelp_inhomogeneous_refl_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                                      t0=self.model[instrument]['params'].t0,\
+                                                                                                      per=self.model[instrument]['params'].per,\
+                                                                                                      ar=self.model[instrument]['params'].a,\
+                                                                                                      rprs=self.model[instrument]['params'].rp,\
+                                                                                                      w0=w0, wp=wp, Ag=agkelp, x1=x1, x2=x2,\
+                                                                                                      nknots=self.kelp_refl_interpolation_knots)
+                                                
+                                                #print('___ +++: ', type(kelp_inhomorefl_pc))
+                                                #print('>>> ---: ', np.where(np.isnan(kelp_inhomorefl_pc)))
+                                                #if len( np.where(np.isnan(kelp_inhomorefl_pc))[0] ) != 0:
+                                                #    print('---+++---: w0, wp, agkelp, x1, x2: ', w0, wp, agkelp, x1, x2)
+
+                                                # Finally, adding this model to the total phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_inhomorefl_pc
+
+
+                                            # Now, we will compute the full phase curve model (by takeing the phase curve model and multiplying it with normalised occultation model)
+                                            phase_curve_model = 1 + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                            
                                             # And get all together:
-                                            self.model[instrument]['M'] += transit_model * sine_model - 1.
+                                            self.model[instrument]['M'] += transit_model * phase_curve_model - 1.
 
                                 else:
 
@@ -3823,26 +4106,115 @@ class model(object):
                                         eclipse_model = self.model[instrument]['m'][1].light_curve(self.model[instrument]['params']) 
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if not self.dictionary[instrument]['PhaseCurveFit']:
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']) and (not self.dictionary[instrument]['KelpHomoPCFit']) and (not self.dictionary[instrument]['KelpThmPCFit']) and (not self.dictionary[instrument]['KelpInhomoPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['p'+str(i)] = transit_model * eclipse_model
 
                                         else:
 
-                                            orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
-                                            center_phase = - np.pi / 2.
+                                            # We are creating one more variable, called phase_curve_model, and defining it outside of this if/else loop
+                                            # This is because if there are more than one phase curve models (e.g., reflected + thermal), we can add them
+                                            
+                                            phase_curve_model = np.zeros( len( self.model[instrument]['m'][1].t ) )
 
-                                            # Build model. First, the basis sine function:
-                                            sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
-                                            # Scale to be 1 at secondary eclipse, 0 at transit:
-                                            sine_model = (sine_model + 1) * 0.5
-                                            # Amplify by phase-amplitude:
-                                            sine_model = (self.model[instrument]['params'].fp) * sine_model
-                                            # Multiply by normed eclipse model:
-                                            sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                            if self.dictionary[instrument]['PhaseCurveFit']:
 
-                                            self.model[instrument]['p'+str(i)] = transit_model * sine_model
+                                                orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
+                                                center_phase = - np.pi / 2.
+
+                                                # Build model. First, the basis sine function:
+                                                sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
+                                                # Scale to be 1 at secondary eclipse, 0 at transit:
+                                                sine_model = (sine_model + 1) * 0.5
+                                                # Amplify by phase-amplitude:
+                                                sine_model = (self.model[instrument]['params'].fp) * sine_model
+                                                
+                                                # Adding the sine model to the full phase curve model
+                                                phase_curve_model = phase_curve_model + sine_model
+
+                                                # Multiply by normed eclipse model (again, we will do this outside of if/else loop since we may want to add more than one phase curve models):
+                                                #sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            if self.dictionary[instrument]['CowanAgolPCFit']:
+
+                                                # Computing (sort of phase: I am following Zhang et al. 2024)
+                                                omega_t = 2 * np.pi * (self.model[instrument]['m'][1].t - self.model[instrument]['params'].t_secondary) / self.model[instrument]['params'].per
+
+                                                # 2nd order Phase curve model: Fp + C1*cos(wt) - C1 + D1*sin(wt) + C2*cos(2wt) - C2 + D2*sin(2wt)
+                                                pc_CA08 = self.model[instrument]['params'].fp + ( C1_CA08 * (np.cos( omega_t ) - 1.) ) + ( D1_CA08 * np.sin( omega_t ) ) + ( C2_CA08 * (np.cos( 2*omega_t ) - 1.) ) + ( D2_CA08 * np.sin( 2*omega_t ) )
+
+                                                # Adding the pc_CA08 model to the full phase curve model
+                                                phase_curve_model = phase_curve_model + pc_CA08
+
+                                                # And multiplying the PC model with the occultation model (we will do this outside of this if/else loop)
+                                                #sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            if self.dictionary[instrument]['LambertPCFit']:
+
+                                                # The Lambertian model is from Deline et al. (2022); see their Section 4.4.3.
+
+                                                ## First we need to find true anomaly
+                                                true_anomaly = self.model[instrument]['m'][1].get_true_anomaly()
+
+                                                # Now computing alpha
+                                                alpha_phs = np.arccos( -np.sin( np.radians(self.model[instrument]['m'][1].w) + true_anomaly ) * np.sin( np.radians( self.model[instrument]['m'][1].inc ) ) )
+
+                                                # Eccentricity factor
+                                                ecc_facs = ( 1 + self.model[instrument]['m'][1].ecc * np.cos( true_anomaly ) ) / ( 1 - self.model[instrument]['m'][1].ecc**2 )
+
+                                                lambert_model = Ag_Lambert * ( self.model[instrument]['m'][1].rp * ecc_facs / self.model[instrument]['m'][1].a )**2 * ( np.sin(alpha_phs) + (np.pi - alpha_phs)*np.cos(alpha_phs) ) / np.pi
+
+                                                # Finally, adding Lambert model to the phase curve model
+                                                phase_curve_model = phase_curve_model + lambert_model
+
+                                            if self.dictionary[instrument]['KelpHomoPCFit']:
+
+                                                kelp_homo_refl_pc = kelp_homogeneous_refl_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                                   t0=self.model[instrument]['params'].t0,\
+                                                                                                   per=self.model[instrument]['params'].per,\
+                                                                                                   ar=self.model[instrument]['params'].a,\
+                                                                                                   rprs=self.model[instrument]['params'].rp,\
+                                                                                                   g=g_scatasym, single_scat_albedo=w_singlescat,\
+                                                                                                   nknots=self.kelp_refl_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_homo_refl_pc
+
+                                            if self.dictionary[instrument]['KelpThmPCFit']:
+
+                                                kelp_thm_pc = kelp_thermal_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                    t0=self.model[instrument]['params'].t0,\
+                                                                                    per=self.model[instrument]['params'].per,\
+                                                                                    ar=self.model[instrument]['params'].a,\
+                                                                                    rprs=self.model[instrument]['params'].rp,\
+                                                                                    filter_wavelength=self.kelp_filt_wav[instrument],\
+                                                                                    filter_transmittance=self.kelp_filt_trans[instrument],\
+                                                                                    hotspot_offset=hotspot_off, c11=cml11, fprime=fprime,\
+                                                                                    alpha=alpha_fluid, omega_drag=wdrag, Teff=self.stellar_teff,\
+                                                                                    ntheta=self.kelp_ntheta, nphi=self.kelp_nphi,\
+                                                                                    nknots=self.kelp_thm_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_thm_pc
+
+                                            if self.dictionary[instrument]['KelpInhomoPCFit']:
+
+                                                kelp_inhomorefl_pc = kelp_inhomogeneous_refl_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                                      t0=self.model[instrument]['params'].t0,\
+                                                                                                      per=self.model[instrument]['params'].per,\
+                                                                                                      ar=self.model[instrument]['params'].a,\
+                                                                                                      rprs=self.model[instrument]['params'].rp,\
+                                                                                                      w0=w0, wp=wp, Ag=agkelp, x1=x1, x2=x2,\
+                                                                                                      nknots=self.kelp_refl_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the total phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_inhomorefl_pc
+
+                                            # Multiplying occultation model to the full phase curve model
+                                            phase_curve_model = 1. + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            self.model[instrument]['p'+str(i)] = transit_model * phase_curve_model
 
                                         self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
 
@@ -3898,26 +4270,115 @@ class model(object):
                                         eclipse_model = m[1].light_curve(self.model[instrument]['params'])
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if not self.dictionary[instrument]['PhaseCurveFit']:
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']) and (not self.dictionary[instrument]['KelpHomoPCFit']) and (not self.dictionary[instrument]['KelpThmPCFit']) and (not self.dictionary[instrument]['KelpInhomoPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['M'] += transit_model * eclipse_model - 1.
 
                                         else:
 
-                                            orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
-                                            center_phase = - np.pi / 2.
+                                            # We are creating one more variable, called phase_curve_model, and defining it outside of this if/else loop
+                                            # This is because if there are more than one phase curve models (e.g., reflected + thermal), we can add them
 
-                                            # Build model. First, the basis sine function:
-                                            sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
-                                            # Scale to be 1 at secondary eclipse, 0 at transit:
-                                            sine_model = (sine_model + 1) * 0.5
-                                            # Amplify by phase-amplitude:
-                                            sine_model = (self.model[instrument]['params'].fp) * sine_model
-                                            # Multiply by normed eclipse model:
-                                            sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                            phase_curve_model = np.zeros( len( self.model[instrument]['m'][1].t ) )
 
-                                            self.model[instrument]['M'] += transit_model * sine_model - 1.
+                                            if self.dictionary[instrument]['PhaseCurveFit']:
+
+                                                orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
+                                                center_phase = - np.pi / 2.
+
+                                                # Build model. First, the basis sine function:
+                                                sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
+                                                # Scale to be 1 at secondary eclipse, 0 at transit:
+                                                sine_model = (sine_model + 1) * 0.5
+                                                # Amplify by phase-amplitude:
+                                                sine_model = (self.model[instrument]['params'].fp) * sine_model
+
+                                                # Adding the sine_model to the full phase curve model
+                                                phase_curve_model = phase_curve_model + sine_model
+
+                                                # Multiply by normed eclipse model (we will do this outside of this if/else loop so that we can add more than one phase curve models):
+                                                #sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            if self.dictionary[instrument]['CowanAgolPCFit']:
+
+                                                # Computing (sort of phase: I am following Zhang et al. 2024)
+                                                omega_t = 2 * np.pi * (self.model[instrument]['m'][1].t - self.model[instrument]['params'].t_secondary) / self.model[instrument]['params'].per
+
+                                                # 2nd order Phase curve model: Fp + C1*cos(wt) - C1 + D1*sin(wt) + C2*cos(2wt) - C2 + D2*sin(2wt)
+                                                pc_CA08 = self.model[instrument]['params'].fp + ( C1_CA08 * (np.cos( omega_t ) - 1.) ) + ( D1_CA08 * np.sin( omega_t ) ) + ( C2_CA08 * (np.cos( 2*omega_t ) - 1.) ) + ( D2_CA08 * np.sin( 2*omega_t ) )
+
+                                                # Adding the pc_CA08 model to the full phase curve model
+                                                phase_curve_model = phase_curve_model + pc_CA08
+
+                                                # And multiplying the PC model with the occultation model (we will do this outside of this if/else loop)
+                                                #sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            if self.dictionary[instrument]['LambertPCFit']:
+
+                                                # The Lambertian model is from Deline et al. (2022); see their Section 4.4.3.
+
+                                                ## First we need to find true anomaly
+                                                true_anomaly = self.model[instrument]['m'][1].get_true_anomaly()
+
+                                                # Now computing alpha
+                                                alpha_phs = np.arccos( -np.sin( np.radians(self.model[instrument]['m'][1].w) + true_anomaly ) * np.sin( np.radians( self.model[instrument]['m'][1].inc ) ) )
+
+                                                # Eccentricity factor
+                                                ecc_facs = ( 1 + self.model[instrument]['m'][1].ecc * np.cos( true_anomaly ) ) / ( 1 - self.model[instrument]['m'][1].ecc**2 )
+
+                                                lambert_model = Ag_Lambert * ( self.model[instrument]['m'][1].rp * ecc_facs / self.model[instrument]['m'][1].a )**2 * ( np.sin(alpha_phs) + (np.pi - alpha_phs)*np.cos(alpha_phs) ) / np.pi
+
+                                                # Finally, adding Lambert model to the phase curve model
+                                                phase_curve_model = phase_curve_model + lambert_model
+
+                                            if self.dictionary[instrument]['KelpHomoPCFit']:
+
+                                                kelp_homo_refl_pc = kelp_homogeneous_refl_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                                   t0=self.model[instrument]['params'].t0,\
+                                                                                                   per=self.model[instrument]['params'].per,\
+                                                                                                   ar=self.model[instrument]['params'].a,\
+                                                                                                   rprs=self.model[instrument]['params'].rp,\
+                                                                                                   g=g_scatasym, single_scat_albedo=w_singlescat,\
+                                                                                                   nknots=self.kelp_refl_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_homo_refl_pc
+
+                                            if self.dictionary[instrument]['KelpThmPCFit']:
+
+                                                kelp_thm_pc = kelp_thermal_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                    t0=self.model[instrument]['params'].t0,\
+                                                                                    per=self.model[instrument]['params'].per,\
+                                                                                    ar=self.model[instrument]['params'].a,\
+                                                                                    rprs=self.model[instrument]['params'].rp,\
+                                                                                    filter_wavelength=self.kelp_filt_wav[instrument],\
+                                                                                    filter_transmittance=self.kelp_filt_trans[instrument],\
+                                                                                    hotspot_offset=hotspot_off, c11=cml11, fprime=fprime,\
+                                                                                    alpha=alpha_fluid, omega_drag=wdrag, Teff=self.stellar_teff,\
+                                                                                    ntheta=self.kelp_ntheta, nphi=self.kelp_nphi,\
+                                                                                    nknots=self.kelp_thm_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_thm_pc
+
+                                            if self.dictionary[instrument]['KelpInhomoPCFit']:
+
+                                                kelp_inhomorefl_pc = kelp_inhomogeneous_refl_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                                      t0=self.model[instrument]['params'].t0,\
+                                                                                                      per=self.model[instrument]['params'].per,\
+                                                                                                      ar=self.model[instrument]['params'].a,\
+                                                                                                      rprs=self.model[instrument]['params'].rp,\
+                                                                                                      w0=w0, wp=wp, Ag=agkelp, x1=x1, x2=x2,\
+                                                                                                      nknots=self.kelp_refl_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the total phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_inhomorefl_pc
+
+                                            # Now multiplying the phase curve model with the occultation model
+                                            phase_curve_model = 1 + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            self.model[instrument]['M'] += transit_model * phase_curve_model - 1.
  
                                 else:
                                   
@@ -3935,26 +4396,115 @@ class model(object):
                                         eclipse_model = m[1].light_curve(self.model[instrument]['params'])
 
                                         # Now, figure out if a phase-curve model is being fit or not:
-                                        if not self.dictionary[instrument]['PhaseCurveFit']:
+                                        if (not self.dictionary[instrument]['PhaseCurveFit']) and (not self.dictionary[instrument]['CowanAgolPCFit']) and (not self.dictionary[instrument]['LambertPCFit']) and (not self.dictionary[instrument]['KelpHomoPCFit']) and (not self.dictionary[instrument]['KelpThmPCFit']) and (not self.dictionary[instrument]['KelpInhomoPCFit']):
 
                                             eclipse_model = eclipse_model - self.model[instrument]['params'].fp
                                             self.model[instrument]['p'+str(i)] = transit_model * eclipse_model
 
                                         else:
 
-                                            orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
-                                            center_phase = - np.pi / 2.
+                                            # We are creating one more variable, called phase_curve_model, and defining it outside of this if/else loop
+                                            # This is because if there are more than one phase curve models (e.g., reflected + thermal), we can add them
 
-                                            # Build model. First, the basis sine function:
-                                            sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
-                                            # Scale to be 1 at secondary eclipse, 0 at transit:
-                                            sine_model = (sine_model + 1) * 0.5
-                                            # Amplify by phase-amplitude:
-                                            sine_model = (self.model[instrument]['params'].fp) * sine_model
-                                            # Multiply by normed eclipse model:
-                                            sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+                                            phase_curve_model = np.zeros( len( self.model[instrument]['m'][1].t ) )
 
-                                            self.model[instrument]['p'+str(i)] = transit_model * sine_model
+                                            if self.dictionary[instrument]['PhaseCurveFit']:
+
+                                                orbital_phase = ( ( ( self.model[instrument]['m'][1].t - self.model[instrument]['params'].t0 ) / self.model[instrument]['params'].per ) % 1 )
+                                                center_phase = - np.pi / 2.
+
+                                                # Build model. First, the basis sine function:
+                                                sine_model = np.sin(2. * np.pi * (orbital_phase) + center_phase + phase_offset * (np.pi / 180.) )
+                                                # Scale to be 1 at secondary eclipse, 0 at transit:
+                                                sine_model = (sine_model + 1) * 0.5
+                                                # Amplify by phase-amplitude:
+                                                sine_model = (self.model[instrument]['params'].fp) * sine_model
+                                                
+                                                # Adding the sine_model to the full phase curve model
+                                                phase_curve_model = phase_curve_model + sine_model
+
+                                                # Multiply by normed eclipse model (we will do this outside of this if/else loop):
+                                                #sine_model = 1. + sine_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            if self.dictionary[instrument]['CowanAgolPCFit']:
+
+                                                # Computing (sort of phase: I am following Zhang et al. 2024)
+                                                omega_t = 2 * np.pi * (self.model[instrument]['m'][1].t - self.model[instrument]['params'].t_secondary) / self.model[instrument]['params'].per
+
+                                                # 2nd order Phase curve model: Fp + C1*cos(wt) - C1 + D1*sin(wt) + C2*cos(2wt) - C2 + D2*sin(2wt)
+                                                pc_CA08 = self.model[instrument]['params'].fp + ( C1_CA08 * (np.cos( omega_t ) - 1.) ) + ( D1_CA08 * np.sin( omega_t ) ) + ( C2_CA08 * (np.cos( 2*omega_t ) - 1.) ) + ( D2_CA08 * np.sin( 2*omega_t ) )
+
+                                                # Adding the pc_CA08 model to the full phase curve model
+                                                phase_curve_model = phase_curve_model + pc_CA08
+
+                                                # And multiplying the PC model with the occultation model (we will do this outside of this if/else loop)
+                                                #sine_model = 1. + pc_CA08 * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            if self.dictionary[instrument]['LambertPCFit']:
+
+                                                # The Lambertian model is from Deline et al. (2022); see their Section 4.4.3.
+
+                                                ## First we need to find true anomaly
+                                                true_anomaly = self.model[instrument]['m'][1].get_true_anomaly()
+
+                                                # Now computing alpha
+                                                alpha_phs = np.arccos( -np.sin( np.radians(self.model[instrument]['m'][1].w) + true_anomaly ) * np.sin( np.radians( self.model[instrument]['m'][1].inc ) ) )
+
+                                                # Eccentricity factor
+                                                ecc_facs = ( 1 + self.model[instrument]['m'][1].ecc * np.cos( true_anomaly ) ) / ( 1 - self.model[instrument]['m'][1].ecc**2 )
+
+                                                lambert_model = Ag_Lambert * ( self.model[instrument]['m'][1].rp * ecc_facs / self.model[instrument]['m'][1].a )**2 * ( np.sin(alpha_phs) + (np.pi - alpha_phs)*np.cos(alpha_phs) ) / np.pi
+
+                                                # Finally, adding Lambert model to the phase curve model
+                                                phase_curve_model = phase_curve_model + lambert_model
+
+                                            if self.dictionary[instrument]['KelpHomoPCFit']:
+
+                                                kelp_homo_refl_pc = kelp_homogeneous_refl_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                                   t0=self.model[instrument]['params'].t0,\
+                                                                                                   per=self.model[instrument]['params'].per,\
+                                                                                                   ar=self.model[instrument]['params'].a,\
+                                                                                                   rprs=self.model[instrument]['params'].rp,\
+                                                                                                   g=g_scatasym, single_scat_albedo=w_singlescat,\
+                                                                                                   nknots=self.kelp_refl_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_homo_refl_pc
+
+                                            if self.dictionary[instrument]['KelpThmPCFit']:
+
+                                                kelp_thm_pc = kelp_thermal_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                    t0=self.model[instrument]['params'].t0,\
+                                                                                    per=self.model[instrument]['params'].per,\
+                                                                                    ar=self.model[instrument]['params'].a,\
+                                                                                    rprs=self.model[instrument]['params'].rp,\
+                                                                                    filter_wavelength=self.kelp_filt_wav[instrument],\
+                                                                                    filter_transmittance=self.kelp_filt_trans[instrument],\
+                                                                                    hotspot_offset=hotspot_off, c11=cml11, fprime=fprime,\
+                                                                                    alpha=alpha_fluid, omega_drag=wdrag, Teff=self.stellar_teff,\
+                                                                                    ntheta=self.kelp_ntheta, nphi=self.kelp_nphi,\
+                                                                                    nknots=self.kelp_thm_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_thm_pc
+
+                                            if self.dictionary[instrument]['KelpInhomoPCFit']:
+
+                                                kelp_inhomorefl_pc = kelp_inhomogeneous_refl_pc_model(times=self.model[instrument]['m'][1].t,\
+                                                                                                      t0=self.model[instrument]['params'].t0,\
+                                                                                                      per=self.model[instrument]['params'].per,\
+                                                                                                      ar=self.model[instrument]['params'].a,\
+                                                                                                      rprs=self.model[instrument]['params'].rp,\
+                                                                                                      w0=w0, wp=wp, Ag=agkelp, x1=x1, x2=x2,\
+                                                                                                      nknots=self.kelp_refl_interpolation_knots)
+                                                
+                                                # Finally, adding this model to the total phase curve model
+                                                phase_curve_model = phase_curve_model + kelp_inhomorefl_pc
+
+                                            # And finally multiplying the phase curve model with the occultation model
+                                            phase_curve_model = 1 + phase_curve_model * ((eclipse_model - 1.) / self.model[instrument]['params'].fp)
+
+                                            self.model[instrument]['p'+str(i)] = transit_model * phase_curve_model
 
                                         self.model[instrument]['M'] += self.model[instrument]['p'+str(i)] - 1.
 
@@ -4087,6 +4637,13 @@ class model(object):
                  ta=2458460.,
                  light_travel_delay = False,
                  stellar_radius = None,
+                 kelp_refl_interpolation_knots = None,
+                 kelp_thm_interpolation_knots = None,
+                 kelp_filt_wav = None,
+                 kelp_filt_trans = None,
+                 stellar_teff = None,
+                 kelp_ntheta = 5,
+                 kelp_nphi = 75,
                  log_like_calc=False):
         # Inhert the priors dictionary from data:
         self.priors = data.priors
@@ -4101,6 +4658,22 @@ class model(object):
             raise Exception('Error: if light_travel_delay is activated, a stellar radius needs to be given as well via stellar_radius = yourvalue; e.g., dataset.fit(..., light_travel_delay = True, stellar_radius = 1.1234).')
 
         self.stellar_radius = stellar_radius
+
+        # This is for kelp models: user can, instead of computing kelp models for all phases in the data, choose to
+        # compute kelp models for some grid values, and then interpolate over all phases to save time. We don't do this by default
+        # User can turn this feature on by providing number of knots for interpolation (separate parameters for reflective and thermal phase curve)
+        self.kelp_refl_interpolation_knots = kelp_refl_interpolation_knots
+        self.kelp_thm_interpolation_knots = kelp_thm_interpolation_knots
+
+        # Kelp thermal phase curve also needs transmission functions...
+        ## These needs to be dict, with keys corresponding to instrument names
+        self.kelp_filt_wav = kelp_filt_wav
+        self.kelp_filt_trans = kelp_filt_trans
+
+        # ... and stellar effective temperatures, and number of grid points along latitude (theta) and longitude (phi)
+        self.stellar_teff = stellar_teff
+        self.kelp_ntheta = kelp_ntheta
+        self.kelp_nphi = kelp_nphi
 
         # Save the log_like_calc boolean:
         self.log_like_calc = log_like_calc
@@ -4179,6 +4752,10 @@ class model(object):
             self.mdilution_iname = {}
             self.mflux_iname = {}
             self.fp_iname = {}
+            self.aglambert_iname = {}
+            self.kelphomo_iname = {}
+            self.kelpinhomo_iname = {}
+            self.kelpthm_iname = {}
             self.phaseoffset_iname = {}
             # To make transit depth (for batman and catwoman models) will be shared by different instruments, set the correct variable name for each:
             self.p_iname = {}
@@ -4189,6 +4766,10 @@ class model(object):
                 self.p_iname['p' + str(i)] = {}
                 self.p1_iname['p' + str(i)] = {}
                 self.fp_iname['p' + str(i)] = {}
+                self.aglambert_iname['p' + str(i)] = {}
+                self.kelphomo_iname['p' + str(i)] = {}
+                self.kelpinhomo_iname['p' + str(i)] = {}
+                self.kelpthm_iname['p' + str(i)] = {}
                 self.phaseoffset_iname['p' + str(i)] = {}
             self.ndatapoints_all_instruments = 0
             # Variable that turns to false only if there are no TTVs. Otherwise, always positive:
@@ -4366,6 +4947,114 @@ class model(object):
                         else:
 
                             raise Exception('Prior for fp is not properly defined: must be, e.g., fp_p1, fp_p1_inst or fp_p1_inst1_inst2. Currently is '+pname)
+                        
+                    if pname[0:9] == 'aglambert':
+
+                        # Note that amplitude can be a planetary and instrumental parameter
+                        vec = pname.split('_')
+                        if len(vec) > 3:
+
+                            # This is the case in which multiple instrument share the parameter
+                            if instrument in vec:
+                                self.aglambert_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+
+                        elif len(vec) == 3:
+
+                            # This is the case of a single instrument
+                            if instrument in vec:
+                                self.aglambert_iname[vec[1]][instrument] = '_' + vec[2]
+                        
+                        elif len(vec) == 2:
+
+                            # This adds back-compatibility so users can define a common prior for all instruments:
+                            self.aglambert_iname[vec[1]][instrument] = ''
+                        
+                        else:
+
+                            raise Exception('Prior for aglambert is not properly defined: must be, e.g., aglambert_p1, aglambert_p1_inst or aglambert_p1_inst1_inst2. Currently is '+pname)
+                        
+                    if pname[0:10] == 'singlescat':
+
+                        # Note that single scattering albedo can be a planetary and instrumental parameter
+
+                        vec = pname.split('_')
+                        if len(vec) > 3:
+
+                            # This is the case in which multiple instruments share the parameter:
+                            if instrument in vec:
+
+                                self.kelphomo_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+
+                        elif len(vec) == 3:
+
+                            # This is the case of a single instrument:
+                            if instrument in vec:
+
+                                self.kelphomo_iname[vec[1]][instrument] = '_' + vec[2]
+
+                        elif len(vec) == 2:
+
+                            # This adds back-compatibility so users can define a common for all instruments:
+                            self.kelphomo_iname[vec[1]][instrument] = ''
+
+                        else:
+
+                            raise Exception('Prior for singlescat is not properly defined: must be, e.g., singlescat_p1, singlescat_p1_inst or singlescat_p1_inst1_inst2. Currently is '+pname)
+                        
+                    if pname[0:5] == 'cml11':
+
+                        # Note that cml11 can be a planetary and instrumental parameter
+                        vec = pname.split('_')
+                        if len(vec) > 3:
+
+                            # This is the case in which multiple instruments share the parameter:
+                            if instrument in vec:
+
+                                self.kelpthm_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+
+                        elif len(vec) == 3:
+
+                            # This is the case of a single instrument:
+                            if instrument in vec:
+
+                                self.kelpthm_iname[vec[1]][instrument] = '_' + vec[2]
+
+                        elif len(vec) == 2:
+
+                            # This adds back-compatibility so users can define a common for all instruments:
+                            self.kelpthm_iname[vec[1]][instrument] = ''
+
+                        else:
+
+                            raise Exception('Prior for cml11 is not properly defined: must be, e.g., cml11_p1, cml11_p1_inst or cml11_p1_inst1_inst2. Currently is '+pname)
+                        
+                    if pname[0:6] == 'agkelp':
+
+                        # Note that the agkelp parameter can be a planetary and instrumental parameter
+                        vec = pname.split('_')
+                        if len(vec) > 3:
+
+                            # This is the case in which multiple instruments share the parameter:
+                            if instrument in vec:
+
+                                self.kelpinhomo_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+
+                        elif len(vec) == 3:
+
+                            # This is the case of a single instrument:
+                            if instrument in vec:
+
+                                self.kelpinhomo_iname[vec[1]][instrument] = '_' + vec[2]
+
+                        elif len(vec) == 2:
+
+                            # This adds back-compatibility so users can define a common for all instruments:
+                            self.kelpinhomo_iname[vec[1]][instrument] = ''
+
+                        else:
+
+                            raise Exception('Prior for agkelp is not properly defined: must be, e.g., agkelp_p1, agkelp_p1_inst or agkelp_p1_inst1_inst2. Currently is '+pname)
+
 
                     if pname[0:11] == 'phaseoffset':
                     
