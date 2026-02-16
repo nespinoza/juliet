@@ -4,6 +4,12 @@ import batman
 try:
     import catwoman
     have_catwoman = True
+
+    major,minor,bug = catwoman.__version__.split('.')
+    int(major) < 1 or (int(major) == 1 and int(minor) < 1):
+
+        print('Warning: you are using a version of catwoman which is < 1.1.0; this can significantly bias your results (see Holmberg+2026). Please upgrade your version of catwoman to 1.1.0 and above.')
+
 except:
     have_catwoman = False
 
