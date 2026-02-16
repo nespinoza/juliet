@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.9] -
+## [2.2.9] - 2026-02-16
+### Added
+- Support for phase-curves (see PR #131 by Jayshil Patel).
+- `dynesty_save_states` and `dynesty_resume` (also see PR #131 by Jayshil Patel).
+- Warning to users using `catwoman` < 1.1.0 to account for major bug fix (see https://github.com/KathrynJones1/catwoman/blob/master/CHANGELOG.rst).
 ### Fixed
 - Linear models for RVs now work.
 - Long wait times to load large datasets (see issue #120).
