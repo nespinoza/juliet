@@ -138,6 +138,10 @@ class load(object):
             >>> priors['r1_p1']['distribution'] = 'Uniform'
             >>> priors['r1_p1']['hyperparameters'] = [0.,1.]
 
+        Transit priors can use ``depth_p1`` as an alternative to the planet-to-star radius ratio
+        ``p_p1``; internally this is converted through ``depth = sign(p) * p**2`` before evaluating
+        transit models.
+
         If a ``string``, this has to contain the filename to a proper juliet prior file; the prior ``dict`` will
         then be generated from there. A proper prior file has in the first column the name of the parameter,
         in the second the name of the distribution, and in the third the hyperparameters of that distribution for
@@ -987,6 +991,7 @@ class load(object):
         dictionary['ecc_parametrization'] = {}
         if dictype == 'lc':
             dictionary['efficient_bp'] = {}
+            dictionary['use_depth'] = {}
         for i in numbering_planets:
             if 'ecosomega_p' + str(i) in self.priors.keys():
                 dictionary['ecc_parametrization'][i] = 1
@@ -1006,6 +1011,18 @@ class load(object):
                     print('\t >> ecc,omega parametrization detected for ' +
                           dictype + ' planet p' + str(i))
             if dictype == 'lc':
+                depth_parameters = [
+                    pname for pname in self.priors.keys()
+                    if len(pname.split('_')) > 1 and
+                    pname.split('_')[0] == 'depth' and
+                    pname.split('_')[1] == 'p' + str(i)
+                ]
+                p_parameters = [
+                    pname for pname in self.priors.keys()
+                    if len(pname.split('_')) > 1 and
+                    pname.split('_')[0] == 'p' and
+                    pname.split('_')[1] == 'p' + str(i)
+                ]
                 # Check if Espinoza (2018), (b,p) parametrization is on:
                 if 'r1_p' + str(i) in self.priors.keys():
                     dictionary['efficient_bp'][i] = True
@@ -1014,6 +1031,20 @@ class load(object):
                               dictype + ' planet p' + str(i))
                 else:
                     dictionary['efficient_bp'][i] = False
+                dictionary['use_depth'][i] = len(depth_parameters) > 0
+                if dictionary['use_depth'][i]:
+                    if dictionary['efficient_bp'][i]:
+                        raise Exception(
+                            'Transit depth parametrization cannot be used with the (r1,r2) parametrization for planet p'
+                            + str(i) + '.')
+                    if len(p_parameters) > 0:
+                        raise Exception(
+                            'Transit depth and radius-ratio priors cannot both be defined for planet p'
+                            + str(i) + '. Use either depth_p' + str(i) +
+                            ' or p_p' + str(i) + '.')
+                    if self.verbose:
+                        print('\t >> depth parametrization detected for ' +
+                              dictype + ' planet p' + str(i))
 
         # Check if stellar density is in the prior:
         if dictype == 'lc':
@@ -2369,6 +2400,8 @@ class fit(object):
                         'fitrvquad']:
                     out['ta'] = self.ta
 
+            add_depth_derived_parameters(out['posterior_samples'])
+
             # Finally, save juliet output to pickle file:
             pickle.dump(
                 out,
@@ -2477,6 +2510,8 @@ class fit(object):
                     self.Ar = (self.pu - self.pl) / (2. + self.pl + self.pu)
                 if 'ta' in out.keys():
                     self.ta = out['ta']
+
+                add_depth_derived_parameters(out['posterior_samples'])
 
         # Either fit done or extracted. If doesn't exist, create the posteriors.dat file:
         if self.out_folder is not None:
@@ -2687,7 +2722,7 @@ class model(object):
 
         :param parameter_values: (optional, dict)
         Dictionary containing samples of the posterior distribution or, more generally, parameter valuesin it. Each key is a parameter name (e.g. 'p_p1',
-        'q1_TESS', etc.), and inside each of those keys an array of N samples is expected (i.e., parameter_values['p_p1'] is an array of length N). The
+        'depth_p1', 'q1_TESS', etc.), and inside each of those keys an array of N samples is expected (i.e., parameter_values['p_p1'] is an array of length N). The
         indexes have to be consistent between different parameters.
 
         :param all_samples: (optional, boolean)
@@ -3810,8 +3845,11 @@ class model(object):
                         if not self.dictionary['fitrho']:
                             if not self.dictionary[instrument][
                                     'TransitFitCatwoman']:
-                                a,b,p = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
-                                        parameter_values['p_p'+str(i) + self.p_iname['p' + str(i)][instrument]]
+                                a,b = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)]
+                                if self.dictionary['use_depth'][i]:
+                                    p = depth_to_p(parameter_values['depth_p'+str(i) + self.depth_iname['p' + str(i)][instrument]])
+                                else:
+                                    p = parameter_values['p_p'+str(i) + self.p_iname['p' + str(i)][instrument]]
                             else:
 
                                 a,b,p1,p2,phi = parameter_values['a_p'+str(i)], parameter_values['b_p'+str(i)],\
@@ -3826,8 +3864,11 @@ class model(object):
                             if not self.dictionary[instrument][
                                     'TransitFitCatwoman']:
 
-                                rho,b,p = parameter_values['rho'], parameter_values['b_p'+str(i)],\
-                                          parameter_values['p_p'+str(i) + self.p_iname['p' + str(i)][instrument]]
+                                rho,b = parameter_values['rho'], parameter_values['b_p'+str(i)]
+                                if self.dictionary['use_depth'][i]:
+                                    p = depth_to_p(parameter_values['depth_p'+str(i) + self.depth_iname['p' + str(i)][instrument]])
+                                else:
+                                    p = parameter_values['p_p'+str(i) + self.p_iname['p' + str(i)][instrument]]
 
                             else:
 
@@ -4765,11 +4806,13 @@ class model(object):
             self.phaseoffset_iname = {}
             # To make transit depth (for batman and catwoman models) will be shared by different instruments, set the correct variable name for each:
             self.p_iname = {}
+            self.depth_iname = {}
             self.p1_iname = {}
             # Since p, p1 (p2) and fp are all planetary and instrumental parameters,
             # we want to make sure that we have correct variable name for each instruments (when the instruments are shared) for _every_ planets.
             for i in self.numbering:
                 self.p_iname['p' + str(i)] = {}
+                self.depth_iname['p' + str(i)] = {}
                 self.p1_iname['p' + str(i)] = {}
                 self.fp_iname['p' + str(i)] = {}
                 self.aglambert_iname['p' + str(i)] = {}
@@ -5114,6 +5157,32 @@ class model(object):
                         else:
 
                             raise Exception('Prior for p is not properly defined: must be, e.g., p_p1, p_p1_inst or p_p1_inst1_inst2. Currently is '+pname)
+
+                    if pname[0:6] == 'depth_':
+
+                        vec = pname.split('_')
+                        if len(vec) > 3:
+
+                            # This is the case in which multiple instruments share a transit depth, e.g., depth_p1_TESS1_TESS2
+                            if instrument in vec:
+
+                                self.depth_iname[vec[1]][instrument] = '_' + '_'.join(vec[2:])
+
+                        elif len(vec) == 3:
+
+                            # This is the case of a single instrument with depth, e.g., depth_p1_TESS:
+                            if instrument in vec:
+
+                                self.depth_iname[vec[1]][instrument] = '_' + vec[2]
+
+                        elif len(vec) == 2:
+
+                            # This adds back-compatibility so users can define a common depth for all instruments (e.g., depth_p1):
+                            self.depth_iname[vec[1]][instrument] = ''
+
+                        else:
+
+                            raise Exception('Prior for depth is not properly defined: must be, e.g., depth_p1, depth_p1_inst or depth_p1_inst1_inst2. Currently is '+pname)
 
                     if pname[0:2] == 'p1':
 

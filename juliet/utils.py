@@ -599,6 +599,31 @@ def reverse_bp(r1, r2, pl, pu):
     return b, p
 
 
+def p_to_depth(p):
+    return np.sign(p) * np.asarray(p)**2
+
+
+def depth_to_p(depth):
+    return np.sign(depth) * np.sqrt(np.abs(depth))
+
+
+def depth_parameter_to_p_parameter(pname):
+    pvector = pname.split('_')
+    if pvector[0] != 'depth' or len(pvector) < 2:
+        raise ValueError('Parameter is not a depth parameter: ' + pname)
+    return 'p_' + '_'.join(pvector[1:])
+
+
+def add_depth_derived_parameters(posterior_samples):
+    for pname in list(posterior_samples.keys()):
+        if pname.split('_')[0] == 'depth':
+            p_pname = depth_parameter_to_p_parameter(pname)
+            if p_pname not in posterior_samples:
+                posterior_samples[p_pname] = depth_to_p(
+                    posterior_samples[pname])
+    return posterior_samples
+
+
 from scipy.stats import gamma, norm, beta, truncnorm, lognorm
 import numpy as np
 
@@ -867,12 +892,13 @@ def readpriors(priorname):
                 pvector = parameter.split('_')
 
                 # Check if parameter/planet is from a transiting planet:
-                if pvector[0] == 'r1' or pvector[0] == 'b':#'p' or pvector[
+                if pvector[0] == 'r1' or pvector[0] == 'b' or pvector[0] == 'depth':#'p' or pvector[
                         #0] == 'phi':
 
                     pnumber = int(pvector[1][1:])
-                    numbering_transit = np.append(numbering_transit, pnumber)
-                    n_transit += 1
+                    if pnumber not in numbering_transit:
+                        numbering_transit = np.append(numbering_transit, pnumber)
+                        n_transit += 1
 
                 # Check if parameter/planet is from a RV planet:
                 if pvector[0] == 'K':
@@ -1044,6 +1070,7 @@ def bin_data(x, y, n_bin, yerr = None, method = 'median'):
 
 
 def writepp(fout, posteriors, priors):
+    add_depth_derived_parameters(posteriors['posterior_samples'])
     if 'pu' in posteriors:
         pu = posteriors['pu']
         pl = posteriors['pl']
