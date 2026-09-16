@@ -3092,6 +3092,7 @@ class model(object):
                                         ginstrument] = nt
                                     self.instrument_indexes[
                                         ginstrument] = dummy_indexes
+                                    self.times[ginstrument] = t
                                 original_inames = copy.deepcopy(self.inames)
                                 self.inames = [instrument]
                                 self.generate_lc_model(
@@ -3109,6 +3110,7 @@ class model(object):
                                     self.lm_arguments[instrument] = LMregressors
                                 self.model[instrument]['ones'] = np.ones(nt)
                                 self.ndatapoints_per_instrument[instrument] = nt
+                                self.times[instrument] = t
                                 # Generate lightcurve model:
 
                                 self.generate_lc_model(
