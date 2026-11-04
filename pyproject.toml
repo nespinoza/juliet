@@ -1,0 +1,24 @@
+# Test and coverage configuration only. Packaging still lives in setup.py.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# "." makes the tests import this checkout, even if another juliet is installed in the environment.
+pythonpath = [".", "tests"]
+addopts = "--import-mode=importlib --strict-markers -ra"
+markers = [
+    "unit: fast checks of single functions against closed forms or scipy",
+    "golden: model and likelihood values compared with stored baselines",
+    "contract: public API behaviour, evaluation matrix and state handling",
+    "sampler: small real fits; needs --run-sampler",
+    "scientific: full tutorial fits, hours long; needs --run-scientific",
+    "requires_catwoman: skipped unless catwoman is installed",
+    "requires_kelp: skipped unless kelp is installed",
+    "requires_multinest: skipped unless pymultinest and libmultinest are available",
+]
+
+[tool.coverage.run]
+source = ["juliet"]
+branch = true
+
+[tool.coverage.report]
+show_missing = false
+skip_empty = true

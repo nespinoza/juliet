@@ -1,0 +1,78 @@
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  pinned:
+    # The reference job: the dependency versions that the baselines in tests/golden/data were made with.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r tests/requirements-pinned.txt pytest pytest-cov
+      - run: pytest --cov --cov-report=term --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+
+  pythons:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+        include:
+          - os: macos-latest
+            python-version: '3.12'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install . pytest
+      - run: pytest
+
+  latest-dependencies:
+    # Allowed to fail: this warns about upcoming changes in dependencies, it does not judge the PR.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install --upgrade . pytest
+      - run: pytest
+
+  baselines-changed-on-purpose:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Baseline changes must be recorded in tests/golden/CHANGES.md
+        run: |
+          changed=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          if echo "$changed" | grep -q '^tests/golden/data/' && ! echo "$changed" | grep -q '^tests/golden/CHANGES.md$'; then
+            echo "tests/golden/data changed without an entry in tests/golden/CHANGES.md."
+            exit 1
+          fi
+
+  samplers:
+    # Slower and statistical: reported separately, so a rare flake isn't mistaken for a numerical change.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r tests/requirements-pinned.txt pytest
+      - run: pytest tests/sampler --run-sampler
