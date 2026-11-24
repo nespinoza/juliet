@@ -10,6 +10,8 @@ markers = [
     "contract: public API behaviour, evaluation matrix and state handling",
     "sampler: small real fits; needs --run-sampler",
     "scientific: full tutorial fits, hours long; needs --run-scientific",
+    "tutorials: runs the code blocks of the documentation; needs --run-tutorials",
+    "writes_to_cwd: leaves result files in the (temporary) working directory on purpose",
     "requires_catwoman: skipped unless catwoman is installed",
     "requires_kelp: skipped unless kelp is installed",
     "requires_multinest: skipped unless pymultinest and libmultinest are available",
