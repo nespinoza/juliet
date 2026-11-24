@@ -14,7 +14,8 @@ The old scripts that did real fits at import time are now in `examples/validatio
 |---|---|---|
 | `unit/` | Single functions against scipy and closed forms. `test_gp_dense.py` checks every GP kernel against a dense calculation. | Always |
 | `golden/` | Models, likelihoods and `evaluate` output at fixed parameters, against stored baselines. | Always |
-| `contract/` | The evaluation matrix, state handling, public signatures, reading results. Known bugs live here. | Always |
+| `contract/` | The evaluation matrix, state handling, public signatures and attributes, the functions `fit` hands to samplers, pickling, reading and writing files. Known bugs live here. | Always |
+| `contract/test_tutorial_replay.py` | Every Python block of the documentation, run in order with 50 live points. | `--run-tutorials` |
 | `sampler/` | Each installed sampler recovers injected values. | `--run-sampler` |
 | `scientific/` | K2-140 and K2-32, against the paper's tables and a stored run. | `--run-scientific` |
 
@@ -72,6 +73,31 @@ The first CI runs (PR #139, Linux x86-64 against baselines made on macOS arm64) 
 | Near-zero elements of a celerite prediction (`gp_rv_global_CeleriteQPKernel`) | `1.4e-10`, which is `1.5e-11` of the array's largest value | `1e-9` of the largest value |
 
 The celerite difference appears on some Linux runners and not others with the same Python and packages, so it follows the runner's CPU.
+
+## Fits without a sampler
+
+Most contract tests need a finished fit but not a sampler. `contract/helpers.py` has `fit_without_sampling`, which writes a results file as juliet does and lets `fit()` read it. Two things to know:
+
+- `fit()` ends by replacing its dictionary of current parameter values with the results, so `loglike` fails on the object it returns when a parameter is fixed (a strict xfail in `test_review_findings.py`). `restore_parameters` undoes that for tests that call `loglike`.
+- A test that leaves result files in its working directory fails, because a fit without `out_folder` reads whatever results it finds there. Always pass `out_folder`. The few tests that check this behaviour are marked `writes_to_cwd`.
+
+## Saving and reloading a dataset
+
+`load(out_folder=...)` writes data with ten decimals, so `load(input_folder=...)` gives a slightly different dataset. Measured over the golden configurations (`contract/test_file_round_trip.py`):
+
+| Data | Largest change in the log-likelihood |
+|---|---:|
+| Photometry | `2e-5` (and `3e-4` on a log-likelihood of `-8e6`) |
+| Photometry and RVs | `9e-5` |
+| RVs | `2e-9` |
+
+`ld_laws`, the supersampling arguments and `matern_eps` aren't written, so they must be given again when reloading. `non_linear_functions` is ignored for data read from files. Both are strict xfails.
+
+## Tutorials
+
+`pytest --run-tutorials` runs the code blocks of `docs/user/quicktest.rst` and `docs/tutorials/*.rst`, about ten minutes. Fits are forced to dynesty with 50 live points, so this checks that the documented calls work, not their numbers. The three TESS light curves come from `tests/data/tess` (stored in step 0.4 of the refactoring plan) or from the folder in `JULIET_TEST_TESS_DATA`, and the tests skip without them. Blocks that fail today are listed with reasons in `FAILING`, in `contract/test_tutorial_replay.py`. To see what one page does:
+
+    python tests/contract/tutorial_replay.py docs/tutorials/rvfits.rst
 
 ## Samplers
 
