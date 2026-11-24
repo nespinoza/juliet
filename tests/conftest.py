@@ -14,9 +14,6 @@ import pytest
 import juliet
 from support import versions
 
-# This script is an untracked work in progress that does real fits at import time:
-collect_ignore = ['test_transit_and_eclipse_ltd.py']
-
 GOLDEN_DIR = Path(__file__).parent / 'golden'
 REASON_VARIABLE = 'JULIET_GOLDEN_REASON'
 
