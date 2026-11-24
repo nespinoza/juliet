@@ -97,3 +97,29 @@ def seeded_global_rng():
 @pytest.fixture
 def out_folder(tmp_path):
     return str(tmp_path / 'out') + '/'
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """On GitHub Actions, repeat each failure as an annotation, so it shows on the pull request's checks page."""
+    if not os.environ.get('GITHUB_ACTIONS'):
+        return
+    reports = [r for outcome in ('failed', 'error') for r in terminalreporter.stats.get(outcome, [])]
+    if not reports:
+        return
+
+    def escape(text):
+        return text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+
+    def last_lines(report, n):
+        return '\n'.join(str(report.longrepr).strip().splitlines()[-n:])
+
+    def cause(report):
+        crash = getattr(report.longrepr, 'reprcrash', None)
+        return (crash.message if crash else last_lines(report, 1)).replace('\n', ' ')[:300]
+
+    # GitHub keeps ten error annotations per step: nine failures in detail, then one with every name.
+    for report in reports[:9]:
+        print('::error title={}::{}'.format(escape(report.nodeid).replace(',', '%2C').replace(':', '%3A'),
+                                           escape(last_lines(report, 25))))
+    print('::error title={} failed or errored::{}'.format(
+        len(reports), escape('\n'.join('{} | {}'.format(r.nodeid, cause(r)) for r in reports)[:60000])))
