@@ -53,6 +53,7 @@ Two facts about the current code make the contract easier to keep than it looks 
 | The suite passes in about 21 s | Ran `pytest` in the `transitspectroscopy` conda environment | 442 passed, 69 xfailed, 23 skipped, 17 s. The 6 extra skips are catwoman, which isn't installed in this environment. |
 | 132 baselines | Counted configurations and files | 136 configurations, 132 with a stored baseline. The other 4 are kelp placeholders. |
 | Baseline environment is pinned | Compared `pip list` with `tests/requirements-pinned.txt` | Not reproducible as recorded: catwoman is absent here, and celerite reports version `0.0.0` |
+| The same, in a clean environment (step 0.2) | Built a fresh Python 3.12 virtual environment from the pinned file alone | Every stored baseline reproduces: 453 passed, 71 xfailed, 18 skipped. One package was missing from the file, `setuptools` (now added). The `0.0.0` was a quirk of the conda environment, not of the pins. |
 | `evaluate_model` rewrites model state | Read the function | Confirmed. It rebuilds batman objects, narrows `self.inames`, and swaps times and indexes back and forth. |
 | The result pickle and prior parsing | Read `fit.__init__`, `readpriors`, `generate_datadict` | See 2.4 for what I found beyond the Opus plan |
 | The whole package | Second pass: read all of `fit.py` (5782 lines) and `utils.py` (1265), and ran probes in a scratch directory | See 2.6 |
@@ -510,6 +511,7 @@ Every step here is a minimal edit inside the existing functions. **No code moves
 - **Category:** B. **Depends on:** 0.2.
 - **Do:**
   1. `setup.py`: `extras_requires` becomes `extras_require`, and `python_requires` becomes the lowest version CI passes on (decision D6).
+  1b. Add `setuptools` to `install_requires`. Found in step 0.2: in a fresh Python 3.12 environment `import juliet` fails, because batman 2.5.3 imports `distutils`, which Python 3.12 removed and only setuptools still provides. Conda environments hide this because they ship setuptools.
   2. Make `juliet/plots.py` importable on current matplotlib, or empty it. Its import of `mpl_toolkits.axes_grid` fails today.
   3. Warn, without raising, on NaN or infinite values in the data (#41), and on `light_travel_delay=True` together with a `t_secondary` prior (#119).
   4. `load.save()` copies files with `shutil.copyfile` in place of `os.system('cp ...')`. Same for the `rm -r` in `get_all_TESS_data`.

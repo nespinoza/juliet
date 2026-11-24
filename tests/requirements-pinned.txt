@@ -12,3 +12,5 @@ astropy==7.2.2
 h5py==3.16.0
 matplotlib==3.11.1
 catwoman==1.1.0
+# batman 2.5.3 imports distutils, which Python 3.12 removed and setuptools still provides:
+setuptools==84.0.0
