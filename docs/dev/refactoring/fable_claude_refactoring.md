@@ -377,6 +377,12 @@ Common rules for all steps:
   4. Read the Linux results. If golden tests fail only by floating-point noise, measure the largest difference and propose new tolerances with the measurements. Don't loosen a tolerance without numbers.
   5. Fix the roughly 22,000 numpy deprecation warnings only if they come from test code. If they come from `juliet/`, list their sources for step 1.6.
 - **Done when:** the pinned job and the Python 3.10 to 3.13 matrix are green on Linux and macOS, or each failure is explained.
+- **Status:** done on 2026-11-24 (PR #139, all 9 jobs green on `e875740`). Results:
+  - Linux differs from the macOS baselines in two places only: catwoman light curves (`7e-10` relative, up to `1.2e-7` in the log-likelihood) and near-zero elements of one celerite prediction (`1.5e-11` of the array's largest value, on some runners only). Tolerances were widened for those; measurements are in `tests/README.md`.
+  - `six` was missing from the pinned file (ultranest 4.5.0 imports it without declaring it).
+  - All the numpy deprecation warnings come from one line in a dependency, `george/metrics.py:59` (george 0.4.4), not from `juliet/` or the tests. Nothing to do in step 1.6.
+  - Python 3.10 to 3.13 all pass, which answers D6's question of what CI supports.
+  - Test failures now appear as annotations on the PR's checks page (`tests/conftest.py`).
 
 #### Step 0.3: widen the compatibility contract
 
