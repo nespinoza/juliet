@@ -12,7 +12,8 @@ import pytest
 
 from golden.compute import compute
 from golden.configs import CONFIGS
-from golden.tolerances import ARRAY_ABS, ARRAY_REL, LOGLIKE_ABS, LOGLIKE_REL
+from golden.tolerances import (ARRAY_ABS, ARRAY_ABS_OF_LARGEST, ARRAY_REL, CATWOMAN_ARRAY_REL, CATWOMAN_LOGLIKE_REL,
+                               LOGLIKE_ABS, LOGLIKE_REL)
 
 DATA = Path(__file__).parent / 'data'
 # With log_like_calc=True juliet doesn't fill these per-planet arrays, on purpose: they are placeholders.
@@ -26,11 +27,17 @@ PARAMETERS = [pytest.param(config, id=config.id,
               for config in CONFIGS]
 
 
-def assert_close(name, computed, stored):
+def assert_close(name, computed, stored, config):
+    catwoman = config.requires == 'requires_catwoman'
     if name.endswith('loglike'):
-        np.testing.assert_allclose(computed, stored, rtol=LOGLIKE_REL, atol=LOGLIKE_ABS, err_msg=name)
+        rtol = CATWOMAN_LOGLIKE_REL if catwoman else LOGLIKE_REL
+        np.testing.assert_allclose(computed, stored, rtol=rtol, atol=LOGLIKE_ABS, err_msg=name)
     else:
-        np.testing.assert_allclose(computed, stored, rtol=ARRAY_REL, atol=ARRAY_ABS, err_msg=name)
+        stored = np.asarray(stored)
+        finite = np.abs(stored[np.isfinite(stored)]) if stored.dtype.kind == 'f' else np.array([])
+        atol = ARRAY_ABS + ARRAY_ABS_OF_LARGEST * (finite.max() if finite.size else 0.)
+        rtol = CATWOMAN_ARRAY_REL if catwoman else ARRAY_REL
+        np.testing.assert_allclose(computed, stored, rtol=rtol, atol=atol, err_msg=name)
 
 
 def load_baseline(config):
@@ -55,7 +62,7 @@ def test_against_baseline(config, request):
     stored = load_baseline(config)
     assert sorted(computed) == sorted(stored), 'Quantities computed for this configuration changed.'
     for name in stored:
-        assert_close(name, computed[name], stored[name])
+        assert_close(name, computed[name], stored[name], config)
 
 
 @pytest.mark.parametrize('config', PARAMETERS)
@@ -66,4 +73,4 @@ def test_log_like_calc_agrees(config):
     for name in sorted(set(fast) & set(full)):
         if NOT_FILLED_DURING_FITS.search(name):
             continue
-        assert_close(name, fast[name], full[name])
+        assert_close(name, fast[name], full[name], config)

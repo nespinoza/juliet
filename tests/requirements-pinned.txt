@@ -8,6 +8,8 @@ celerite==0.4.3
 dynesty==2.1.5
 emcee==3.1.6
 ultranest==4.5.0
+# ultranest 4.5.0 imports six in its plotting module without declaring it:
+six==1.17.0
 astropy==7.2.2
 h5py==3.16.0
 matplotlib==3.11.1

@@ -51,7 +51,7 @@ Without a reason, this refuses to run. The reason, commit, date and dependency v
 
 ## Tolerances
 
-They're all in `golden/tolerances.py`: `1e-8` absolute on log-likelihoods, `1e-10` relative plus `1e-12` absolute on arrays.
+They're all in `golden/tolerances.py`: `1e-8` absolute on log-likelihoods, `1e-10` relative on arrays, plus an absolute `1e-12` and `1e-9` of the array's largest value for its elements near zero. catwoman configurations get `1e-8` relative on arrays and `1e-7` on log-likelihoods.
 
 They were measured, comparing all baselines with fresh runs on one macOS machine:
 
@@ -61,7 +61,17 @@ They were measured, comparing all baselines with fresh runs on one macOS machine
 | Python 3.13, radvel 1.6.6 | 0 | 0 |
 | Python 3.9, numpy 1.24, scipy 1.10, batman 2.4.9, radvel 1.4.11, george 0.4.0, celerite 0.4.2 | `2e-8` (on a value of `-8e6`) | `3e-13` |
 
-The relative tolerance of `1e-13` on log-likelihoods exists for that `-8e6` case. They haven't been measured on Linux, where the first CI run will show whether they need adjusting.
+The relative tolerance of `1e-13` on log-likelihoods exists for that `-8e6` case. 
+
+The first CI runs (PR #139, Linux x86-64 against baselines made on macOS arm64) gave two differences, and the tolerances above were widened for them only:
+
+| Where | Difference | Tolerance now |
+|---|---:|---:|
+| catwoman light curves (it integrates numerically) | `7e-10` relative | `1e-8` |
+| catwoman log-likelihood | `3.4e-9` relative (`6.8e-6` on `-2006`) | `1e-7` |
+| Near-zero elements of a celerite prediction (`gp_rv_global_CeleriteQPKernel`) | `1.4e-10`, which is `1.5e-11` of the array's largest value | `1e-9` of the largest value |
+
+The celerite difference appears on some Linux runners and not others with the same Python and packages, so it follows the runner's CPU.
 
 ## Samplers
 
