@@ -10,6 +10,6 @@ ARRAY_ABS = 1e-12
 ARRAY_ABS_OF_LARGEST = 1e-9
 
 # catwoman integrates numerically, so its light curves depend on the platform: Linux differs from the macOS baselines
-# by 7e-10 relative in the model and 3.4e-9 relative in the log-likelihood.
+# by 7e-10 relative in the model and up to 1.2e-7 relative in the log-likelihood (supersampled case).
 CATWOMAN_ARRAY_REL = 1e-8
-CATWOMAN_LOGLIKE_REL = 1e-7
+CATWOMAN_LOGLIKE_REL = 1e-6

@@ -51,7 +51,7 @@ Without a reason, this refuses to run. The reason, commit, date and dependency v
 
 ## Tolerances
 
-They're all in `golden/tolerances.py`: `1e-8` absolute on log-likelihoods, `1e-10` relative on arrays, plus an absolute `1e-12` and `1e-9` of the array's largest value for its elements near zero. catwoman configurations get `1e-8` relative on arrays and `1e-7` on log-likelihoods.
+They're all in `golden/tolerances.py`: `1e-8` absolute on log-likelihoods, `1e-10` relative on arrays, plus an absolute `1e-12` and `1e-9` of the array's largest value for its elements near zero. catwoman configurations get `1e-8` relative on arrays and `1e-6` on log-likelihoods.
 
 They were measured, comparing all baselines with fresh runs on one macOS machine:
 
@@ -68,7 +68,7 @@ The first CI runs (PR #139, Linux x86-64 against baselines made on macOS arm64) 
 | Where | Difference | Tolerance now |
 |---|---:|---:|
 | catwoman light curves (it integrates numerically) | `7e-10` relative | `1e-8` |
-| catwoman log-likelihood | `3.4e-9` relative (`6.8e-6` on `-2006`) | `1e-7` |
+| catwoman log-likelihood | up to `1.2e-7` relative (`1.7e-4` on `-1376`, supersampled case) | `1e-6` |
 | Near-zero elements of a celerite prediction (`gp_rv_global_CeleriteQPKernel`) | `1.4e-10`, which is `1.5e-11` of the array's largest value | `1e-9` of the largest value |
 
 The celerite difference appears on some Linux runners and not others with the same Python and packages, so it follows the runner's CPU.
