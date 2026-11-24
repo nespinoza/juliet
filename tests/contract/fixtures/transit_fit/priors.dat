@@ -1,0 +1,12 @@
+P_p1                 fixed                1.7                 
+t0_p1                normal               2458460.5,0.01      
+a_p1                 fixed                6.0                 
+b_p1                 fixed                0.2                 
+p_p1                 uniform              0.0,0.2             
+ecc_p1               fixed                0.0                 
+omega_p1             fixed                90.0                
+q1_A                 fixed                0.3                 
+q2_A                 fixed                0.35                
+mdilution_A          fixed                1.0                 
+mflux_A              normal               0.0,0.001           
+sigma_w_A            fixed                50.0                
