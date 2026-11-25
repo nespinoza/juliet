@@ -398,6 +398,15 @@ Common rules for all steps:
   8. **Isolation.** An autouse fixture changes into a temporary directory for every test, and every `load` in the suite and in the tutorial replay passes an explicit `out_folder`, because of the first row of section 2.6. With the small sampler settings of item 1, call `evaluate` with `all_samples=True`.
 - **Don't:** change anything in `juliet/`.
 - **Done when:** all eight modules exist, and every current failure is a strict xfail with a reason.
+- **Status:** written on 2026-11-24 (branch `p0/contract-tests`). The tutorial replay needs `--run-tutorials` and the TESS light curves, which step 0.4 stores; until then it skips unless `JULIET_TEST_TESS_DATA` points at them. Found while writing it, all recorded as strict xfails:
+  - `loglike` can't be called on the object `fit()` returns when a parameter is fixed (`KeyError`).
+  - `ld_laws`, supersampling and `matern_eps` aren't written to `out_folder`, so `load(input_folder=...)` silently falls back to the defaults.
+  - `non_linear_functions` is ignored, with no warning, whenever data come from files (`input_folder`, `lcfilename`).
+  - An `exponential` prior in a dictionary together with `out_folder` raises `TypeError` in `save_priorfile`.
+  - An `exponential` prior read from a prior file can't be sampled with recent numpy (seen with 2.5.5; found by CI on PR #140): its transform returns a one-element array, and `prior_transform_r` raises `ValueError` when storing it. It works with the pinned numpy 2.2.6. Fix with the other prior fixes in step 1.6.
+  - `'Jeffreys'` fails like `'LogUniform'` in a prior dictionary. `'Uniform'`, `'Normal'`, `'TruncatedNormal'` and `'Beta'` work in any capitalisation.
+  - Tutorials: 10 blocks fail today (two broken line continuations, `plt.subplot('211')`, a missing `import numpy` in `ttvs.rst`, a regressor file missing from `docs/tutorials`). They are listed in `FAILING` in `tests/contract/test_tutorial_replay.py`, for step 7.4.
+  - The round trip through files changes the log-likelihood by up to `9e-5` (table in `tests/README.md`).
 
 #### Step 0.4: store the validation data
 

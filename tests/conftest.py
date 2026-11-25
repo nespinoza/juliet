@@ -29,6 +29,8 @@ def pytest_addoption(parser):
                      help='Rewrite stored baselines. Needs a non-empty ' + REASON_VARIABLE + ' environment variable.')
     parser.addoption('--run-sampler', action='store_true', help='Run the sampler tests (minutes).')
     parser.addoption('--run-scientific', action='store_true', help='Run the full tutorial fits (hours).')
+    parser.addoption('--run-tutorials', action='store_true',
+                     help='Run the code of the documentation pages with small sampler settings (minutes).')
 
 
 def pytest_configure(config):
@@ -60,6 +62,8 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.skip(reason='needs --run-sampler'))
         if item.get_closest_marker('scientific') and not config.getoption('--run-scientific'):
             item.add_marker(pytest.mark.skip(reason='needs --run-scientific'))
+        if item.get_closest_marker('tutorials') and not config.getoption('--run-tutorials'):
+            item.add_marker(pytest.mark.skip(reason='needs --run-tutorials'))
 
 
 def pytest_sessionfinish(session, exitstatus):
@@ -80,9 +84,20 @@ def pytest_sessionfinish(session, exitstatus):
 
 
 @pytest.fixture(autouse=True)
-def isolated_working_directory(tmp_path, monkeypatch):
-    """juliet writes to the working directory when it has no out_folder, so never run in the repository."""
+def isolated_working_directory(tmp_path, monkeypatch, request):
+    """
+    juliet writes to the working directory when it has no out_folder, so never run in the repository.
+
+    A fit without out_folder also reads any earlier results it finds in the working directory. So that no test does that
+    by accident, a test that leaves result files there fails, unless it is marked writes_to_cwd.
+    """
     monkeypatch.chdir(tmp_path)
+    yield
+    if request.node.get_closest_marker('writes_to_cwd'):
+        return
+    left = sorted(path.name for path in tmp_path.iterdir()
+                  if path.name.endswith('posteriors.pkl') or path.name in ('posteriors.dat', 'lc.dat', 'rvs.dat'))
+    assert not left, 'This test ran a fit without out_folder, which left {} in the working directory.'.format(left)
 
 
 @pytest.fixture(autouse=True)
