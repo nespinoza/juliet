@@ -4,6 +4,8 @@ Defects found in the full code review (section 2.6 of docs/dev/refactoring/fable
 Like test_known_bugs.py: each test states the correct behaviour and is a strict xfail, so the fix has to remove the
 mark. No sampler runs here. Where a test needs a finished fit, a results file is written first (see helpers.py).
 """
+import warnings
+
 import numpy as np
 import pytest
 from scipy import stats
@@ -193,8 +195,18 @@ def test_star_import():
 
 
 # ---------------------------------------------------------------- The Exponential prior (decision D12)
-def test_exponential_prior_is_a_gamma_distribution_in_a_fit(tmp_path):
-    """Frozen, not a defect to fix: D12 keeps the Gamma(shape) behaviour and corrects the documentation."""
+def numpy_stores_one_element_arrays():
+    """True where numpy still accepts ``array[i] = one_element_array`` (deprecated in 1.25, an error in newer versions)."""
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        try:
+            np.zeros(1)[0] = np.array([1.])
+        except ValueError:
+            return False
+    return True
+
+
+def exponential_prior_fit(tmp_path):
     out_folder = str(tmp_path / 'fit') + '/'
     (tmp_path / 'fit').mkdir()
     # From a prior file, as the docs describe. (The same prior in a dictionary fails: see the next test.)
@@ -203,9 +215,25 @@ def test_exponential_prior_is_a_gamma_distribution_in_a_fit(tmp_path):
     (tmp_path / 'fit' / 'priors.dat').write_text('\n'.join(lines + ['sigma_w_A exponential 2.0']) + '\n')
     write_results(out_folder, {'sigma_w_A': np.linspace(40., 60., 20)})
     data = lc_data()
-    results = juliet.load(priors=out_folder + 'priors.dat', out_folder=out_folder, **data).fit(sampler='dynesty')
+    return juliet.load(priors=out_folder + 'priors.dat', out_folder=out_folder, **data).fit(sampler='dynesty')
+
+
+def test_exponential_prior_is_a_gamma_distribution_in_a_fit(tmp_path):
+    """Frozen, not a defect to fix: D12 keeps the Gamma(shape) behaviour and corrects the documentation."""
+    results = exponential_prior_fit(tmp_path)
     assert results.paramnames == ['sigma_w_A']
-    assert float(np.squeeze(results.prior_transform_r(np.array([0.5]))[0])) == pytest.approx(stats.gamma(2.).ppf(0.5))
+    hyperparameters = results.data.priors['sigma_w_A']['hyperparameters']
+    value = results.transform_prior['sigma_w_A'](0.5, hyperparameters)
+    assert float(np.squeeze(value)) == pytest.approx(stats.gamma(2.).ppf(0.5))
+
+
+@pytest.mark.xfail(condition=not numpy_stores_one_element_arrays(), strict=True, raises=ValueError,
+                   reason='a prior file gives the exponential prior its hyperparameter as a one-element list, so the '
+                          'transform returns an array, which recent numpy refuses to store in the parameter vector')
+def test_exponential_prior_from_a_file_can_be_sampled(tmp_path):
+    results = exponential_prior_fit(tmp_path)
+    value = results.prior_transform_r(np.array([0.5]))[0]
+    assert float(np.squeeze(value)) == pytest.approx(stats.gamma(2.).ppf(0.5))
 
 
 @xfail(TypeError, 'save_priorfile joins the hyperparameters as a list, but an exponential prior has a single number: '

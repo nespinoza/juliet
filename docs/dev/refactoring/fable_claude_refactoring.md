@@ -403,6 +403,7 @@ Common rules for all steps:
   - `ld_laws`, supersampling and `matern_eps` aren't written to `out_folder`, so `load(input_folder=...)` silently falls back to the defaults.
   - `non_linear_functions` is ignored, with no warning, whenever data come from files (`input_folder`, `lcfilename`).
   - An `exponential` prior in a dictionary together with `out_folder` raises `TypeError` in `save_priorfile`.
+  - An `exponential` prior read from a prior file can't be sampled with recent numpy (seen with 2.5.5; found by CI on PR #140): its transform returns a one-element array, and `prior_transform_r` raises `ValueError` when storing it. It works with the pinned numpy 2.2.6. Fix with the other prior fixes in step 1.6.
   - `'Jeffreys'` fails like `'LogUniform'` in a prior dictionary. `'Uniform'`, `'Normal'`, `'TruncatedNormal'` and `'Beta'` work in any capitalisation.
   - Tutorials: 10 blocks fail today (two broken line continuations, `plt.subplot('211')`, a missing `import numpy` in `ttvs.rst`, a regressor file missing from `docs/tutorials`). They are listed in `FAILING` in `tests/contract/test_tutorial_replay.py`, for step 7.4.
   - The round trip through files changes the log-likelihood by up to `9e-5` (table in `tests/README.md`).
